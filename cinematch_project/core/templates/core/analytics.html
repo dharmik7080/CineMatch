@@ -1,0 +1,134 @@
+{% extends 'core/base.html' %}
+
+{% block title %}CineMatch - Analytics Dashboard{% endblock %}
+
+{% block extra_css %}
+    .dashboard-header {
+        background: linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%);
+        border: 1px solid var(--card-border);
+        border-radius: 20px;
+        padding: 2.5rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .analytics-card {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 20px;
+        padding: 2rem;
+        height: 100%;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        transition: border-color 0.3s ease;
+    }
+
+    .analytics-card:hover {
+        border-color: rgba(168, 85, 247, 0.3);
+    }
+
+    .card-title-dashboard {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-bottom: 1px solid var(--card-border);
+        padding-bottom: 0.75rem;
+    }
+
+    .card-title-dashboard i {
+        color: var(--accent-color);
+    }
+
+    .plot-img {
+        width: 100%;
+        height: auto;
+        border-radius: 12px;
+        background-color: #07070b;
+        border: 1px solid rgba(255,255,255,0.05);
+    }
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+    <!-- Header Panel -->
+    <div class="dashboard-header text-center">
+        <h1 class="fw-extrabold mb-2"><i class="fa-solid fa-chart-line text-accent me-2"></i>CineMatch Analytics</h1>
+        <p class="text-secondary mb-0">Academic verification statistics and visual metrics mapping (Unit 2 visualization criteria).</p>
+    </div>
+
+    <!-- Visualization Grid -->
+    <div class="row g-4 mb-4">
+        
+        <!-- 1. Correlation Heatmap (Seaborn) -->
+        <div class="col-lg-6">
+            <div class="analytics-card">
+                <h4 class="card-title-dashboard">
+                    <i class="fa-solid fa-circle-nodes"></i> Unit 2.1: Seaborn Feature Correlation Heatmap
+                </h4>
+                {% if heatmap_img %}
+                    <img src="data:image/png;base64,{{ heatmap_img }}" alt="Seaborn Feature Correlation Matrix" class="plot-img">
+                {% else %}
+                    <div class="text-center py-5 text-secondary">
+                        <i class="fa-solid fa-triangle-exclamation mb-2 fs-2"></i>
+                        <p>Unable to render Seaborn Heatmap</p>
+                    </div>
+                {% endif %}
+                <p class="small text-secondary mt-3 mb-0">Displays structural Pearson correlation coefficients between numerical metrics. Purple indicates positive correlation, whereas teal/blue shows negative relationships.</p>
+            </div>
+        </div>
+
+        <!-- 2. Network Topology (NetworkX) -->
+        <div class="col-lg-6">
+            <div class="analytics-card">
+                <h4 class="card-title-dashboard">
+                    <i class="fa-solid fa-diagram-project"></i> Unit 2.4: NetworkX Graph Topology
+                </h4>
+                {% if network_img %}
+                    <img src="data:image/png;base64,{{ network_img }}" alt="NetworkX Genre Relation Graph" class="plot-img">
+                {% else %}
+                    <div class="text-center py-5 text-secondary">
+                        <i class="fa-solid fa-triangle-exclamation mb-2 fs-2"></i>
+                        <p>Unable to render NetworkX Graph</p>
+                    </div>
+                {% endif %}
+                <p class="small text-secondary mt-3 mb-0">Plots structural connection coordinates using Spring layout embedding. <span class="text-primary fw-bold">Blue nodes</span> represent genre tags, while <span class="text-accent fw-bold">purple nodes</span> map user-watchlist titles.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="row mb-5">
+        
+        <!-- 3. Interactive Scatter Plot (Plotly) -->
+        <div class="col-12">
+            <div class="analytics-card">
+                <h4 class="card-title-dashboard">
+                    <i class="fa-solid fa-chart-column"></i> Unit 2.2: Plotly Express Multi-Dimensional Scatter
+                </h4>
+                {% if plotly_div %}
+                    <div class="ratio ratio-21x9 bg-dark rounded-3 overflow-hidden border border-secondary border-opacity-10">
+                        <div>
+                            {{ plotly_div|safe }}
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5 text-secondary">
+                        <i class="fa-solid fa-triangle-exclamation mb-2 fs-2"></i>
+                        <p>Unable to render Plotly Scatter plot</p>
+                    </div>
+                {% endif %}
+                <p class="small text-secondary mt-3 mb-0">Multi-dimensional coordinate scatter mapping: X-Axis (Budget), Y-Axis (Revenue), Color Scale (Ratings / Vote Average), and Node Radius (Popularity score). Hover over nodes to inspect movie names.</p>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <!-- Include Plotly JS CDN to allow interactive zoom/pan -->
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+{% endblock %}

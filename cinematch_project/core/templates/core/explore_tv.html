@@ -1,0 +1,287 @@
+{% extends 'core/base.html' %}
+
+{% block title %}CineMatch - Explore TV Shows{% endblock %}
+
+{% block extra_css %}
+    /* Custom Styling for Explore Grid */
+    .explore-header {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%);
+        border: 1px solid var(--card-border);
+        border-radius: 20px;
+        padding: 2.5rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .search-input-group {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--card-border);
+        border-radius: 30px;
+        padding: 0.25rem 0.5rem;
+        display: flex;
+        align-items: center;
+        max-width: 600px;
+        margin: 0 auto;
+        transition: all 0.3s ease;
+    }
+
+    .search-input-group:focus-within {
+        border-color: var(--accent-color);
+        box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    .search-input-group input {
+        background: transparent;
+        border: none;
+        color: #ffffff;
+        padding: 0.5rem 1rem;
+        width: 100%;
+        outline: none;
+    }
+
+    .search-input-group input::placeholder {
+        color: var(--text-secondary);
+    }
+
+    .search-btn {
+        background: var(--primary-glow);
+        border: none;
+        border-radius: 25px;
+        color: #ffffff;
+        padding: 0.5rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .search-btn:hover {
+        opacity: 0.9;
+    }
+
+    /* Cinematic Aspect Ratio & Card Resizing */
+    .show-card {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+        overflow: hidden;
+        transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+        position: relative;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .show-card:hover {
+        transform: translateY(-8px);
+        border-color: rgba(168, 85, 247, 0.4);
+        box-shadow: 0 10px 30px rgba(168, 85, 247, 0.15);
+    }
+
+    /* Image container optimized to exact 2:3 cinematic ratio standing alone */
+    .movie-poster-container {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 2 / 3; /* Enforce 2:3 cinematic portrait ratio */
+        overflow: hidden;
+        background: #0f0f15;
+    }
+
+    .movie-poster-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover; /* Perfect proportion inside catalog grids */
+        transition: transform 0.5s ease;
+    }
+
+    .show-card:hover .movie-poster-container img {
+        transform: scale(1.05);
+    }
+
+    /* Standard Card-Body Wrapper Sit Directly Underneath the Image */
+    .card-body-content {
+        padding: 1.25rem;
+        background: transparent;
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        justify-content: space-between;
+    }
+
+    .card-title-custom {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: #ffffff;
+    }
+
+    .badge-media {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        background: rgba(4, 4, 6, 0.75);
+        backdrop-filter: blur(5px);
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        z-index: 5;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .watchlist-btn-overlay {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 5;
+    }
+
+    .btn-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(255,255,255,0.1);
+        transition: all 0.3s ease;
+    }
+
+    .btn-circle:hover {
+        transform: scale(1.1);
+    }
+
+    /* Premium Pagination Custom Styles */
+    .pagination .page-link {
+        transition: all 0.3s ease;
+    }
+    .pagination .page-link:hover {
+        background-color: var(--accent-color) !important;
+        border-color: var(--accent-color) !important;
+        color: #ffffff !important;
+    }
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+    <!-- Header & Search Controls -->
+    <div class="explore-header text-center">
+        <h1 class="fw-extrabold mb-2">Explore TV Series Library</h1>
+        <p class="text-secondary mb-4">Discover ongoing shows and multi-season dramas to compile your personal watchlist.</p>
+        
+        <form method="GET" action="." class="search-input-group">
+            <i class="fa-solid fa-magnifying-glass ms-3 text-secondary"></i>
+            <input type="text" name="q" placeholder="Search TV shows by name, overview keyword..." value="{{ request.GET.q }}">
+            <button type="submit" class="search-btn">Search</button>
+        </form>
+    </div>
+
+    <!-- TV Show Grid -->
+    <h3 class="fw-bold mb-4"><i class="fa-solid fa-list-ul text-accent me-2"></i> Catalog List</h3>
+    
+    {% if tv_shows %}
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 mb-5">
+            {% for tv in tv_shows %}
+                <div class="col">
+                    <div class="show-card">
+                        <div class="movie-poster-container">
+                            <span class="badge-media"><i class="fa-solid fa-tv text-warning me-1"></i> TV Show</span>
+                            
+                            <!-- Watchlist Action Button -->
+                            <div class="watchlist-btn-overlay">
+                                <button onclick="toggleWatchlist(this, {{ tv.id }}, 'tv')" 
+                                        class="btn btn-circle {% if tv.id in watchlist_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}"
+                                        data-saved="{% if tv.id in watchlist_ids %}true{% else %}false{% endif %}"
+                                        title="Watchlist">
+                                    {% if tv.id in watchlist_ids %}
+                                        <i class="fa-solid fa-bookmark text-warning"></i>
+                                    {% else %}
+                                        <i class="fa-regular fa-bookmark"></i>
+                                    {% endif %}
+                                </button>
+                            </div>
+                            
+                            <!-- Dynamic variable image with fallback check -->
+                            {% if tv.poster_url %}
+                                <img src="{{ tv.poster_url }}" alt="{{ tv.title }}">
+                            {% else %}
+                                <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
+                                    <i class="fa-solid fa-tv fs-1"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="card-body-content">
+                            <!-- Long titles wrapped in text-truncate class -->
+                            <h5 class="card-title-custom text-truncate" title="{{ tv.title }}">{{ tv.title }}</h5>
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <span class="small text-secondary">ID: {{ tv.id }}</span>
+                                <button onclick="location.href='https://www.themoviedb.org/tv/{{ tv.id }}'" target="_blank" class="btn btn-link btn-sm text-accent text-decoration-none p-0">Details <i class="fa-solid fa-chevron-right ms-1 small"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination Navigation Controls (Unit 9.2) -->
+        {% if page_obj.has_other_pages %}
+            <nav aria-label="Page navigation" class="mt-4 mb-5">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-white border-secondary" href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" aria-label="First">
+                                <span>&laquo;&laquo; First</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-white border-secondary" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" aria-label="Previous">
+                                <span>&laquo; Previous</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link bg-dark text-secondary border-secondary">&laquo;&laquo; First</span>
+                        </li>
+                        <li class="page-item disabled">
+                            <span class="page-link bg-dark text-secondary border-secondary">&laquo; Previous</span>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item disabled">
+                        <span class="page-link bg-dark text-white border-secondary fw-semibold">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-white border-secondary" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" aria-label="Next">
+                                <span>Next &raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-white border-secondary" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" aria-label="Last">
+                                <span>Last &raquo;&raquo;</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link bg-dark text-secondary border-secondary">Next &raquo;</span>
+                        </li>
+                        <li class="page-item disabled">
+                            <span class="page-link bg-dark text-secondary border-secondary">Last &raquo;&raquo;</span>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fa-solid fa-triangle-exclamation text-warning fs-1 mb-3"></i>
+            <h4>No TV Shows Found</h4>
+            <p class="text-secondary">Please check your dataset file or clear your filters.</p>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

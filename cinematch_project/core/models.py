@@ -1,0 +1,149 @@
+"""
+CineMatch Project - Phase 2: Relational Database Design & Django Integration
+Sub-Phase 2.1: Django Models and Relational DB Schema Implementation
+
+Syllabus Reference:
+- Unit 8: Django Framework & MVT Architecture (Model-View-Template)
+- Unit 9: Django Models, Users, and Relational Database Schema Design (ORM Fields, Relationships)
+"""
+
+from django.db import models
+from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
+
+# ======================================================================
+# Model 1: UserProfile
+# Relational Concept: One-to-One Relationship (1:1)
+# Syllabus Topic: Django Users & Schema Relationships (Unit 9)
+# ======================================================================
+class UserProfile(models.Model):
+    """
+    Extends Django's native auth User model to store domain-specific user details.
+    Uses models.OneToOneField to establish a strict 1:1 mapping with the User table.
+    """
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,      # Referential Integrity: deletes profile when User is deleted
+        related_name='profile'         # Reverse lookup name (e.g. user.profile)
+    )
+    bio = models.TextField(blank=True, max_length=500, help_text="Short biography of the user.")
+    favorite_genre = models.CharField(blank=True, max_length=100, help_text="User's preferred movie/TV genre.")
+
+    class Meta:
+        verbose_name = "User Profile"
+        verbose_name_plural = "User Profiles"
+
+    def __name__(self):
+        return f"{self.user.username}'s Profile"
+
+    def __str__(self):
+        return f"{self.user.username}'s Profile"
+
+
+# ======================================================================
+# Model 2: MovieWatchlist
+# Relational Concept: One-to-Many Relationship (1:N) & Domain Fields
+# Syllabus Topic: Custom Django Models & Database Fields (Unit 9)
+# ======================================================================
+class MovieWatchlist(models.Model):
+    """
+    Tracks items saved to a user's watchlist.
+    Stores the user reference, unique content tracker ID, and the media type.
+    """
+    MEDIA_TYPE_CHOICES = [
+        ('movie', 'Movie'),
+        ('tv', 'TV Show'),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,      # Deletes watchlist entry when user is deleted
+        related_name='watchlist'       # Reverse relationship mapping (e.g., user.watchlist.all())
+    )
+    
+    # Store the unique database/TMDB identifier (e.g. 19995 for Avatar)
+    media_id = models.IntegerField(
+        help_text="The unique tracking ID from the TMDB dataset."
+    )
+    
+    # Media type discriminator string to support dualnavbar pages (Movies and TV tabs)
+    media_type = models.CharField(
+        max_length=10,
+        choices=MEDIA_TYPE_CHOICES,
+        default='movie',
+        help_text="Discriminator column to distinguish between 'movie' and 'tv' show records."
+    )
+    
+    added_at = models.DateTimeField(
+        auto_now_add=True,             # Automatically sets field to current datetime when created
+        help_text="Timestamp of when the media was saved to the watchlist."
+    )
+
+    class Meta:
+        verbose_name = "Movie Watchlist Item"
+        verbose_name_plural = "Movie Watchlist Items"
+        # Database constraint: Prevent duplicate entries of the same show in a user's watchlist
+        unique_together = ('user', 'media_id', 'media_type')
+
+    def __str__(self):
+        return f"{self.user.username} saved {self.media_type} ID {self.media_id}"
+
+
+# ======================================================================
+# Model 3: UserReview
+# Relational Concept: Foreign Keys (1:N) & Numerical Constraints
+# Syllabus Topic: Django Validation, Timestamps & Database Constraints (Unit 9)
+# ======================================================================
+class UserReview(models.Model):
+    """
+    Stores written user reviews and numerical ratings for films and TV shows.
+    """
+    MEDIA_TYPE_CHOICES = [
+        ('movie', 'Movie'),
+        ('tv', 'TV Show'),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='reviews'
+    )
+    
+    # Target media identifiers
+    media_id = models.IntegerField(
+        help_text="The unique TMDB database identifier being reviewed."
+    )
+    media_type = models.CharField(
+        max_length=10,
+        choices=MEDIA_TYPE_CHOICES,
+        default='movie',
+        help_text="Distinguishes whether this review belongs to a movie or a TV show."
+    )
+
+    # 1-to-5 star integer rating with Min/Max value constraints
+    rating = models.IntegerField(
+        validators=[
+            MinValueValidator(1, message="Rating must be at least 1 star."),
+            MaxValueValidator(5, message="Rating cannot exceed 5 stars.")
+        ],
+        help_text="Integer rating from 1 (lowest) to 5 (highest) stars."
+    )
+    
+    # Written description review text
+    review_text = models.TextField(
+        help_text="User's detailed comments regarding the movie or TV show."
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Timestamp of when the review was written."
+    )
+
+    class Meta:
+        verbose_name = "User Review"
+        verbose_name_plural = "User Reviews"
+        # Ordering reviews by newest first
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Review by {self.user.username} on {self.media_type} ID {self.media_id} ({self.rating} stars)"

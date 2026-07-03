@@ -1,0 +1,19 @@
+# Python / Django runtime files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+
+# Local database file
+cinematch_project/db.sqlite3
+
+# Large flat-file datasets and similarity pickles (over GitHub's 100MB file limit)
+*.csv
+*.pkl
+*.pkl.gz
+
+# Virtual environments
+venv/
+.venv/
+env/
