@@ -31,4 +31,7 @@ urlpatterns = [
     # Watchlist CRUD endpoints (AJAX compatible)
     path('watchlist/add/', views.watchlist_add, name='watchlist_add'),
     path('watchlist/delete/', views.watchlist_delete, name='watchlist_delete'),
+
+    # Movie Detail Hub (Unit 7: REST API deep-fetch with append_to_response)
+    path('movies/<int:movie_id>/', views.movie_detail_view, name='movie_detail'),
 ]

@@ -128,3 +128,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Custom Authentication URL redirection rules (Unit 9)
 LOGIN_URL = 'login'
 LOGOUT_REDIRECT_URL = 'login'
+
+# Security: Referrer Policy — allows origin header to pass to cross-origin
+# embedding servers (e.g. YouTube iframe) while keeping the full URL private.
+# Reference: https://docs.djangoproject.com/en/5.2/ref/settings/#secure-referrer-policy
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
+# External TMDB API Key (Unit 7: REST API Integration)
+TMDB_API_KEY = '0b44e484623f5c7e1dde2f61f88ea6b6'

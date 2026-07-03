@@ -87,6 +87,55 @@
         -webkit-text-fill-color: transparent;
         margin-bottom: 1rem;
     }
+
+    /* ── Now Showing: hover overlay system ── */
+    .theatre-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 12px;
+        height: 340px;
+    }
+
+    .theatre-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: transform 0.4s ease;
+    }
+
+    .theatre-card:hover img {
+        transform: scale(1.06);
+    }
+
+    .theatre-card-overlay {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    .theatre-card:hover .theatre-card-overlay {
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    /* Circular icon buttons */
+    .btn-circle {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        flex-shrink: 0;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn-circle:hover {
+        transform: scale(1.15);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
 {% endblock %}
 
 {% block content %}
@@ -105,6 +154,9 @@
                         <i class="fa-regular fa-bookmark me-1"></i> Add to Watchlist
                     {% endif %}
                 </button>
+                <a href="{% url 'movie_detail' spotlight_movie.movie_id %}" class="btn btn-outline-custom">
+                    <i class="fa-solid fa-circle-info me-1"></i> View Details
+                </a>
                 <a href="https://www.youtube.com/results?search_query={{ spotlight_movie.title }}+official+trailer" target="_blank" class="btn btn-outline-custom">
                     <i class="fa-solid fa-play me-1 text-accent"></i> Watch Trailer
                 </a>
@@ -119,43 +171,91 @@
         <div class="horizontal-slider">
             {% for item in now_showing %}
                 <div class="slider-card">
-                    <div class="show-card">
-                        <div style="height: 280px; overflow: hidden; position: relative;">
-                            {% if item.poster_url %}
-                                <img src="{{ item.poster_url }}" class="w-100 h-100" style="object-fit: cover;" alt="{{ item.title }}">
-                            {% else %}
-                                <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
-                                    <i class="fa-solid fa-film fs-2"></i>
-                                </div>
+
+                    <!-- Poster container with hover overlay -->
+                    <div class="theatre-card position-relative overflow-hidden rounded-3">
+
+                        <!-- Poster image (or fallback icon) -->
+                        {% if item.poster_url %}
+                            <img src="{{ item.poster_url }}" alt="{{ item.title }}">
+                        {% else %}
+                            <div class="w-100 h-100 d-flex align-items-center justify-content-center"
+                                 style="background:#111118;">
+                                <i class="fa-solid fa-film fs-1 text-secondary"></i>
+                            </div>
+                        {% endif %}
+
+                        <!-- Hover overlay (sits over the poster, hidden by default) -->
+                        <div class="theatre-card-overlay d-flex flex-column justify-content-center
+                                    align-items-center gap-2 position-absolute top-0 start-0
+                                    w-100 h-100"
+                             style="background: rgba(7,7,11,0.85);
+                                    backdrop-filter: blur(4px);
+                                    -webkit-backdrop-filter: blur(4px);">
+
+                            <!-- Movie title inside overlay -->
+                            <h6 class="text-white fw-700 text-center px-3 mb-1"
+                                style="font-size:0.88rem; line-height:1.3;
+                                       overflow:hidden; display:-webkit-box;
+                                       -webkit-line-clamp:2; -webkit-box-orient:vertical;"
+                                title="{{ item.title }}">
+                                {{ item.title }}
+                            </h6>
+
+                            <!-- Genre label -->
+                            {% if item.genres %}
+                            <p class="text-secondary mb-2" style="font-size:0.72rem; letter-spacing:0.04em;">
+                                {{ item.genres }}
+                            </p>
                             {% endif %}
-                        </div>
-                        <div class="card-body-content">
-                            <h5 class="card-title-custom" title="{{ item.title }}">{{ item.title }}</h5>
-                            <p class="small text-secondary mb-2">{{ item.genres }}</p>
-                            
+
+                            <!-- Action buttons row -->
                             {% if item.media_type == 'movie' %}
-                                <div class="d-flex gap-2 w-100">
-                                    <a href="{{ item.booking_url }}" target="_blank" class="btn btn-glow btn-sm w-50 d-flex align-items-center justify-content-center gap-1">
-                                        <i class="fa-solid fa-ticket"></i> Tickets
-                                    </a>
-                                    <a href="{{ item.trailer_url }}" target="_blank" class="btn btn-danger btn-sm w-50 d-flex align-items-center justify-content-center gap-1">
-                                        <i class="fa-brands fa-youtube"></i> Trailer
-                                    </a>
-                                </div>
+                            <div class="d-flex gap-2">
+
+                                <!-- Details: internal route -->
+                                <a href="{% url 'movie_detail' item.media_id %}"
+                                   class="btn btn-primary btn-circle"
+                                   title="View Details">
+                                    <i class="fa-solid fa-circle-info fs-5"></i>
+                                </a>
+
+                                <!-- Tickets: BookMyShow -->
+                                {% if item.booking_url %}
+                                <a href="{{ item.booking_url }}" target="_blank" rel="noopener"
+                                   class="btn btn-outline-light btn-circle"
+                                   title="Book Tickets">
+                                    <i class="fa-solid fa-ticket fs-5"></i>
+                                </a>
+                                {% endif %}
+
+                                <!-- Trailer: YouTube -->
+                                {% if item.trailer_url %}
+                                <a href="{{ item.trailer_url }}" target="_blank" rel="noopener"
+                                   class="btn btn-outline-danger btn-circle"
+                                   title="Watch Trailer">
+                                    <i class="fa-brands fa-youtube fs-5"></i>
+                                </a>
+                                {% endif %}
+
+                            </div>
                             {% else %}
-                                <button onclick="toggleWatchlist(this, {{ item.media_id }}, 'tv')" 
-                                        class="btn {% if item.media_id in saved_ids %}btn-danger{% else %}btn-outline-light{% endif %} btn-sm w-100" 
-                                        data-saved="{% if item.media_id in saved_ids %}true{% else %}false{% endif %}">
-                                    {% if item.media_id in saved_ids %}
-                                        <i class="fa-solid fa-bookmark text-warning"></i> Saved
-                                    {% else %}
-                                        <i class="fa-regular fa-bookmark"></i> Watchlist
-                                    {% endif %}
-                                </button>
+                            <!-- TV show fallback: watchlist toggle -->
+                            <button onclick="toggleWatchlist(this, {{ item.media_id }}, 'tv')"
+                                    class="btn {% if item.media_id in saved_ids %}btn-danger{% else %}btn-outline-light{% endif %} btn-sm rounded-pill px-3"
+                                    data-saved="{% if item.media_id in saved_ids %}true{% else %}false{% endif %}">
+                                {% if item.media_id in saved_ids %}
+                                    <i class="fa-solid fa-bookmark text-warning me-1"></i> Saved
+                                {% else %}
+                                    <i class="fa-regular fa-bookmark me-1"></i> Watchlist
+                                {% endif %}
+                            </button>
                             {% endif %}
-                        </div>
-                    </div>
-                </div>
+
+                        </div><!-- /theatre-card-overlay -->
+                    </div><!-- /theatre-card -->
+
+                </div><!-- /slider-card -->
             {% endfor %}
         </div>
     </div>
@@ -191,7 +291,9 @@
                                                 <i class="fa-regular fa-bookmark"></i> Watchlist
                                             {% endif %}
                                         </button>
-                                        <a href="{{ movie.watch_link }}" target="_blank" class="btn btn-outline-light btn-sm w-50">Watch</a>
+                                        <a href="{% url 'movie_detail' movie.movie_id %}" class="btn btn-outline-light btn-sm w-50">
+                                            <i class="fa-solid fa-circle-info me-1"></i>Details
+                                        </a>
                                     </div>
                                 </div>
                             </div>

@@ -215,7 +215,7 @@
                             <h5 class="card-title-custom text-truncate" title="{{ movie.title }}">{{ movie.title }}</h5>
                             <div class="d-flex justify-content-between align-items-center mt-2">
                                 <span class="small text-secondary">ID: {{ movie.movie_id }}</span>
-                                <button onclick="location.href='https://www.themoviedb.org/movie/{{ movie.movie_id }}'" target="_blank" class="btn btn-link btn-sm text-accent text-decoration-none p-0">Details <i class="fa-solid fa-chevron-right ms-1 small"></i></button>
+                                <a href="{% url 'movie_detail' movie.movie_id %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0">Details <i class="fa-solid fa-chevron-right ms-1 small"></i></a>
                             </div>
                         </div>
                     </div>

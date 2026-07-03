@@ -78,8 +78,15 @@ def get_cached_poster(client, media_id, media_type):
 def load_ml_models():
     """
     Syllabus Reference: Units 4 & 5 Model Loading
-    Caches the pre-computed Bag of Words similarity arrays
-    and metadata dictionaries into server memory to optimize request speeds.
+    Caches the pre-computed Bag of Words similarity arrays and metadata
+    dictionaries into process memory to eliminate per-request disk I/O.
+
+    Execution model (post-optimization):
+      Called ONCE from CoreConfig.ready() at server boot — before Django
+      accepts any HTTP connections. All subsequent requests read the four
+      global numpy/dict objects directly from RAM (O(1) lookup).
+      The guard `if MOVIE_DICT is None` is retained as a safety net so
+      the function remains idempotent if called more than once.
     """
     global MOVIE_DICT, MOVIE_SIMILARITY, TV_DICT, TV_SIMILARITY
     if MOVIE_DICT is None:
@@ -88,7 +95,7 @@ def load_ml_models():
             movie_sim_path = os.path.join(settings.BASE_DIR, '..', 'similarity.pkl')
             tv_dict_path = os.path.join(settings.BASE_DIR, '..', 'tv_dict.pkl')
             tv_sim_path = os.path.join(settings.BASE_DIR, '..', 'tv_similarity.pkl')
-            
+
             with open(movie_dict_path, 'rb') as f:
                 MOVIE_DICT = pickle.load(f)
             with open(movie_sim_path, 'rb') as f:
@@ -97,7 +104,7 @@ def load_ml_models():
                 TV_DICT = pickle.load(f)
             with open(tv_sim_path, 'rb') as f:
                 TV_SIMILARITY = pickle.load(f)
-                
+
             print("[ML ENGINE] All vector pickles cached into memory successfully.")
         except Exception as e:
             print("[ML ENGINE] Error loading pre-computed similarity pickles:", e)
@@ -110,8 +117,13 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
     - S_agg = sum_{i in W} S_i, where W is the set of user-saved show indices and S_i is the similarity row.
     - Sorts all shows in descending order of similarity, filters out already saved elements,
       and returns the top 8 recommended items complete with pre-fetched TMDB poster images and watch links.
+
+    Optimization note: load_ml_models() is NO LONGER called here.
+    Globals MOVIE_DICT / MOVIE_SIMILARITY / TV_DICT / TV_SIMILARITY are
+    guaranteed to be populated by CoreConfig.ready() at server boot.
+    This function now reads from RAM only — zero disk I/O per request.
     """
-    load_ml_models()
+    # load_ml_models() call removed — boot-time preload via CoreConfig.ready()
     client = TMDBClient()
     
     if media_type == 'movie':
@@ -378,51 +390,106 @@ def for_you_feed(request):
 # ======================================================================
 # Explore Movies View
 # Syllabus Reference: Unit 9.2 (Pagination & Queryset Optimization)
+# Multi-field search equivalent of Django Q objects, implemented over a
+# pandas DataFrame (the catalog lives in movies.csv, not an ORM model).
+# Search fields: title | cast actor names | crew director names
 # ======================================================================
 @login_required
 def explore_movies(request):
     import os
+    import json
     from django.conf import settings
     import pandas as pd
     client = TMDBClient()
-    
-    movies_records = []
+
+    movies_df = pd.DataFrame()
     try:
         csv_path = os.path.join(settings.BASE_DIR, '..', 'movies.csv')
-        movies_df = pd.read_csv(csv_path)
-        movies_records = movies_df[['movie_id', 'title']].to_dict(orient='records')
+        # Load all four columns so we can search cast & crew JSON blobs
+        movies_df = pd.read_csv(csv_path, usecols=['movie_id', 'title', 'cast', 'crew'])
     except Exception as e:
         print("Error reading movies.csv in explore view:", e)
-        
-    query = request.GET.get('q')
-    if query:
-        movies_records = [m for m in movies_records if query.lower() in m['title'].lower()]
-        
-    # Wrap using Paginator: set limit of 12 items per page
+
+    query = request.GET.get('q', '').strip()
+
+    if not movies_df.empty:
+        if query:
+            q_lower = query.lower()
+
+            # ── Helper: extract names list from a JSON-encoded column cell ──
+            def _names_from_json(cell):
+                """
+                Parses the stringified JSON array stored in the cast/crew column.
+                Returns a single lowercased space-joined name string for fast
+                substring matching — equivalent to Q(cast_names__icontains=query).
+                Falls back to '' on any parse failure so the row is simply skipped.
+                """
+                try:
+                    entries = json.loads(cell) if isinstance(cell, str) else []
+                    return ' '.join(e.get('name', '') for e in entries).lower()
+                except (json.JSONDecodeError, TypeError, AttributeError):
+                    return ''
+
+            def _directors_from_crew(cell):
+                """
+                Filters the crew JSON array to Director job entries only, then
+                joins their names — equivalent to Q(director__icontains=query).
+                """
+                try:
+                    entries = json.loads(cell) if isinstance(cell, str) else []
+                    return ' '.join(
+                        e.get('name', '') for e in entries
+                        if e.get('job', '').lower() == 'director'
+                    ).lower()
+                except (json.JSONDecodeError, TypeError, AttributeError):
+                    return ''
+
+            # ── Vectorised multi-field search (OR logic, case-insensitive) ──
+            # Equivalent Django ORM expression would be:
+            #   Q(title__icontains=q) | Q(cast_names__icontains=q) | Q(director__icontains=q)
+            title_match    = movies_df['title'].str.lower().str.contains(q_lower, na=False)
+            cast_series    = movies_df['cast'].apply(_names_from_json)
+            crew_series    = movies_df['crew'].apply(_directors_from_crew)
+            cast_match     = cast_series.str.contains(q_lower, na=False)
+            director_match = crew_series.str.contains(q_lower, na=False)
+
+            # Combine with OR, then deduplicate
+            combined_mask  = title_match | cast_match | director_match
+            filtered_df    = movies_df[combined_mask].drop_duplicates(subset=['movie_id'])
+        else:
+            # No query — return the full catalog (title + id only, no JSON parsing)
+            filtered_df = movies_df
+
+        movies_records = filtered_df[['movie_id', 'title']].to_dict(orient='records')
+    else:
+        movies_records = []
+
+    # Wrap using Paginator: 12 items per page
     paginator = Paginator(movies_records, 12)
     page_number = request.GET.get('page', 1)
-    
+
     try:
         page_obj = paginator.page(page_number)
     except PageNotAnInteger:
         page_obj = paginator.page(1)
     except EmptyPage:
         page_obj = paginator.page(paginator.num_pages)
-        
-    # Utilize global RAM cache on the sliced items on this active page
+
+    # Pre-fetch poster URLs from RAM cache for only the current page slice
     movies_on_page = []
     for movie in page_obj.object_list:
         movie['poster_url'] = get_cached_poster(client, movie['movie_id'], 'movie')
         movies_on_page.append(movie)
-        
+
     watchlist_ids = list(MovieWatchlist.objects.filter(
         user=request.user, media_type='movie'
     ).values_list('media_id', flat=True))
-    
+
     return render(request, 'core/explore_movies.html', {
-        'movies': movies_on_page,
-        'page_obj': page_obj,
-        'watchlist_ids': watchlist_ids
+        'movies':       movies_on_page,
+        'page_obj':     page_obj,
+        'watchlist_ids': watchlist_ids,
+        'query':        query,          # passed back so the template can preserve ?q= on page links
     })
 
 # ======================================================================
@@ -506,3 +573,177 @@ def analytics_dashboard(request):
     }
     
     return render(request, 'core/analytics.html', context)
+
+
+# ======================================================================
+# Movie Detail Hub View
+# Syllabus Reference: Unit 7 (REST API deep-fetch, append_to_response)
+# ======================================================================
+@login_required
+def movie_detail_view(request, movie_id):
+    """
+    Fetches a single optimised TMDB request for the given movie_id using the
+    'append_to_response' compound endpoint to pull credits, videos, watch/providers,
+    and similar titles in one network round-trip.
+
+    Safely extracts:
+        - Base details  : title, overview, release_date, runtime, poster_path,
+                          backdrop_path, vote_average
+        - Cast          : top 6 crew entries from credits.cast
+        - Trailer key   : first official YouTube Trailer from videos.results
+        - Providers     : flatrate subscription list for region IN (fallback US)
+        - Similar titles: top 5 entries from similar.results
+
+    All sub-key lookups use .get() chains so missing API fields never raise
+    a KeyError and a failed HTTP request is caught gracefully.
+    """
+    api_key = "41fc74ce5602882786e1e9d4933fdcc6"
+
+    # -----------------------------------------------------------------
+    # 1. Single compound TMDB request (append_to_response)
+    # -----------------------------------------------------------------
+    endpoint = (
+        f"https://api.themoviedb.org/3/movie/{movie_id}"
+        f"?api_key={api_key}"
+        f"&language=en-US"
+        f"&append_to_response=credits,videos,watch/providers,similar"
+    )
+
+    movie = {}
+    cast = []
+    trailer_key = None
+    watch_providers = []
+    similar_movies = []
+
+    try:
+        resp = requests.get(endpoint, timeout=5)
+        resp.raise_for_status()
+        data = resp.json()
+
+        # -----------------------------------------------------------------
+        # 2. Base movie details
+        # -----------------------------------------------------------------
+        poster_path = data.get('poster_path') or ''
+        backdrop_path = data.get('backdrop_path') or ''
+
+        movie = {
+            'id':            data.get('id', movie_id),
+            'title':         data.get('title', 'Unknown Title'),
+            'overview':      data.get('overview', ''),
+            'release_date':  data.get('release_date', ''),
+            'runtime':       data.get('runtime', 0),
+            'vote_average':  round(data.get('vote_average', 0.0), 1),
+            'genres':        [g.get('name', '') for g in data.get('genres', [])],
+            'poster_url': (
+                f"https://image.tmdb.org/t/p/w500{poster_path}"
+                if poster_path else
+                'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop'
+            ),
+            'backdrop_url': (
+                f"https://image.tmdb.org/t/p/original{backdrop_path}"
+                if backdrop_path else ''
+            ),
+        }
+
+        # -----------------------------------------------------------------
+        # 3. Top 6 cast members from credits payload
+        # -----------------------------------------------------------------
+        credits_payload = data.get('credits', {})
+        raw_cast = credits_payload.get('cast', [])
+        for member in raw_cast[:6]:
+            profile_path = member.get('profile_path') or ''
+            cast.append({
+                'name':       member.get('name', ''),
+                'character':  member.get('character', ''),
+                'profile_url': (
+                    f"https://image.tmdb.org/t/p/w185{profile_path}"
+                    if profile_path else
+                    'https://ui-avatars.com/api/?name=' + urllib.parse.quote_plus(member.get('name', 'Actor'))
+                ),
+            })
+
+        # -----------------------------------------------------------------
+        # 4. Primary official YouTube Trailer key from videos payload
+        # -----------------------------------------------------------------
+        videos_payload = data.get('videos', {})
+        raw_videos = videos_payload.get('results', [])
+        for video in raw_videos:
+            if (
+                video.get('site') == 'YouTube'
+                and video.get('type') == 'Trailer'
+                and video.get('official', False)
+            ):
+                trailer_key = video.get('key')
+                break
+        # Fallback: accept any YouTube Trailer if no official one found
+        if not trailer_key:
+            for video in raw_videos:
+                if video.get('site') == 'YouTube' and video.get('type') == 'Trailer':
+                    trailer_key = video.get('key')
+                    break
+
+        # -----------------------------------------------------------------
+        # 5. Flatrate subscription providers — region IN, fallback US
+        # -----------------------------------------------------------------
+        providers_payload = data.get('watch/providers', {}).get('results', {})
+        region_data = providers_payload.get('IN') or providers_payload.get('US') or {}
+        raw_providers = region_data.get('flatrate', [])
+        for p in raw_providers:
+            logo_path = p.get('logo_path') or ''
+            watch_providers.append({
+                'name':     p.get('provider_name', ''),
+                'logo_url': (
+                    f"https://image.tmdb.org/t/p/w92{logo_path}"
+                    if logo_path else ''
+                ),
+            })
+
+        # -----------------------------------------------------------------
+        # 6. Top 5 similar movies
+        # -----------------------------------------------------------------
+        similar_payload = data.get('similar', {})
+        raw_similar = similar_payload.get('results', [])
+        for s in raw_similar[:5]:
+            s_poster = s.get('poster_path') or ''
+            encoded = urllib.parse.quote_plus(s.get('title', ''))
+            similar_movies.append({
+                'id':         s.get('id'),
+                'title':      s.get('title', 'Unknown'),
+                'vote_average': round(s.get('vote_average', 0.0), 1),
+                'poster_url': (
+                    f"https://image.tmdb.org/t/p/w300{s_poster}"
+                    if s_poster else
+                    'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop'
+                ),
+                'trailer_url': f"https://www.youtube.com/results?search_query={encoded}+official+trailer",
+            })
+
+    except requests.exceptions.RequestException as e:
+        print(f"[MOVIE DETAIL] TMDB API request failed for movie_id={movie_id}: {e}")
+        # Provide a safe empty-shell context so the template doesn't crash
+        movie = {
+            'id': movie_id, 'title': 'Data Unavailable', 'overview': '',
+            'release_date': '', 'runtime': 0, 'vote_average': 0.0,
+            'genres': [], 'poster_url': '', 'backdrop_url': '',
+        }
+    except Exception as e:
+        print(f"[MOVIE DETAIL] Unexpected parsing error for movie_id={movie_id}: {e}")
+
+    # -----------------------------------------------------------------
+    # 7. Watchlist state for toggle button
+    # -----------------------------------------------------------------
+    is_in_watchlist = MovieWatchlist.objects.filter(
+        user=request.user, media_id=movie_id, media_type='movie'
+    ).exists()
+
+    context = {
+        'movie':          movie,
+        'cast':           cast,
+        'trailer_key':    trailer_key,
+        'watch_providers': watch_providers,
+        'similar_movies': similar_movies,
+        'is_in_watchlist': is_in_watchlist,
+    }
+
+    return render(request, 'core/movie_detail.html', context)
+
