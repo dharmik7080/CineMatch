@@ -92,8 +92,7 @@
 {% block content %}
 <div class="container py-4">
 
-    <!-- A. Hero Dynamic Spotlight Card -->
-    <div class="hero-spotlight" style="background: linear-gradient(to right, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.4)), url('{% if spotlight_movie.title == "Interstellar" %}https://image.tmdb.org/t/p/original/rAiYw1jKe6vS8v36ZasYwB66G6B.jpg{% else %}{{ spotlight_movie.backdrop_url }}{% endif %}') center/cover no-repeat;">
+    <div class="hero-spotlight" style="background: linear-gradient(to right, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=2070&auto=format&fit=cover') center/cover no-repeat;">
         <div>
             <span class="hero-badge"><i class="fa-solid fa-fire me-1"></i> Today's Spotlight</span>
             <h1 class="hero-title">{{ spotlight_movie.title }}</h1>
@@ -113,7 +112,6 @@
         </div>
     </div>
 
-    <!-- B. "Now Showing in Theatres" Horizontal Slider -->
     <div class="mb-5">
         <h2 class="section-title">
             <i class="fa-solid fa-ticket"></i> Now Showing in Theatres
@@ -162,10 +160,8 @@
         </div>
     </div>
 
-    <!-- C. Automated "Recommended for You" Carousel Section -->
     <div class="mb-5">
         {% if saved_movies or saved_tv_shows %}
-            <!-- Recommended Movies Shelf -->
             {% if saved_movies %}
                 <h2 class="section-title mt-4">
                     <i class="fa-solid fa-wand-magic-sparkles text-accent"></i> Recommended Movies for You
@@ -204,7 +200,6 @@
                 </div>
             {% endif %}
 
-            <!-- Recommended TV Shows Shelf -->
             {% if saved_tv_shows %}
                 <h2 class="section-title mt-4">
                     <i class="fa-solid fa-wand-magic-sparkles text-accent"></i> Recommended TV Shows for You
