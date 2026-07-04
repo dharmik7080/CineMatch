@@ -841,9 +841,8 @@ def tv_detail_view(request, series_id):
         resp = requests.get(endpoint, timeout=3)
         resp.raise_for_status()
         data = resp.json()
-
-        # -----------------------------------------------------------------
-        # 1. Base TV show details (TMDB uses 'name' instead of 'title')
+# -----------------------------------------------------------------
+        # 1. Base TV show details (UPDATED WITH STUDIOS, LANGUAGES & SEASONS)
         # -----------------------------------------------------------------
         poster_path = data.get('poster_path') or ''
         backdrop_path = data.get('backdrop_path') or ''
@@ -853,10 +852,27 @@ def tv_detail_view(request, series_id):
             'title':              data.get('name', 'Unknown Title'),
             'overview':           data.get('overview', ''),
             'first_air_date':     data.get('first_air_date', ''),
+            
+            # Keep your metadata fields intact 
             'number_of_seasons':  data.get('number_of_seasons', 0),
             'number_of_episodes': data.get('number_of_episodes', 0),
+            
             'vote_average':       round(data.get('vote_average', 0.0), 1),
             'genres':             [g.get('name', '') for g in data.get('genres', [])],
+            'tagline':            data.get('tagline', ''),
+            
+            # 💎 NEW: Generates structured dictionaries for brand logo silhouettes
+            'production_companies': [
+                {
+                    'name': c.get('name'),
+                    'logo_url': f"https://image.tmdb.org/t/p/w92{c.get('logo_path')}" if c.get('logo_path') else None
+                }
+                for c in data.get('production_companies', []) if c.get('name')
+            ][:4],
+            
+            # 💎 NEW: Clean array containing full English names of languages
+            'languages':            [l.get('english_name') for l in data.get('spoken_languages', []) if l.get('english_name')],
+            
             'poster_url': (
                 f"https://image.tmdb.org/t/p/w500{poster_path}"
                 if poster_path else
