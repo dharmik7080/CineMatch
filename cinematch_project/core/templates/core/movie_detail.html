@@ -1,4 +1,5 @@
 {% extends 'core/base.html' %}
+{% load humanize %}
 
 {% block title %}{{ movie.title }} — CineMatch{% endblock %}
 
@@ -281,7 +282,6 @@
 
 {% block content %}
 
-<!-- ── 1. BACKDROP HERO ───────────────────────────────────────────────────── -->
 <section class="detail-hero" aria-label="Movie backdrop banner">
     {% if movie.backdrop_url %}
         <div class="detail-hero__bg"
@@ -295,11 +295,9 @@
     <div class="detail-hero__fade"></div>
 </section>
 
-<!-- ── 2. MAIN DETAILS BLOCK ─────────────────────────────────────────────── -->
 <section class="container" style="position:relative; z-index:5; margin-top:-2rem;">
     <div class="row g-4 align-items-start">
 
-        <!-- Poster -->
         <div class="col-auto d-none d-md-block">
             <div class="detail-poster-wrap">
                 {% if movie.poster_url %}
@@ -315,7 +313,6 @@
             </div>
         </div>
 
-        <!-- Metadata -->
         <div class="col">
             <div style="padding-top:1rem;">
 
@@ -324,7 +321,6 @@
                     {{ movie.title }}
                 </h1>
 
-                <!-- Meta pills -->
                 <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
                     {% if movie.release_date %}
                     <span class="meta-pill">
@@ -346,7 +342,6 @@
                     {% endif %}
                 </div>
 
-                <!-- Genre badges -->
                 {% if movie.genres %}
                 <div class="d-flex flex-wrap gap-2 mb-4">
                     {% for genre in movie.genres %}
@@ -355,15 +350,18 @@
                 </div>
                 {% endif %}
 
-                <!-- Short blurb -->
-                {% if movie.overview %}
-                <p style="color:#9ca3af; font-size:0.92rem; max-width:620px;
-                           line-height:1.7; margin-bottom:1.5rem;">
-                    {{ movie.overview|truncatechars:200 }}
+                {% if movie.tagline and movie.tagline != "" %}
+                <p class="text-muted fst-italic mb-4" style="font-size: 1.15rem; color: #a1a1aa !important; letter-spacing: 0.3px; max-width:620px; line-height:1.6;">
+                    "{{ movie.tagline }}"
                 </p>
+                {% elif movie.tagline_text and movie.tagline_text != "" %}
+                <p class="text-muted fst-italic mb-4" style="font-size: 1.15rem; color: #a1a1aa !important; letter-spacing: 0.3px; max-width:620px; line-height:1.6;">
+                    "{{ movie.tagline_text }}"
+                </p>
+                {% else %}
+                <div class="mb-3"></div>
                 {% endif %}
 
-                <!-- Watchlist toggle -->
                 <button id="detail-watchlist-btn"
                         class="btn rounded-pill px-4 py-2 {% if is_in_watchlist %}btn-watchlist-saved{% else %}btn-watchlist-add{% endif %}"
                         data-saved="{{ is_in_watchlist|lower }}"
@@ -382,14 +380,11 @@
     </div>
 </section>
 
-<!-- ── 3. SPLIT BODY ─────────────────────────────────────────────────────── -->
 <section class="container mt-5 mb-4">
     <div class="row g-5">
 
-        <!-- LEFT: col-lg-8 -->
         <div class="col-lg-8">
 
-            <!-- 3a. Storyline -->
             {% if movie.overview %}
             <div class="mb-5">
                 <h2 class="section-heading">Storyline</h2>
@@ -397,7 +392,32 @@
             </div>
             {% endif %}
 
-            <!-- 3b. Top Cast -->
+            {% if movie.production_companies %}
+            <div class="mb-5">
+                <h2 class="section-heading">Production Studios</h2>
+                <div class="d-flex flex-wrap gap-3 align-items-center">
+                    {% for studio in movie.production_companies %}
+                        <div class="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-3" 
+                             style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); transition: transform 0.2s ease;"
+                             onmouseover="this.style.transform='translateY(-2px)'" 
+                             onmouseout="this.style.transform='translateY(0)'">
+                            
+                            {% if studio.logo_url %}
+                                <img src="{{ studio.logo_url }}" 
+                                     alt="{{ studio.name }} Logo" 
+                                     style="height: 20px; max-width: 90px; object-fit: contain; filter: brightness(0) invert(1); opacity: 0.8;"
+                                     onerror="this.style.display='none';">
+                            {% else %}
+                                <i class="fa-solid fa-clapperboard" style="color: #a855f7; font-size: 0.8rem;"></i>
+                            {% endif %}
+                            
+                            <span style="font-size: 0.82rem; font-weight: 600; color: #e5e7eb;">{{ studio.name }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             {% if cast %}
             <div class="mb-5">
                 <h2 class="section-heading">Top Cast</h2>
@@ -418,7 +438,6 @@
             </div>
             {% endif %}
 
-            <!-- 3c. Official Trailer -->
             <div class="mb-5">
                 <h2 class="section-heading">Official Trailer</h2>
                 {% if trailer_key %}
@@ -445,13 +464,9 @@
                 {% endif %}
             </div>
 
-        </div><!-- /col-lg-8 -->
-
-        <!-- RIGHT: col-lg-4 -->
-        <div class="col-lg-4">
+        </div><div class="col-lg-4">
             <div style="position:sticky; top:90px;">
 
-                <!-- Where to Watch -->
                 <div class="sidebar-card mb-4">
                     <h2 class="section-heading">Where to Watch</h2>
                     {% if watch_providers %}
@@ -486,10 +501,11 @@
                     {% endif %}
                 </div>
 
-                <!-- Quick Links -->
-                <div class="sidebar-card">
+                <div class="sidebar-card mb-4">
                     <h2 class="section-heading">Quick Links</h2>
                     <div class="d-grid gap-2">
+                        
+                        {% if is_now_showing %}
                         <a href="https://in.bookmyshow.com/explore/home/ahmedabad?search={{ movie.title|urlencode }}"
                            target="_blank" rel="noopener"
                            class="btn rounded-pill py-2"
@@ -497,6 +513,8 @@
                                   color:#f87171; font-size:0.84rem; font-weight:600;">
                             <i class="fa-solid fa-ticket me-2"></i> Book Tickets — BookMyShow
                         </a>
+                        {% endif %}
+
                         <a href="https://www.youtube.com/results?search_query={{ movie.title|urlencode }}+official+trailer"
                            target="_blank" rel="noopener"
                            class="btn rounded-pill py-2"
@@ -507,13 +525,43 @@
                     </div>
                 </div>
 
+                <div class="sidebar-card mb-4">
+                    <h2 class="section-heading">Movie Insights</h2>
+                    
+                    {% if movie.budget_inr > 0 %}
+                    <div class="mb-3">
+                        <small class="d-block font-weight-bold mb-1" style="font-size:0.72rem; letter-spacing:0.5px; text-transform: uppercase; color: var(--text-secondary) !important;">BUDGET</small>
+                        <span class="text-white fw-bold" style="font-size: 1.1rem; color: #facc15 !important;">
+                            &#8377;{{ movie.budget_inr|intcomma }}
+                        </span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if movie.revenue_inr > 0 %}
+                    <div class="mb-3">
+                        <small class="d-block font-weight-bold mb-1" style="font-size:0.72rem; letter-spacing:0.5px; text-transform: uppercase; color: var(--text-secondary) !important;">BOX OFFICE REVENUE</small>
+                        <span class="text-white fw-bold" style="font-size: 1.1rem; color: #4ade80 !important;">
+                            &#8377;{{ movie.revenue_inr|intcomma }}
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    {% if movie.languages %}
+                    <hr style="border-color: rgba(255,255,255,0.08);">
+                    <div class="mb-0">
+                        <small class="d-block font-weight-bold mb-2" style="font-size:0.72rem; letter-spacing:0.5px; text-transform: uppercase; color: var(--text-secondary) !important;">AVAILABLE LANGUAGES</small>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for lang in movie.languages %}
+                                <span class="badge bg-dark border border-secondary text-light px-2 py-1" style="font-size: 0.75rem; font-weight: 500;">{{ lang }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
             </div>
-        </div><!-- /col-lg-4 -->
+        </div></div></section>
 
-    </div><!-- /row -->
-</section>
-
-<!-- ── 4. SIMILAR TITLES STRIP ───────────────────────────────────────────── -->
 {% if similar_movies %}
 <section class="container mb-5">
     <hr style="border-color:rgba(255,255,255,0.07); margin-bottom:2rem;">

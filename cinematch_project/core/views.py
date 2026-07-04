@@ -65,7 +65,7 @@ def get_cached_poster(client, media_id, media_type):
     
     try:
         # Enforce strict 500ms (0.5s) timeout block to avoid blocking Django server threads
-        poster_url = client.get_media_assets(media_id, media_type, timeout=0.5)
+        poster_url = client.get_media_assets(media_id, media_type, timeout=2.5)
         if poster_url:
             POSTER_CACHE[cache_key] = poster_url
             return poster_url
@@ -394,6 +394,7 @@ def for_you_feed(request):
             'recommended_movies': recommended_movies,
             'recommended_tv_shows': recommended_tv_shows,
             'spotlight_movie': spotlight_movie,
+
         })
         
     return render(request, 'core/for_you.html', context)
@@ -632,11 +633,16 @@ def movie_detail_view(request, movie_id):
         data = resp.json()
 
         # -----------------------------------------------------------------
-        # 2. Base movie details
+        # 2. Base movie details (UPDATED WITH STUDIOS & LANGUAGES STRUCTURE)
         # -----------------------------------------------------------------
         poster_path = data.get('poster_path') or ''
         backdrop_path = data.get('backdrop_path') or ''
-
+        
+        # Financial Data Conversion Engine (Using current ~95.21 exchange rate)
+        usd_budget = data.get('budget', 0)
+        usd_revenue = data.get('revenue', 0)
+        inr_conversion_rate = 95.21
+        
         movie = {
             'id':            data.get('id', movie_id),
             'title':         data.get('title', 'Unknown Title'),
@@ -645,10 +651,28 @@ def movie_detail_view(request, movie_id):
             'runtime':       data.get('runtime', 0),
             'vote_average':  round(data.get('vote_average', 0.0), 1),
             'genres':        [g.get('name', '') for g in data.get('genres', [])],
+            'tagline':       data.get('tagline', ''),
+            
+            # New Financial Fields
+            'budget_inr':    int(usd_budget * inr_conversion_rate),
+            'revenue_inr':   int(usd_revenue * inr_conversion_rate),
+            
+            # 💎 UPDATED: Generates dictionaries with name and logo_url keys instead of raw strings
+            'production_companies': [
+                {
+                    'name': c.get('name'),
+                    'logo_url': f"https://image.tmdb.org/t/p/w92{c.get('logo_path')}" if c.get('logo_path') else None
+                }
+                for c in data.get('production_companies', []) if c.get('name')
+            ][:4],
+            
+            # 💎 Clean string array containing full language names
+            'languages':            [l.get('english_name') for l in data.get('spoken_languages', []) if l.get('english_name')],
+            
             'poster_url': (
                 f"https://image.tmdb.org/t/p/w500{poster_path}"
                 if poster_path else
-                'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop'
+                'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=cover'
             ),
             'backdrop_url': (
                 f"https://image.tmdb.org/t/p/original{backdrop_path}"
@@ -747,13 +771,41 @@ def movie_detail_view(request, movie_id):
         user=request.user, media_id=movie_id, media_type='movie'
     ).exists()
 
+    # -----------------------------------------------------------------
+    # 🎬 8. CALCULATE DYNAMIC NOW-SHOWING THEATRICAL TICKETING FLAG
+    # -----------------------------------------------------------------
+    from datetime import datetime
+    
+    release_date_str = movie.get('release_date', '')
+    is_now_showing = False
+
+    if release_date_str:
+        try:
+            # Convert the 'YYYY-MM-DD' text string to a standard Python date comparison object
+            release_date = datetime.strptime(release_date_str, '%Y-%m-%d').date()
+            current_date = datetime.now().date()
+            
+            # Flag as True if released in the last 45 days or is an upcoming future attraction
+            if release_date <= current_date and (current_date - release_date).days <= 45:
+                is_now_showing = True
+            elif release_date > current_date:
+                is_now_showing = True
+        except ValueError:
+            pass
+
+    # -----------------------------------------------------------------
+    # Final Template Context Assembly (UPDATED WITH NOW-SHOWING FLAG)
+    # -----------------------------------------------------------------
     context = {
-        'movie':          movie,
-        'cast':           cast,
-        'trailer_key':    trailer_key,
+        'movie':           movie,
+        'cast':            cast,
+        'trailer_key':     trailer_key,
         'watch_providers': watch_providers,
-        'similar_movies': similar_movies,
+        'similar_movies':  similar_movies,
         'is_in_watchlist': is_in_watchlist,
+        
+        # 💎 FIXED: Injecting the dynamic boolean checking parameter
+        'is_now_showing':  is_now_showing,
     }
 
     return render(request, 'core/movie_detail.html', context)
