@@ -34,4 +34,7 @@ urlpatterns = [
 
     # Movie Detail Hub (Unit 7: REST API deep-fetch with append_to_response)
     path('movies/<int:movie_id>/', views.movie_detail_view, name='movie_detail'),
+
+    # TV Show Detail Hub (Unit 7: REST API compound request — TV variant)
+    path('tv/<int:series_id>/', views.tv_detail_view, name='tv_detail'),
 ]

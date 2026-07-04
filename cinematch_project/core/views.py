@@ -162,7 +162,12 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
     try:
         # Sum similarity columns for all user saved indices: S_agg = sum(sim_matrix[row_index])
         aggregated_sim = np.sum(sim_matrix[watchlist_indices], axis=0)
-        
+
+        # Normalize TV vector landscape to [0.0, 1.0] — prevents token compression
+        # when users save many shows, keeping scores comparable across watchlist sizes.
+        if media_type == 'tv' and len(user_watchlist_ids) > 0:
+            aggregated_sim = aggregated_sim / len(user_watchlist_ids)
+
         # Sort scores in descending order
         sorted_indices = np.argsort(aggregated_sim)[::-1]
         
@@ -179,7 +184,13 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
             media_id = rec[id_col]
             rec['poster_url'] = get_cached_poster(client, media_id, media_type)
             rec['watch_link'] = client.get_streaming_or_theatre_links(rec['title'], media_type, False)
-            
+
+        # ── Diagnostic logger: TV recommendation accuracy analysis ──
+        if media_type == 'tv':
+            raw_similarity_scores = np.sort(aggregated_sim)[::-1]
+            print(f"\n[TV ML DIAGNOSTIC] Target Watchlist Input IDs: {user_watchlist_ids}")
+            print(f"[TV ML DIAGNOSTIC] Top 5 Matrix Match Scores: {[score for score in raw_similarity_scores[:5]]}")
+
         return recommendations
     except Exception as e:
         print(f"[ML INFERENCE] Error during recommendation synthesis: {e}")
@@ -747,3 +758,159 @@ def movie_detail_view(request, movie_id):
 
     return render(request, 'core/movie_detail.html', context)
 
+
+# ======================================================================
+# TV Show Detail Hub View
+# Syllabus Reference: Unit 7 (REST API compound request — TV variant)
+# ======================================================================
+@login_required
+def tv_detail_view(request, series_id):
+    """
+    Single compound TMDB request for TV show details.
+    Mirrors movie_detail_view but targets /tv/{series_id} and maps
+    TMDB field 'name' → context key 'title' for template consistency.
+    """
+    api_key = "41fc74ce5602882786e1e9d4933fdcc6"
+
+    endpoint = (
+        f"https://api.themoviedb.org/3/tv/{series_id}"
+        f"?api_key={api_key}"
+        f"&language=en-US"
+        f"&append_to_response=credits,videos,watch/providers,similar"
+    )
+
+    tv_show = {}
+    cast = []
+    trailer_key = None
+    watch_providers = []
+    similar_shows = []
+
+    try:
+        resp = requests.get(endpoint, timeout=3)
+        resp.raise_for_status()
+        data = resp.json()
+
+        # -----------------------------------------------------------------
+        # 1. Base TV show details (TMDB uses 'name' instead of 'title')
+        # -----------------------------------------------------------------
+        poster_path = data.get('poster_path') or ''
+        backdrop_path = data.get('backdrop_path') or ''
+
+        tv_show = {
+            'id':                 data.get('id', series_id),
+            'title':              data.get('name', 'Unknown Title'),
+            'overview':           data.get('overview', ''),
+            'first_air_date':     data.get('first_air_date', ''),
+            'number_of_seasons':  data.get('number_of_seasons', 0),
+            'number_of_episodes': data.get('number_of_episodes', 0),
+            'vote_average':       round(data.get('vote_average', 0.0), 1),
+            'genres':             [g.get('name', '') for g in data.get('genres', [])],
+            'poster_url': (
+                f"https://image.tmdb.org/t/p/w500{poster_path}"
+                if poster_path else
+                'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
+            ),
+            'backdrop_url': (
+                f"https://image.tmdb.org/t/p/original{backdrop_path}"
+                if backdrop_path else ''
+            ),
+        }
+
+        # -----------------------------------------------------------------
+        # 2. Top 6 cast members from credits payload
+        # -----------------------------------------------------------------
+        credits_payload = data.get('credits', {})
+        raw_cast = credits_payload.get('cast', [])
+        for member in raw_cast[:6]:
+            profile_path = member.get('profile_path') or ''
+            cast.append({
+                'name':       member.get('name', ''),
+                'character':  member.get('character', ''),
+                'profile_url': (
+                    f"https://image.tmdb.org/t/p/w185{profile_path}"
+                    if profile_path else
+                    'https://ui-avatars.com/api/?name=' + urllib.parse.quote_plus(member.get('name', 'Actor'))
+                ),
+            })
+
+        # -----------------------------------------------------------------
+        # 3. Primary official YouTube Trailer key from videos payload
+        # -----------------------------------------------------------------
+        videos_payload = data.get('videos', {})
+        raw_videos = videos_payload.get('results', [])
+        for video in raw_videos:
+            if (
+                video.get('site') == 'YouTube'
+                and video.get('type') == 'Trailer'
+                and video.get('official', False)
+            ):
+                trailer_key = video.get('key')
+                break
+        # Fallback: accept any YouTube Trailer if no official one found
+        if not trailer_key:
+            for video in raw_videos:
+                if video.get('site') == 'YouTube' and video.get('type') == 'Trailer':
+                    trailer_key = video.get('key')
+                    break
+
+        # -----------------------------------------------------------------
+        # 4. Flatrate subscription providers — region IN, fallback US
+        # -----------------------------------------------------------------
+        providers_payload = data.get('watch/providers', {}).get('results', {})
+        region_data = providers_payload.get('IN') or providers_payload.get('US') or {}
+        raw_providers = region_data.get('flatrate', [])
+        for p in raw_providers:
+            logo_path = p.get('logo_path') or ''
+            watch_providers.append({
+                'name':     p.get('provider_name', ''),
+                'logo_url': (
+                    f"https://image.tmdb.org/t/p/w92{logo_path}"
+                    if logo_path else ''
+                ),
+            })
+
+        # -----------------------------------------------------------------
+        # 5. Top 5 similar TV shows (TMDB uses 'name' for TV)
+        # -----------------------------------------------------------------
+        similar_payload = data.get('similar', {})
+        raw_similar = similar_payload.get('results', [])
+        for s in raw_similar[:5]:
+            s_poster = s.get('poster_path') or ''
+            similar_shows.append({
+                'id':           s.get('id'),
+                'title':        s.get('name', 'Unknown'),
+                'vote_average': round(s.get('vote_average', 0.0), 1),
+                'poster_url': (
+                    f"https://image.tmdb.org/t/p/w300{s_poster}"
+                    if s_poster else
+                    'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
+                ),
+            })
+
+    except requests.exceptions.RequestException as e:
+        print(f"[TV DETAIL] TMDB API request failed for series_id={series_id}: {e}")
+        tv_show = {
+            'id': series_id, 'title': 'Data Unavailable', 'overview': '',
+            'first_air_date': '', 'number_of_seasons': 0, 'number_of_episodes': 0,
+            'vote_average': 0.0, 'genres': [], 'poster_url': '', 'backdrop_url': '',
+        }
+    except Exception as e:
+        print(f"[TV DETAIL] Unexpected parsing error for series_id={series_id}: {e}")
+
+    # -----------------------------------------------------------------
+    # 6. Watchlist state for toggle button
+    # -----------------------------------------------------------------
+    is_in_watchlist = MovieWatchlist.objects.filter(
+        user=request.user, media_id=series_id, media_type='tv'
+    ).exists()
+
+    context = {
+        'tv_show':         tv_show,
+        'cast':            cast,
+        'trailer_key':     trailer_key,
+        'watch_providers': watch_providers,
+        'similar_shows':   similar_shows,
+        'is_in_watchlist': is_in_watchlist,
+    }
+
+    return render(request, 'core/tv_detail.html', context)
