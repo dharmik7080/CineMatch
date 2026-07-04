@@ -12,7 +12,7 @@ import requests
 import urllib.parse
 import numpy as np
 import pandas as pd
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
@@ -21,8 +21,9 @@ from django.views.decorators.csrf import csrf_protect
 from django.http import JsonResponse
 from django.conf import settings
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+from django.utils.html import escape
 
-from .models import UserProfile, MovieWatchlist
+from .models import UserProfile, MovieWatchlist, MediaReview
 from .tmdb_api import TMDBClient
 
 # ======================================================================
@@ -50,7 +51,7 @@ def get_cached_poster(client, media_id, media_type):
     Syllabus Reference: Unit 9.2 (Queryset Optimization / Caching)
     Checks if a unique combined string key exists in POSTER_CACHE.
     If yes, returns the value immediately (0ms lookup).
-    If no, executes client.get_media_assets() with a strict 500ms (0.5s) timeout
+    If no, executes client.get_media_assets() with a strict timeout parameter
     to protect the active thread pool from starvation, and stores the result in RAM.
     """
     cache_key = f"{media_type}_{media_id}"
@@ -64,13 +65,13 @@ def get_cached_poster(client, media_id, media_type):
     }
     
     try:
-        # Enforce strict 500ms (0.5s) timeout block to avoid blocking Django server threads
+        # Enforce strict timeout block to avoid blocking Django server threads
         poster_url = client.get_media_assets(media_id, media_type, timeout=2.5)
         if poster_url:
             POSTER_CACHE[cache_key] = poster_url
             return poster_url
     except Exception as e:
-        print(f"[CACHE ENGINE] Exception or timeout (>500ms) for key {cache_key}: {e}")
+        print(f"[CACHE ENGINE] Exception or timeout for key {cache_key}: {e}")
         
     return fallback_urls.get(media_type)
 
@@ -80,13 +81,6 @@ def load_ml_models():
     Syllabus Reference: Units 4 & 5 Model Loading
     Caches the pre-computed Bag of Words similarity arrays and metadata
     dictionaries into process memory to eliminate per-request disk I/O.
-
-    Execution model (post-optimization):
-      Called ONCE from CoreConfig.ready() at server boot — before Django
-      accepts any HTTP connections. All subsequent requests read the four
-      global numpy/dict objects directly from RAM (O(1) lookup).
-      The guard `if MOVIE_DICT is None` is retained as a safety net so
-      the function remains idempotent if called more than once.
     """
     global MOVIE_DICT, MOVIE_SIMILARITY, TV_DICT, TV_SIMILARITY
     if MOVIE_DICT is None:
@@ -113,17 +107,7 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
     """
     Syllabus Reference: Units 4 & 5 Model Inference and Metric Evaluation
     Mathematical Concept: Similarity Matrix Vector Aggregation
-    - Aggregates the cosine similarity vectors for all titles currently in the user's watchlist.
-    - S_agg = sum_{i in W} S_i, where W is the set of user-saved show indices and S_i is the similarity row.
-    - Sorts all shows in descending order of similarity, filters out already saved elements,
-      and returns the top 8 recommended items complete with pre-fetched TMDB poster images and watch links.
-
-    Optimization note: load_ml_models() is NO LONGER called here.
-    Globals MOVIE_DICT / MOVIE_SIMILARITY / TV_DICT / TV_SIMILARITY are
-    guaranteed to be populated by CoreConfig.ready() at server boot.
-    This function now reads from RAM only — zero disk I/O per request.
     """
-    # load_ml_models() call removed — boot-time preload via CoreConfig.ready()
     client = TMDBClient()
     
     if media_type == 'movie':
@@ -140,52 +124,48 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
         
     df = pd.DataFrame(data_dict)
     
-    # If user's watchlist is empty, return top 8 default items from the library catalog
+    # ── FALLBACK LAYER 1: Watchlist is completely empty ──
     if not user_watchlist_ids:
         defaults = df.head(8).to_dict(orient='records')
         for d in defaults:
-            # Use cached poster check instead of direct sync API calls
+            title_text = d.get('title') or d.get('name') or 'Unknown Title'
+            d['title'] = title_text
             d['poster_url'] = get_cached_poster(client, d[id_col], media_type)
-            d['watch_link'] = client.get_streaming_or_theatre_links(d['title'], media_type, False)
+            d['watch_link'] = client.get_streaming_or_theatre_links(title_text, media_type, False)
         return defaults
 
     # Find row indices of user's saved titles inside the catalog DataFrame
     watchlist_indices = df[df[id_col].isin(user_watchlist_ids)].index.tolist()
     
+    # ── FALLBACK LAYER 2: Watchlist IDs do not match dataset records ──
     if not watchlist_indices:
         defaults = df.head(8).to_dict(orient='records')
         for d in defaults:
+            title_text = d.get('title') or d.get('name') or 'Unknown Title'
+            d['title'] = title_text
             d['poster_url'] = get_cached_poster(client, d[id_col], media_type)
-            d['watch_link'] = client.get_streaming_or_theatre_links(d['title'], media_type, False)
+            d['watch_link'] = client.get_streaming_or_theatre_links(title_text, media_type, False)
         return defaults
         
     try:
-        # Sum similarity columns for all user saved indices: S_agg = sum(sim_matrix[row_index])
         aggregated_sim = np.sum(sim_matrix[watchlist_indices], axis=0)
 
-        # Normalize TV vector landscape to [0.0, 1.0] — prevents token compression
-        # when users save many shows, keeping scores comparable across watchlist sizes.
         if media_type == 'tv' and len(user_watchlist_ids) > 0:
             aggregated_sim = aggregated_sim / len(user_watchlist_ids)
 
-        # Sort scores in descending order
         sorted_indices = np.argsort(aggregated_sim)[::-1]
-        
-        # Filter out items that are already in the watchlist
         recommended_indices = [idx for idx in sorted_indices if idx not in watchlist_indices]
         
-        # Extract top 8 recommendations
         top_indices = recommended_indices[:8]
-        
         recommendations = df.iloc[top_indices].to_dict(orient='records')
         
-        # Pre-fetch live posters utilizing memory caching
         for rec in recommendations:
             media_id = rec[id_col]
+            title_text = rec.get('title') or rec.get('name') or 'Unknown Title'
+            rec['title'] = title_text
             rec['poster_url'] = get_cached_poster(client, media_id, media_type)
-            rec['watch_link'] = client.get_streaming_or_theatre_links(rec['title'], media_type, False)
+            rec['watch_link'] = client.get_streaming_or_theatre_links(title_text, media_type, False)
 
-        # ── Diagnostic logger: TV recommendation accuracy analysis ──
         if media_type == 'tv':
             raw_similarity_scores = np.sort(aggregated_sim)[::-1]
             print(f"\n[TV ML DIAGNOSTIC] Target Watchlist Input IDs: {user_watchlist_ids}")
@@ -281,24 +261,14 @@ def watchlist_delete(request):
 # ======================================================================
 @login_required
 def for_you_feed(request):
-    """
-    Syllabus Reference: Unit 9.2 (CRUD - Read), Units 4 & 5 (Model Inference),
-    and Unit 7 (Real-Time Ingestion pipelines).
-    Fetches real-time movie listings from the live TMDB Now Playing endpoint
-    localized to India, applies safety timeouts, and registers URLs in POSTER_CACHE.
-    """
     user = request.user
     client = TMDBClient()
     
-    # Query database watchlist items
     watchlist_items = MovieWatchlist.objects.filter(user=user)
-    
-    # Extract saved movie IDs and TV IDs
     saved_movies = list(watchlist_items.filter(media_type='movie').values_list('media_id', flat=True))
     saved_tv_shows = list(watchlist_items.filter(media_type='tv').values_list('media_id', flat=True))
     saved_ids = list(watchlist_items.values_list('media_id', flat=True))
     
-    # Dynamic spotlight movie definition (Unit 7 & 9)
     spotlight_movie = {
         'movie_id': 157336,
         'title': 'Interstellar',
@@ -306,12 +276,10 @@ def for_you_feed(request):
         'backdrop_url': 'https://image.tmdb.org/t/p/original/rAiYw1jKe6vS8v36ZasYwB66G6B.jpg'
     }
     
-    # Live TMDB Ingestion Pipeline (Unit 7)
     now_showing = []
     url = f"{client.base_url}/movie/now_playing?language=en-US&region=IN&page=1"
     
     try:
-        # Strict 1-second timeout constraint to prevent API hangs from blocking threads
         response = requests.get(url, headers=client.headers, timeout=1.0)
         if response.status_code == 200:
             data = response.json()
@@ -323,15 +291,11 @@ def for_you_feed(request):
                 if not movie_id or not title:
                     continue
                 
-                # Resolve genre category strings
                 genre_ids = movie_data.get('genre_ids', [])
                 genre_names = [TMDB_GENRE_MAP.get(gid) for gid in genre_ids if TMDB_GENRE_MAP.get(gid)]
                 genres_str = " | ".join(genre_names[:2]) or "Drama"
                 
-                # Fetch and store image path into global RAM memory cache
                 poster_url = get_cached_poster(client, movie_id, 'movie')
-                
-                # Dynamic URL encoding for localized BookMyShow Ahmedabad redirect (Unit 7)
                 encoded_title = urllib.parse.quote_plus(title)
                 booking_url = f"https://in.bookmyshow.com/explore/home/ahmedabad?search={encoded_title}"
                 trailer_url = f"https://www.youtube.com/results?search_query={encoded_title}+official+trailer"
@@ -346,13 +310,11 @@ def for_you_feed(request):
                     'trailer_url': trailer_url
                 })
                 
-                # Prune and slice stream strictly to top 15 elements
                 if len(now_showing) >= 15:
                     break
     except Exception as e:
         print(f"[TMDB LIVE INGESTION] Error fetching live now playing: {e}")
         
-    # Robust Try/Except Fallback layer: Load pre-saved local link map if API is unreachable
     if not now_showing:
         now_showing_fallback = [
             {'media_id': 19995, 'title': 'Avatar', 'media_type': 'movie', 'genres': 'Action | Sci-Fi'},
@@ -368,7 +330,6 @@ def for_you_feed(request):
             item['trailer_url'] = f"https://www.youtube.com/results?search_query={encoded_title}+official+trailer"
             now_showing.append(item)
     
-    # Run vector inference models
     recommended_movies = get_recommendations(saved_movies, 'movie')
     recommended_tv_shows = get_recommendations(saved_tv_shows, 'tv')
     
@@ -394,30 +355,21 @@ def for_you_feed(request):
             'recommended_movies': recommended_movies,
             'recommended_tv_shows': recommended_tv_shows,
             'spotlight_movie': spotlight_movie,
-
         })
         
     return render(request, 'core/for_you.html', context)
 
 # ======================================================================
 # Explore Movies View
-# Syllabus Reference: Unit 9.2 (Pagination & Queryset Optimization)
-# Multi-field search equivalent of Django Q objects, implemented over a
-# pandas DataFrame (the catalog lives in movies.csv, not an ORM model).
-# Search fields: title | cast actor names | crew director names
 # ======================================================================
 @login_required
 def explore_movies(request):
-    import os
     import json
-    from django.conf import settings
-    import pandas as pd
     client = TMDBClient()
 
     movies_df = pd.DataFrame()
     try:
         csv_path = os.path.join(settings.BASE_DIR, '..', 'movies.csv')
-        # Load all four columns so we can search cast & crew JSON blobs
         movies_df = pd.read_csv(csv_path, usecols=['movie_id', 'title', 'cast', 'crew'])
     except Exception as e:
         print("Error reading movies.csv in explore view:", e)
@@ -428,14 +380,7 @@ def explore_movies(request):
         if query:
             q_lower = query.lower()
 
-            # ── Helper: extract names list from a JSON-encoded column cell ──
             def _names_from_json(cell):
-                """
-                Parses the stringified JSON array stored in the cast/crew column.
-                Returns a single lowercased space-joined name string for fast
-                substring matching — equivalent to Q(cast_names__icontains=query).
-                Falls back to '' on any parse failure so the row is simply skipped.
-                """
                 try:
                     entries = json.loads(cell) if isinstance(cell, str) else []
                     return ' '.join(e.get('name', '') for e in entries).lower()
@@ -443,10 +388,6 @@ def explore_movies(request):
                     return ''
 
             def _directors_from_crew(cell):
-                """
-                Filters the crew JSON array to Director job entries only, then
-                joins their names — equivalent to Q(director__icontains=query).
-                """
                 try:
                     entries = json.loads(cell) if isinstance(cell, str) else []
                     return ' '.join(
@@ -456,27 +397,21 @@ def explore_movies(request):
                 except (json.JSONDecodeError, TypeError, AttributeError):
                     return ''
 
-            # ── Vectorised multi-field search (OR logic, case-insensitive) ──
-            # Equivalent Django ORM expression would be:
-            #   Q(title__icontains=q) | Q(cast_names__icontains=q) | Q(director__icontains=q)
             title_match    = movies_df['title'].str.lower().str.contains(q_lower, na=False)
             cast_series    = movies_df['cast'].apply(_names_from_json)
             crew_series    = movies_df['crew'].apply(_directors_from_crew)
             cast_match     = cast_series.str.contains(q_lower, na=False)
             director_match = crew_series.str.contains(q_lower, na=False)
 
-            # Combine with OR, then deduplicate
             combined_mask  = title_match | cast_match | director_match
             filtered_df    = movies_df[combined_mask].drop_duplicates(subset=['movie_id'])
         else:
-            # No query — return the full catalog (title + id only, no JSON parsing)
             filtered_df = movies_df
 
         movies_records = filtered_df[['movie_id', 'title']].to_dict(orient='records')
     else:
         movies_records = []
 
-    # Wrap using Paginator: 12 items per page
     paginator = Paginator(movies_records, 12)
     page_number = request.GET.get('page', 1)
 
@@ -487,7 +422,6 @@ def explore_movies(request):
     except EmptyPage:
         page_obj = paginator.page(paginator.num_pages)
 
-    # Pre-fetch poster URLs from RAM cache for only the current page slice
     movies_on_page = []
     for movie in page_obj.object_list:
         movie['poster_url'] = get_cached_poster(client, movie['movie_id'], 'movie')
@@ -501,18 +435,14 @@ def explore_movies(request):
         'movies':       movies_on_page,
         'page_obj':     page_obj,
         'watchlist_ids': watchlist_ids,
-        'query':        query,          # passed back so the template can preserve ?q= on page links
+        'query':        query,
     })
 
 # ======================================================================
 # Explore TV Shows View
-# Syllabus Reference: Unit 9.2 (Pagination & Queryset Optimization)
 # ======================================================================
 @login_required
 def explore_tv(request):
-    import os
-    from django.conf import settings
-    import pandas as pd
     client = TMDBClient()
     
     tv_records_list = []
@@ -532,7 +462,6 @@ def explore_tv(request):
     if query:
         tv_records_list = [t for t in tv_records_list if query.lower() in t['title'].lower()]
         
-    # Wrap using Paginator: set limit of 12 items per page
     paginator = Paginator(tv_records_list, 12)
     page_number = request.GET.get('page', 1)
     
@@ -543,7 +472,6 @@ def explore_tv(request):
     except EmptyPage:
         page_obj = paginator.page(paginator.num_pages)
         
-    # Utilize global RAM cache on the active page TV shows
     tv_on_page = []
     for tv in page_obj.object_list:
         tv['poster_url'] = get_cached_poster(client, tv['id'], 'tv')
@@ -564,16 +492,12 @@ def explore_tv(request):
 # ======================================================================
 @login_required
 def analytics_dashboard(request):
-    """
-    Dashboard view executing data analysis and sending visualization plots into HTML blocks.
-    """
     from .analytics_engine import generate_seaborn_heatmap, generate_plotly_scatter, generate_networkx_graph
     
     user = request.user
     watchlist_items = MovieWatchlist.objects.filter(user=user, media_type='movie')
     watchlist_movies = list(watchlist_items.values_list('media_id', flat=True))
     
-    # Generate dynamic visual plots
     heatmap_base64 = generate_seaborn_heatmap()
     plotly_div_html = generate_plotly_scatter()
     network_base64 = generate_networkx_graph(watchlist_movies)
@@ -589,31 +513,11 @@ def analytics_dashboard(request):
 
 # ======================================================================
 # Movie Detail Hub View
-# Syllabus Reference: Unit 7 (REST API deep-fetch, append_to_response)
 # ======================================================================
 @login_required
 def movie_detail_view(request, movie_id):
-    """
-    Fetches a single optimised TMDB request for the given movie_id using the
-    'append_to_response' compound endpoint to pull credits, videos, watch/providers,
-    and similar titles in one network round-trip.
-
-    Safely extracts:
-        - Base details  : title, overview, release_date, runtime, poster_path,
-                          backdrop_path, vote_average
-        - Cast          : top 6 crew entries from credits.cast
-        - Trailer key   : first official YouTube Trailer from videos.results
-        - Providers     : flatrate subscription list for region IN (fallback US)
-        - Similar titles: top 5 entries from similar.results
-
-    All sub-key lookups use .get() chains so missing API fields never raise
-    a KeyError and a failed HTTP request is caught gracefully.
-    """
     api_key = "41fc74ce5602882786e1e9d4933fdcc6"
 
-    # -----------------------------------------------------------------
-    # 1. Single compound TMDB request (append_to_response)
-    # -----------------------------------------------------------------
     endpoint = (
         f"https://api.themoviedb.org/3/movie/{movie_id}"
         f"?api_key={api_key}"
@@ -632,13 +536,9 @@ def movie_detail_view(request, movie_id):
         resp.raise_for_status()
         data = resp.json()
 
-        # -----------------------------------------------------------------
-        # 2. Base movie details (UPDATED WITH STUDIOS & LANGUAGES STRUCTURE)
-        # -----------------------------------------------------------------
         poster_path = data.get('poster_path') or ''
         backdrop_path = data.get('backdrop_path') or ''
         
-        # Financial Data Conversion Engine (Using current ~95.21 exchange rate)
         usd_budget = data.get('budget', 0)
         usd_revenue = data.get('revenue', 0)
         inr_conversion_rate = 95.21
@@ -652,12 +552,8 @@ def movie_detail_view(request, movie_id):
             'vote_average':  round(data.get('vote_average', 0.0), 1),
             'genres':        [g.get('name', '') for g in data.get('genres', [])],
             'tagline':       data.get('tagline', ''),
-            
-            # New Financial Fields
             'budget_inr':    int(usd_budget * inr_conversion_rate),
             'revenue_inr':   int(usd_revenue * inr_conversion_rate),
-            
-            # 💎 UPDATED: Generates dictionaries with name and logo_url keys instead of raw strings
             'production_companies': [
                 {
                     'name': c.get('name'),
@@ -665,10 +561,7 @@ def movie_detail_view(request, movie_id):
                 }
                 for c in data.get('production_companies', []) if c.get('name')
             ][:4],
-            
-            # 💎 Clean string array containing full language names
             'languages':            [l.get('english_name') for l in data.get('spoken_languages', []) if l.get('english_name')],
-            
             'poster_url': (
                 f"https://image.tmdb.org/t/p/w500{poster_path}"
                 if poster_path else
@@ -680,9 +573,6 @@ def movie_detail_view(request, movie_id):
             ),
         }
 
-        # -----------------------------------------------------------------
-        # 3. Top 6 cast members from credits payload
-        # -----------------------------------------------------------------
         credits_payload = data.get('credits', {})
         raw_cast = credits_payload.get('cast', [])
         for member in raw_cast[:6]:
@@ -697,9 +587,6 @@ def movie_detail_view(request, movie_id):
                 ),
             })
 
-        # -----------------------------------------------------------------
-        # 4. Primary official YouTube Trailer key from videos payload
-        # -----------------------------------------------------------------
         videos_payload = data.get('videos', {})
         raw_videos = videos_payload.get('results', [])
         for video in raw_videos:
@@ -710,16 +597,12 @@ def movie_detail_view(request, movie_id):
             ):
                 trailer_key = video.get('key')
                 break
-        # Fallback: accept any YouTube Trailer if no official one found
         if not trailer_key:
             for video in raw_videos:
                 if video.get('site') == 'YouTube' and video.get('type') == 'Trailer':
                     trailer_key = video.get('key')
                     break
 
-        # -----------------------------------------------------------------
-        # 5. Flatrate subscription providers — region IN, fallback US
-        # -----------------------------------------------------------------
         providers_payload = data.get('watch/providers', {}).get('results', {})
         region_data = providers_payload.get('IN') or providers_payload.get('US') or {}
         raw_providers = region_data.get('flatrate', [])
@@ -733,9 +616,6 @@ def movie_detail_view(request, movie_id):
                 ),
             })
 
-        # -----------------------------------------------------------------
-        # 6. Top 5 similar movies
-        # -----------------------------------------------------------------
         similar_payload = data.get('similar', {})
         raw_similar = similar_payload.get('results', [])
         for s in raw_similar[:5]:
@@ -755,7 +635,6 @@ def movie_detail_view(request, movie_id):
 
     except requests.exceptions.RequestException as e:
         print(f"[MOVIE DETAIL] TMDB API request failed for movie_id={movie_id}: {e}")
-        # Provide a safe empty-shell context so the template doesn't crash
         movie = {
             'id': movie_id, 'title': 'Data Unavailable', 'overview': '',
             'release_date': '', 'runtime': 0, 'vote_average': 0.0,
@@ -764,28 +643,18 @@ def movie_detail_view(request, movie_id):
     except Exception as e:
         print(f"[MOVIE DETAIL] Unexpected parsing error for movie_id={movie_id}: {e}")
 
-    # -----------------------------------------------------------------
-    # 7. Watchlist state for toggle button
-    # -----------------------------------------------------------------
     is_in_watchlist = MovieWatchlist.objects.filter(
         user=request.user, media_id=movie_id, media_type='movie'
     ).exists()
 
-    # -----------------------------------------------------------------
-    # 🎬 8. CALCULATE DYNAMIC NOW-SHOWING THEATRICAL TICKETING FLAG
-    # -----------------------------------------------------------------
     from datetime import datetime
-    
     release_date_str = movie.get('release_date', '')
     is_now_showing = False
 
     if release_date_str:
         try:
-            # Convert the 'YYYY-MM-DD' text string to a standard Python date comparison object
             release_date = datetime.strptime(release_date_str, '%Y-%m-%d').date()
             current_date = datetime.now().date()
-            
-            # Flag as True if released in the last 45 days or is an upcoming future attraction
             if release_date <= current_date and (current_date - release_date).days <= 45:
                 is_now_showing = True
             elif release_date > current_date:
@@ -793,9 +662,10 @@ def movie_detail_view(request, movie_id):
         except ValueError:
             pass
 
-    # -----------------------------------------------------------------
-    # Final Template Context Assembly (UPDATED WITH NOW-SHOWING FLAG)
-    # -----------------------------------------------------------------
+    # ── FETCH REVIEWS DATALAYER AND AUTHOR ACCESSORS ──
+    reviews = MediaReview.objects.filter(media_id=movie_id, media_type='movie').select_related('user')
+    user_review = reviews.filter(user=request.user).first() if request.user.is_authenticated else None
+
     context = {
         'movie':           movie,
         'cast':            cast,
@@ -803,9 +673,10 @@ def movie_detail_view(request, movie_id):
         'watch_providers': watch_providers,
         'similar_movies':  similar_movies,
         'is_in_watchlist': is_in_watchlist,
-        
-        # 💎 FIXED: Injecting the dynamic boolean checking parameter
         'is_now_showing':  is_now_showing,
+        # 💎 INJECTED REVIEWS DATA CONTEXTS
+        'reviews':         reviews,
+        'user_review':     user_review,
     }
 
     return render(request, 'core/movie_detail.html', context)
@@ -813,15 +684,9 @@ def movie_detail_view(request, movie_id):
 
 # ======================================================================
 # TV Show Detail Hub View
-# Syllabus Reference: Unit 7 (REST API compound request — TV variant)
 # ======================================================================
 @login_required
 def tv_detail_view(request, series_id):
-    """
-    Single compound TMDB request for TV show details.
-    Mirrors movie_detail_view but targets /tv/{series_id} and maps
-    TMDB field 'name' → context key 'title' for template consistency.
-    """
     api_key = "41fc74ce5602882786e1e9d4933fdcc6"
 
     endpoint = (
@@ -841,9 +706,7 @@ def tv_detail_view(request, series_id):
         resp = requests.get(endpoint, timeout=3)
         resp.raise_for_status()
         data = resp.json()
-# -----------------------------------------------------------------
-        # 1. Base TV show details (UPDATED WITH STUDIOS, LANGUAGES & SEASONS)
-        # -----------------------------------------------------------------
+
         poster_path = data.get('poster_path') or ''
         backdrop_path = data.get('backdrop_path') or ''
 
@@ -852,16 +715,11 @@ def tv_detail_view(request, series_id):
             'title':              data.get('name', 'Unknown Title'),
             'overview':           data.get('overview', ''),
             'first_air_date':     data.get('first_air_date', ''),
-            
-            # Keep your metadata fields intact 
             'number_of_seasons':  data.get('number_of_seasons', 0),
             'number_of_episodes': data.get('number_of_episodes', 0),
-            
             'vote_average':       round(data.get('vote_average', 0.0), 1),
             'genres':             [g.get('name', '') for g in data.get('genres', [])],
             'tagline':            data.get('tagline', ''),
-            
-            # 💎 NEW: Generates structured dictionaries for brand logo silhouettes
             'production_companies': [
                 {
                     'name': c.get('name'),
@@ -869,10 +727,7 @@ def tv_detail_view(request, series_id):
                 }
                 for c in data.get('production_companies', []) if c.get('name')
             ][:4],
-            
-            # 💎 NEW: Clean array containing full English names of languages
             'languages':            [l.get('english_name') for l in data.get('spoken_languages', []) if l.get('english_name')],
-            
             'poster_url': (
                 f"https://image.tmdb.org/t/p/w500{poster_path}"
                 if poster_path else
@@ -884,9 +739,6 @@ def tv_detail_view(request, series_id):
             ),
         }
 
-        # -----------------------------------------------------------------
-        # 2. Top 6 cast members from credits payload
-        # -----------------------------------------------------------------
         credits_payload = data.get('credits', {})
         raw_cast = credits_payload.get('cast', [])
         for member in raw_cast[:6]:
@@ -901,9 +753,6 @@ def tv_detail_view(request, series_id):
                 ),
             })
 
-        # -----------------------------------------------------------------
-        # 3. Primary official YouTube Trailer key from videos payload
-        # -----------------------------------------------------------------
         videos_payload = data.get('videos', {})
         raw_videos = videos_payload.get('results', [])
         for video in raw_videos:
@@ -914,16 +763,12 @@ def tv_detail_view(request, series_id):
             ):
                 trailer_key = video.get('key')
                 break
-        # Fallback: accept any YouTube Trailer if no official one found
         if not trailer_key:
             for video in raw_videos:
                 if video.get('site') == 'YouTube' and video.get('type') == 'Trailer':
                     trailer_key = video.get('key')
                     break
 
-        # -----------------------------------------------------------------
-        # 4. Flatrate subscription providers — region IN, fallback US
-        # -----------------------------------------------------------------
         providers_payload = data.get('watch/providers', {}).get('results', {})
         region_data = providers_payload.get('IN') or providers_payload.get('US') or {}
         raw_providers = region_data.get('flatrate', [])
@@ -937,9 +782,6 @@ def tv_detail_view(request, series_id):
                 ),
             })
 
-        # -----------------------------------------------------------------
-        # 5. Top 5 similar TV shows (TMDB uses 'name' for TV)
-        # -----------------------------------------------------------------
         similar_payload = data.get('similar', {})
         raw_similar = similar_payload.get('results', [])
         for s in raw_similar[:5]:
@@ -965,12 +807,13 @@ def tv_detail_view(request, series_id):
     except Exception as e:
         print(f"[TV DETAIL] Unexpected parsing error for series_id={series_id}: {e}")
 
-    # -----------------------------------------------------------------
-    # 6. Watchlist state for toggle button
-    # -----------------------------------------------------------------
     is_in_watchlist = MovieWatchlist.objects.filter(
         user=request.user, media_id=series_id, media_type='tv'
     ).exists()
+
+    # ── FETCH REVIEWS DATALAYER AND AUTHOR ACCESSORS ──
+    reviews = MediaReview.objects.filter(media_id=series_id, media_type='tv').select_related('user')
+    user_review = reviews.filter(user=request.user).first() if request.user.is_authenticated else None
 
     context = {
         'tv_show':         tv_show,
@@ -979,6 +822,99 @@ def tv_detail_view(request, series_id):
         'watch_providers': watch_providers,
         'similar_shows':   similar_shows,
         'is_in_watchlist': is_in_watchlist,
+        # 💎 INJECTED REVIEWS DATA CONTEXTS
+        'reviews':         reviews,
+        'user_review':     user_review,
     }
 
     return render(request, 'core/tv_detail.html', context)
+
+# ======================================================================
+# Watchlist Hub Dashboard View
+# ======================================================================
+@login_required
+def watchlist_hub_view(request):
+    client = TMDBClient()
+    db_items = MovieWatchlist.objects.filter(user=request.user).order_by("-id")
+
+    watchlist_movies = []
+    watchlist_tv = []
+
+    for item in db_items:
+        cache_key = f"{item.media_type}_{item.media_id}"
+        poster_url = POSTER_CACHE.get(cache_key)
+        
+        if not poster_url:
+            poster_url = get_cached_poster(client, item.media_id, item.media_type)
+
+        showcase_item = {
+            'id': item.media_id,
+            'poster_url': poster_url or 'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop',
+        }
+
+        if item.media_type == 'movie':
+            watchlist_movies.append(showcase_item)
+        else:
+            watchlist_tv.append(showcase_item)
+
+    context = {
+        'watchlist_movies': watchlist_movies,
+        'watchlist_tv':     watchlist_tv,
+    }
+    return render(request, 'core/watchlist_hub.html', context)
+
+
+# ======================================================================
+# Interactive Media Reviews CRUD Controllers
+# ======================================================================
+@login_required
+@require_POST
+def add_media_review(request, media_type, media_id):
+    review_text = request.POST.get('review_text', '').strip()
+    
+    # 1. Define these BEFORE you use them
+    redirect_view_name = 'movie_detail' if media_type == 'movie' else 'tv_show_detail'
+    redirect_param = 'movie_id' if media_type == 'movie' else 'series_id'
+    
+    # 2. Now the return statement will work
+    if not review_text:
+        return redirect(redirect_view_name, **{redirect_param: media_id})
+    
+    try:
+        MediaReview.objects.update_or_create(
+            user=request.user,
+            media_id=int(media_id),
+            media_type=media_type,
+            defaults={'review_text': review_text}
+        )
+    except Exception as e:
+        print(f"[REVIEW ENGINE] Error saving user review entry: {e}")
+        
+    return redirect(redirect_view_name, **{redirect_param: media_id})
+
+@login_required
+@require_POST
+def update_media_review(request, review_id):
+    review = get_object_or_404(MediaReview, id=review_id)
+    # ... auth check ...
+    updated_text = request.POST.get('review_text', '').strip()
+    if updated_text:
+        # 💎 REMOVED escape()
+        review.review_text = updated_text
+        review.save()
+        return JsonResponse({'success': True, 'message': 'Review updated successfully.'})
+    return JsonResponse({'success': False, 'error': 'Review text cannot be blank.'}, status=400)
+
+@login_required
+@require_POST
+def delete_media_review(request, review_id):
+    """
+    Syllabus Reference: Unit 9.2 (CRUD - Delete with Authorization Guard)
+    """
+    review = get_object_or_404(MediaReview, id=review_id)
+    
+    if review.user != request.user:
+        return JsonResponse({'success': False, 'error': 'Unauthorized transaction request.'}, status=403)
+        
+    review.delete()
+    return JsonResponse({'success': True, 'message': 'Review successfully scrubbed from catalog.'})

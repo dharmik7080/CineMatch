@@ -197,27 +197,35 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'for_you_feed' or request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'for_you_feed' %}">
-                            Home Feed
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'explore_movies' %}active{% endif %}" href="{% url 'explore_movies' %}">
-                            Explore Movies
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'explore_tv' %}active{% endif %}" href="{% url 'explore_tv' %}">
-                            Explore TV Shows
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'analytics_dashboard' %}active{% endif %}" href="{% url 'analytics_dashboard' %}">
-                            Analytics Dashboard
-                        </a>
-                    </li>
-                </ul>
+    <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.url_name == 'for_you_feed' or request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'for_you_feed' %}">
+            Home Feed
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.url_name == 'explore_movies' %}active{% endif %}" href="{% url 'explore_movies' %}">
+            Explore Movies
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.url_name == 'explore_tv' %}active{% endif %}" href="{% url 'explore_tv' %}">
+            Explore TV Shows
+        </a>
+    </li>
+    
+    <!-- 💎 FIXED & ADDED: Personalized Watchlist Link Hub -->
+    <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.url_name == 'watchlist_hub' %}active{% endif %}" href="{% url 'watchlist_hub' %}">
+            Watchlist
+        </a>
+    </li>
+
+    <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.url_name == 'analytics_dashboard' %}active{% endif %}" href="{% url 'analytics_dashboard' %}">
+            Analytics Dashboard
+        </a>
+    </li>
+</ul>
                 <div class="d-flex align-items-center gap-3">
                     {% if user.is_authenticated %}
                         <span class="text-secondary d-none d-lg-inline fs-6">

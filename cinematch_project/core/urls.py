@@ -36,5 +36,13 @@ urlpatterns = [
     path('movies/<int:movie_id>/', views.movie_detail_view, name='movie_detail'),
 
     # TV Show Detail Hub (Unit 7: REST API compound request — TV variant)
-    path('tv/<int:series_id>/', views.tv_detail_view, name='tv_detail'),
+    path('tv/<int:series_id>/', views.tv_detail_view, name='tv_show_detail'),
+
+    # Watchlist
+    path('watchlist/', views.watchlist_hub_view, name='watchlist_hub'),
+
+    # ── 💎 ADDED: Media Review CRUD Ingestion Channels ──
+    path('review/add/<str:media_type>/<int:media_id>/', views.add_media_review, name='add_media_review'),
+    path('review/update/<int:review_id>/', views.update_media_review, name='update_media_review'),
+    path('review/delete/<int:review_id>/', views.delete_media_review, name='delete_media_review'),
 ]

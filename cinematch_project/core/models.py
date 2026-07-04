@@ -147,3 +147,39 @@ class UserReview(models.Model):
 
     def __str__(self):
         return f"Review by {self.user.username} on {self.media_type} ID {self.media_id} ({self.rating} stars)"
+
+
+from django.db import models
+from django.contrib.auth.models import User
+
+class MediaReview(models.Model):
+    """
+    Syllabus Reference: Unit 9.1 Database Relations & Relational Schema Mapping
+    Stores structured user reviews for movies/TV shows, acting as an ingestion
+    source for future high-dimensional Sentiment Analysis / NLP vector clusters.
+    """
+    MEDIA_CHOICES = [
+        ('movie', 'Movie'),
+        ('tv', 'TV Show'),
+    ]
+    
+    # 💎 FIXED: Altered related_name to resolve the reverse accessor namespace clash with UserReview
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='media_reviews')
+    media_id = models.IntegerField()  # Corresponds to TMDB API unique IDs
+    media_type = models.CharField(max_length=10, choices=MEDIA_CHOICES, default='movie')
+    review_text = models.TextField()
+    
+    # 🧠 Metadata pillars for upcoming analytical aggregations
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Placeholder field for future Phase 5 Machine Learning model execution integration
+    sentiment_score = models.FloatField(null=True, blank=True, help_text="Aggregated polarity score [-1.0 to 1.0]")
+
+    class Meta:
+        ordering = ['-created_at']  # Show freshest critical insights first
+        # Prevent a single user from spamming multiple root records for the same property
+        unique_together = ('user', 'media_id', 'media_type')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.media_type} {self.media_id} ({self.created_at.strftime('%Y-%m-%d')})"

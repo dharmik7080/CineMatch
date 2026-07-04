@@ -1,0 +1,171 @@
+{% extends 'core/base.html' %}
+
+{% block title %}My Watchlist — CineMatch{% endblock %}
+
+{% block extra_css %}
+.section-heading {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    border-left: 3px solid #a855f7;
+    padding-left: 0.75rem;
+    margin-bottom: 1.75rem;
+}
+.watchlist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1.5rem;
+}
+.watchlist-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.watchlist-card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(168, 85, 247, 0.4);
+    box-shadow: 0 10px 30px rgba(168, 85, 247, 0.15);
+}
+.watchlist-card img {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    display: block;
+}
+.card-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(7, 7, 11, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    padding: 1rem;
+}
+.watchlist-card:hover .card-overlay {
+    opacity: 1;
+}
+.empty-placeholder {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 3rem 1rem;
+    text-align: center;
+    color: #6b7280;
+}
+{% endblock %}
+
+{% block content %}
+<section class="container mt-5 pt-4 mb-5">
+    
+    <div class="mb-5">
+        <h1 style="font-size: 2.2rem; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 0.25rem;">
+            My Watchlist
+        </h1>
+        <p class="text-muted" style="color: #9ca3af !important; font-size: 0.95rem;">
+            Manage your curated collection of saved cinematic properties and television series.
+        </p>
+    </div>
+
+    <div class="mb-5">
+        <h2 class="section-heading">Saved Movies</h2>
+        {% if watchlist_movies %}
+            <div class="watchlist-grid">
+                {% for item in watchlist_movies %}
+                    <div class="watchlist-card" id="card-movie-{{ item.id }}">
+                        <img src="{{ item.poster_url }}" alt="Movie Poster" loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop';">
+                        <div class="card-overlay">
+                            <a href="{% url 'movie_detail' item.id %}" class="btn btn-sm btn-light rounded-pill px-3 fw-bold" style="font-size: 0.75rem;">
+                                <i class="fa-solid fa-circle-info me-1"></i> Details
+                            </a>
+                            <button class="btn btn-sm btn-outline-danger rounded-pill px-3" style="font-size: 0.75rem;" onclick="removeTargetItem('{{ item.id }}', 'movie')">
+                                <i class="fa-solid fa-trash-can"></i> Drop
+                            </button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-placeholder">
+                <i class="fa-solid fa-film mb-2" style="font-size: 2rem; opacity: 0.3;"></i>
+                <p class="mb-0" style="font-size: 0.88rem;">No movies saved to your watchlist yet.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="mb-5">
+        <h2 class="section-heading">Saved TV Shows</h2>
+        {% if watchlist_tv %}
+            <div class="watchlist-grid">
+                {% for item in watchlist_tv %}
+                    <div class="watchlist-card" id="card-tv-{{ item.id }}">
+                        <img src="{{ item.poster_url }}" alt="TV Show Poster" loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop';">
+                        <div class="card-overlay">
+                            <a href="{% url 'tv_show_detail' item.id %}" class="btn btn-sm btn-light rounded-pill px-3 fw-bold" style="font-size: 0.75rem;">
+                                <i class="fa-solid fa-circle-info me-1"></i> Details
+                            </a>
+                            <button class="btn btn-sm btn-outline-danger rounded-pill px-3" style="font-size: 0.75rem;" onclick="removeTargetItem('{{ item.id }}', 'tv')">
+                                <i class="fa-solid fa-trash-can"></i> Drop
+                            </button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-placeholder">
+                <i class="fa-solid fa-tv mb-2" style="font-size: 2rem; opacity: 0.3;"></i>
+                <p class="mb-0" style="font-size: 0.88rem;">No television series saved to your watchlist yet.</p>
+            </div>
+        {% endif %}
+    </div>
+
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function removeTargetItem(mediaId, mediaType) {
+    const url = "{% url 'watchlist_delete' %}";
+    const formData = new FormData();
+    formData.append('media_id', mediaId);
+    formData.append('media_type', mediaType);
+
+    fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken, 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            // Smoothly fade out and remove card element from layout grid without forcing page reload
+            const element = document.getElementById(`card-${mediaType}-${mediaId}`);
+            if (element) {
+                element.style.transition = 'all 0.4s ease';
+                element.style.opacity = '0';
+                element.style.transform = 'scale(0.8)';
+                setTimeout(() => { 
+                    element.remove(); 
+                    // Optional: If grid is completely empty now, trigger reload to show empty state placeholder
+                    if (document.querySelectorAll(`.watchlist-grid`).length === 0 || element.parentNode.children.length === 0) {
+                        window.location.reload();
+                    }
+                }, 400);
+            }
+            if (typeof showNotification === 'function') showNotification(data.message);
+        }
+    })
+    .catch(err => console.error('[WATCHLIST HUB] Removal exception:', err));
+}
+</script>
+{% endblock %}
