@@ -428,6 +428,24 @@
             </div>
             {% endif %}
 
+            {% if director %}
+            <div class="mb-5">
+                <h2 class="section-heading">Directed By</h2>
+                <!-- Use a grid with a single column to keep the card width controlled -->
+                    <div style="display: grid; grid-template-columns: 1fr; max-width: 320px;">
+                        <div class="cast-card d-flex align-items-center justify-content-start text-start p-3">
+                            <img src="{% if director.profile_path %}https://image.tmdb.org/t/p/w200{{ director.profile_path }}{% else %}https://ui-avatars.com/api/?name={{ director.name|urlencode }}&background=2d1b4e&color=c084fc&size=72{% endif %}" 
+                                alt="{{ director.name }}" 
+                            style="width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(168,85,247,0.35); margin-bottom: 0; margin-right: 1rem;">
+                        <div>
+                            <div class="cast-name" style="margin-bottom: 0.15rem;">{{ director.name }}</div>
+                            <div class="cast-char">Director</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
             {% if cast %}
             <div class="mb-5">
                 <h2 class="section-heading">Top Cast</h2>

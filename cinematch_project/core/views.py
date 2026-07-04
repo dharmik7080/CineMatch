@@ -575,6 +575,13 @@ def movie_detail_view(request, movie_id):
 
         credits_payload = data.get('credits', {})
         raw_cast = credits_payload.get('cast', [])
+
+        # 1. Define 'crew' first
+        crew = credits_payload.get('crew', []) 
+        
+        # 2. Now you can find the director safely
+        director = next((member for member in crew if member.get('job') == 'Director'), None)
+
         for member in raw_cast[:6]:
             profile_path = member.get('profile_path') or ''
             cast.append({
@@ -677,6 +684,7 @@ def movie_detail_view(request, movie_id):
         # 💎 INJECTED REVIEWS DATA CONTEXTS
         'reviews':         reviews,
         'user_review':     user_review,
+        'director':        director,
     }
 
     return render(request, 'core/movie_detail.html', context)
