@@ -18,7 +18,3 @@ venv/
 .venv/
 env/
 myenv/
-
-# Collected static files
-staticfiles/
-
