@@ -359,7 +359,7 @@
 
                 {% if tv_show.genres %}
                 <div class="d-flex flex-wrap gap-2 mb-4">
-                    {% Pattern for genre in tv_show.genres %}
+                    {% for genre in tv_show.genres %}
                         {% if genre %}<span class="genre-badge">{{ genre }}</span>{% endif %}
                     {% endfor %}
                 </div>

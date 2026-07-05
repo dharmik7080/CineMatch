@@ -10,8 +10,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome Icons -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- 💎 UPDATED: FontAwesome Kit for guaranteed Brand Icon support -->
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <!-- Plotly.js CDN -->
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
     
@@ -186,7 +188,6 @@
 </head>
 <body>
 
-    <!-- Top Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
         <div class="container">
             <a class="navbar-brand" href="{% url 'home' %}">
@@ -197,35 +198,32 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-    <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'for_you_feed' or request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'for_you_feed' %}">
-            Home Feed
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'explore_movies' %}active{% endif %}" href="{% url 'explore_movies' %}">
-            Explore Movies
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'explore_tv' %}active{% endif %}" href="{% url 'explore_tv' %}">
-            Explore TV Shows
-        </a>
-    </li>
-    
-    <!-- 💎 FIXED & ADDED: Personalized Watchlist Link Hub -->
-    <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'watchlist_hub' %}active{% endif %}" href="{% url 'watchlist_hub' %}">
-            Watchlist
-        </a>
-    </li>
-
-    <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'analytics_dashboard' %}active{% endif %}" href="{% url 'analytics_dashboard' %}">
-            Analytics Dashboard
-        </a>
-    </li>
-</ul>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'for_you_feed' or request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'for_you_feed' %}">
+                            Home Feed
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'explore_movies' %}active{% endif %}" href="{% url 'explore_movies' %}">
+                            Explore Movies
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'explore_tv' %}active{% endif %}" href="{% url 'explore_tv' %}">
+                            Explore TV Shows
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'watchlist_hub' %}active{% endif %}" href="{% url 'watchlist_hub' %}">
+                            Watchlist
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'analytics_dashboard' %}active{% endif %}" href="{% url 'analytics_dashboard' %}">
+                            Analytics Dashboard
+                        </a>
+                    </li>
+                </ul>
                 <div class="d-flex align-items-center gap-3">
                     {% if user.is_authenticated %}
                         <span class="text-secondary d-none d-lg-inline fs-6">
@@ -243,24 +241,19 @@
         </div>
     </nav>
 
-    <!-- Main Content Block -->
     <main class="flex-grow-1">
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Alert / Toast Container for CRUD feedbacks -->
     <div class="toast-container">
         <div id="liveToast" class="toast align-items-center text-white bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true" style="border: 1px solid rgba(255,255,255,0.15) !important;">
             <div class="d-flex">
-                <div class="toast-body" id="toastMessage">
-                    Action executed successfully.
-                </div>
+                <div class="toast-body" id="toastMessage">Action executed successfully.</div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
         </div>
     </div>
 
-    <!-- Footer -->
     <footer>
         <div class="container">
             <div class="row align-items-center justify-content-between">
@@ -269,16 +262,13 @@
                     <p class="text-secondary mb-0 small">A premium AI-powered recommendation system built on SQLite/Django ORM and Vector Similarity.</p>
                 </div>
                 <div class="col-md-6 text-center text-md-end mt-3 mt-md-0">
-                    <p class="text-secondary mb-0 small">&copy; 2026 CineMatch Project. Complies with Semester IV Academic Syllabus guidelines.</p>
+                    <p class="text-secondary mb-0 small">&copy; 2026 CineMatch Project.</p>
                 </div>
             </div>
         </div>
     </footer>
 
-    <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Shared CRUD AJAX Helper Script -->
     <script>
         function getCookie(name) {
             let cookieValue = null;
