@@ -45,4 +45,7 @@ urlpatterns = [
     path('review/add/<str:media_type>/<int:media_id>/', views.add_media_review, name='add_media_review'),
     path('review/update/<int:review_id>/', views.update_media_review, name='update_media_review'),
     path('review/delete/<int:review_id>/', views.delete_media_review, name='delete_media_review'),
+
+    # Unified Person Profile (Actor & Director) Route
+    path('person/<int:person_id>/', views.person_profile, name='person_profile'),
 ]

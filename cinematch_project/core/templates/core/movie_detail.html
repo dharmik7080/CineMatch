@@ -432,35 +432,41 @@
             <div class="mb-5">
                 <h2 class="section-heading">Directed By</h2>
                 <!-- Use a grid with a single column to keep the card width controlled -->
-                    <div style="display: grid; grid-template-columns: 1fr; max-width: 320px;">
-                        <div class="cast-card d-flex align-items-center justify-content-start text-start p-3">
+                <div style="display: grid; grid-template-columns: 1fr; max-width: 320px;">
+                    <a href="{% url 'person_profile' director.id %}" class="text-decoration-none" style="display: block;">
+                        <div class="cast-card d-flex align-items-center justify-content-start text-start p-3" style="transition: all 0.3s ease;">
                             <img src="{% if director.profile_path %}https://image.tmdb.org/t/p/w200{{ director.profile_path }}{% else %}https://ui-avatars.com/api/?name={{ director.name|urlencode }}&background=2d1b4e&color=c084fc&size=72{% endif %}" 
                                 alt="{{ director.name }}" 
-                            style="width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(168,85,247,0.35); margin-bottom: 0; margin-right: 1rem;">
-                        <div>
-                            <div class="cast-name" style="margin-bottom: 0.15rem;">{{ director.name }}</div>
-                            <div class="cast-char">Director</div>
+                                style="width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(168,85,247,0.35); margin-bottom: 0; margin-right: 1rem;">
+                            <div>
+                                <div class="cast-name text-accent" style="margin-bottom: 0.15rem; font-weight: 700;">{{ director.name }}</div>
+                                <div class="cast-char">Director <i class="fa-solid fa-chevron-right ms-1 small text-secondary"></i></div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
             </div>
-        </div>
-    </div>
-</div>
-{% endif %}
+            {% endif %}
 
             {% if cast %}
             <div class="mb-5">
                 <h2 class="section-heading">Top Cast</h2>
                 <div class="cast-grid">
                     {% for member in cast %}
-                    <div class="cast-card">
-                        <img src="{{ member.profile_url }}"
-                             alt="{{ member.name }}"
-                             loading="lazy"
-                             onerror="this.src='https://ui-avatars.com/api/?name={{ member.name|urlencode }}&background=2d1b4e&color=c084fc&size=72'">
-                        <div class="cast-name" title="{{ member.name }}">{{ member.name }}</div>
-                        {% if member.character %}
-                        <div class="cast-char" title="{{ member.character }}">as {{ member.character }}</div>
-                        {% endif %}
-                    </div>
+                    {% if member.id %}
+                    <a href="{% url 'person_profile' member.id %}" class="text-decoration-none" style="display: block;">
+                        <div class="cast-card h-100" style="transition: all 0.3s ease;">
+                            <img src="{{ member.profile_url }}"
+                                 alt="{{ member.name }}"
+                                 loading="lazy"
+                                 onerror="this.src='https://ui-avatars.com/api/?name={{ member.name|urlencode }}&background=2d1b4e&color=c084fc&size=72'">
+                            <div class="cast-name text-accent" title="{{ member.name }}" style="font-weight: 600;">{{ member.name }}</div>
+                            {% if member.character %}
+                                <div class="cast-char" title="{{ member.character }}">{{ member.character }}</div>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% endif %}
                     {% endfor %}
                 </div>
             </div>

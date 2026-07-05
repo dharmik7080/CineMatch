@@ -433,16 +433,20 @@
                 <h2 class="section-heading">Top Cast</h2>
                 <div class="cast-grid">
                     {% for member in cast %}
-                    <div class="cast-card">
-                        <img src="{{ member.profile_url }}"
-                             alt="{{ member.name }}"
-                             loading="lazy"
-                             onerror="this.src='https://ui-avatars.com/api/?name={{ member.name|urlencode }}&background=2d1b4e&color=c084fc&size=72'">
-                        <div class="cast-name" title="{{ member.name }}">{{ member.name }}</div>
-                        {% if member.character %}
-                        <div class="cast-char" title="{{ member.character }}">as {{ member.character }}</div>
-                        {% endif %}
-                    </div>
+                    {% if member.id %}
+                    <a href="{% url 'person_profile' member.id %}" class="text-decoration-none" style="display: block;">
+                        <div class="cast-card h-100" style="transition: all 0.3s ease;">
+                            <img src="{{ member.profile_url }}"
+                                 alt="{{ member.name }}"
+                                 loading="lazy"
+                                 onerror="this.src='https://ui-avatars.com/api/?name={{ member.name|urlencode }}&background=2d1b4e&color=c084fc&size=72'">
+                            <div class="cast-name text-accent" title="{{ member.name }}" style="font-weight: 600;">{{ member.name }}</div>
+                            {% if member.character %}
+                                <div class="cast-char" title="{{ member.character }}">{{ member.character }}</div>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% endif %}
                     {% endfor %}
                 </div>
             </div>

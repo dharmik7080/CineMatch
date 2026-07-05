@@ -66,7 +66,7 @@ def get_cached_poster(client, media_id, media_type):
     
     try:
         # Enforce strict timeout block to avoid blocking Django server threads
-        poster_url = client.get_media_assets(media_id, media_type, timeout=3.0)
+        poster_url = client.get_media_assets(media_id, media_type, timeout=5.0)
         if poster_url:
             POSTER_CACHE[cache_key] = poster_url
             return poster_url
@@ -280,7 +280,7 @@ def for_you_feed(request):
     url = f"{client.base_url}/movie/now_playing?language=en-US&region=IN&page=1"
     
     try:
-        response = requests.get(url, headers=client.headers, timeout=1.0)
+        response = requests.get(url, headers=client.headers, timeout=5.0)
         if response.status_code == 200:
             data = response.json()
             results = data.get('results', [])
@@ -551,7 +551,7 @@ def movie_detail_view(request, movie_id):
     similar_movies = []
 
     try:
-        resp = requests.get(endpoint, timeout=5)
+        resp = requests.get(endpoint, timeout=5.0)
         resp.raise_for_status()
         data = resp.json()
 
@@ -604,6 +604,7 @@ def movie_detail_view(request, movie_id):
         for member in raw_cast[:6]:
             profile_path = member.get('profile_path') or ''
             cast.append({
+                'id':         member.get('id'),
                 'name':       member.get('name', ''),
                 'character':  member.get('character', ''),
                 'profile_url': (
@@ -771,6 +772,7 @@ def tv_detail_view(request, series_id):
         for member in raw_cast[:6]:
             profile_path = member.get('profile_path') or ''
             cast.append({
+                'id':         member.get('id'),
                 'name':       member.get('name', ''),
                 'character':  member.get('character', ''),
                 'profile_url': (
@@ -995,3 +997,123 @@ def get_provider_recommendations(provider_id, media_type='movie'):
         print(f"[PROVIDER FEED] Error fetching for provider {provider_id}: {e}")
         
     return []
+
+
+@login_required
+def person_profile(request, person_id):
+    """
+    Fetches the profile info and combined filmography (acting & directing) of a person using TMDB.
+    """
+    client = TMDBClient()
+    
+    # 1. Fetch person info (biography, birthday, place of birth, etc.)
+    person_url = f"{client.base_url}/person/{person_id}?language=en-US"
+    name = "Unknown Person"
+    profile_path = None
+    biography = ""
+    birthday = None
+    place_of_birth = None
+    
+    try:
+        response = requests.get(person_url, headers=client.headers, timeout=5.0)
+        if response.status_code == 200:
+            data = response.json()
+            name = data.get('name', 'Unknown Person')
+            profile_path = data.get('profile_path')
+            biography = data.get('biography', '')
+            birthday = data.get('birthday')
+            place_of_birth = data.get('place_of_birth')
+    except Exception as e:
+        print(f"[PERSON PROFILE] Error fetching details for {person_id}: {e}")
+        
+    # 2. Fetch filmography credits (Acting & Directing)
+    credits_url = f"{client.base_url}/person/{person_id}/movie_credits?language=en-US"
+    movies_map = {}
+    
+    try:
+        response = requests.get(credits_url, headers=client.headers, timeout=5.0)
+        if response.status_code == 200:
+            data = response.json()
+            
+            # A. Process Cast Credits (Acting)
+            for credit in data.get('cast', []):
+                movie_id = credit.get('id')
+                if not movie_id:
+                    continue
+                
+                release_date = credit.get('release_date', '')
+                year = release_date.split('-')[0] if release_date else 'N/A'
+                character = credit.get('character', '').strip()
+                role_str = f"As {character}" if character else "Actor"
+                
+                if movie_id not in movies_map:
+                    poster_path = credit.get('poster_path')
+                    movies_map[movie_id] = {
+                        'movie_id': movie_id,
+                        'title': credit.get('title') or credit.get('original_title') or 'Unknown Title',
+                        'poster_url': f"{client.image_base_url}{poster_path}" if poster_path else client.movie_fallback,
+                        'year': year,
+                        'roles': [role_str]
+                    }
+                else:
+                    movies_map[movie_id]['roles'].append(role_str)
+                    
+            # B. Process Crew Credits (Filtering for Directing / Director)
+            for credit in data.get('crew', []):
+                if credit.get('job') == 'Director':
+                    movie_id = credit.get('id')
+                    if not movie_id:
+                        continue
+                    
+                    release_date = credit.get('release_date', '')
+                    year = release_date.split('-')[0] if release_date else 'N/A'
+                    role_str = "Director"
+                    
+                    if movie_id not in movies_map:
+                        poster_path = credit.get('poster_path')
+                        movies_map[movie_id] = {
+                            'movie_id': movie_id,
+                            'title': credit.get('title') or credit.get('original_title') or 'Unknown Title',
+                            'poster_url': f"{client.image_base_url}{poster_path}" if poster_path else client.movie_fallback,
+                            'year': year,
+                            'roles': [role_str]
+                          }
+                    else:
+                        if role_str not in movies_map[movie_id]['roles']:
+                            movies_map[movie_id]['roles'].append(role_str)
+                            
+    except Exception as e:
+        print(f"[PERSON PROFILE] Error fetching credits for {person_id}: {e}")
+        
+    # Convert dict to sorted list of movie records
+    movies_list = list(movies_map.values())
+    movies_list.sort(key=lambda x: x['year'], reverse=True)
+    
+    # Flatten list of roles to display nicely in template (e.g. "Director, As Sherlock Holmes")
+    for m in movies_list:
+        m['roles_display'] = ", ".join(m['roles'])
+        
+    profile_url = f"https://image.tmdb.org/t/p/w300{profile_path}" if profile_path else f"https://ui-avatars.com/api/?name={urllib.parse.quote_plus(name)}&background=2d1b4e&color=c084fc&size=300"
+    
+    # ── PAGINATION SYSTEM (15 ITEMS PER PAGE) ──
+    paginator = Paginator(movies_list, 18)
+    page_number = request.GET.get('page', 1)
+    
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+        
+    context = {
+        'person_id': person_id,
+        'name': name,
+        'profile_url': profile_url,
+        'biography': biography,
+        'birthday': birthday,
+        'place_of_birth': place_of_birth,
+        'page_obj': page_obj
+    }
+    
+    return render(request, 'core/person_profile.html', context)
