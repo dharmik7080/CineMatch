@@ -170,10 +170,24 @@ def main():
     # Join list of word tokens into a single space-separated string using .apply()
     cleaned_movies['tags'] = cleaned_movies['tags_list'].apply(lambda x: " ".join(x))
     
-    # TV Shows tags = overview + genres
+    # TV Shows tags = overview + genres * 4 + country_proxies * 3 + year_tag
+    cleaned_tv['year_tag'] = cleaned_tv['first_air_date'].apply(lambda x: [x.split('-')[0]] if isinstance(x, str) and '-' in x else [])
+    
+    def get_country_proxies(countries_str):
+        if pd.isna(countries_str) or not isinstance(countries_str, str):
+            return []
+        try:
+            countries = ast.literal_eval(countries_str)
+            return [f"{c}Network" for c in countries]
+        except Exception:
+            return []
+    cleaned_tv['country_proxies'] = cleaned_tv['origin_country'].apply(get_country_proxies)
+
     cleaned_tv['tags_list'] = (
         cleaned_tv['overview'] + 
-        cleaned_tv['genres']
+        cleaned_tv['genres'] * 4 +
+        cleaned_tv['country_proxies'] * 3 +
+        cleaned_tv['year_tag']
     )
     cleaned_tv['tags'] = cleaned_tv['tags_list'].apply(lambda x: " ".join(x))
     
@@ -191,9 +205,9 @@ def main():
     cleaned_tv['tags'] = cleaned_tv['tags'].apply(stem_text)
     print("Stemming transformation successfully applied.")
     
-    # Keep only essential columns to form final data models
+    # Keep essential columns to form final data models, preserving popularity and dates
     movies_final = cleaned_movies[['movie_id', 'title', 'tags']]
-    tv_final = cleaned_tv[['id', 'title', 'tags']]
+    tv_final = cleaned_tv[['id', 'title', 'tags', 'popularity', 'first_air_date']]
     
     # Save the final engineered dataframes to CSV files
     movies_final.to_csv('engineered_movies.csv', index=False)

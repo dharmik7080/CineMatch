@@ -124,9 +124,13 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
         
     df = pd.DataFrame(data_dict)
     
-    # ── FALLBACK LAYER 1: Watchlist is completely empty ──
+    # ── COLD START LOGIC & FALLBACK LAYER 1: Watchlist is completely empty ──
     if not user_watchlist_ids:
-        defaults = df.head(8).to_dict(orient='records')
+        if 'popularity' in df.columns:
+            trending_df = df.sort_values(by='popularity', ascending=False)
+        else:
+            trending_df = df
+        defaults = trending_df.head(8).to_dict(orient='records')
         for d in defaults:
             title_text = d.get('title') or d.get('name') or 'Unknown Title'
             d['title'] = title_text
@@ -137,9 +141,13 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
     # Find row indices of user's saved titles inside the catalog DataFrame
     watchlist_indices = df[df[id_col].isin(user_watchlist_ids)].index.tolist()
     
-    # ── FALLBACK LAYER 2: Watchlist IDs do not match dataset records ──
+    # ── COLD START LOGIC & FALLBACK LAYER 2: Watchlist IDs do not match dataset records ──
     if not watchlist_indices:
-        defaults = df.head(8).to_dict(orient='records')
+        if 'popularity' in df.columns:
+            trending_df = df.sort_values(by='popularity', ascending=False)
+        else:
+            trending_df = df
+        defaults = trending_df.head(8).to_dict(orient='records')
         for d in defaults:
             title_text = d.get('title') or d.get('name') or 'Unknown Title'
             d['title'] = title_text
@@ -154,8 +162,20 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
             aggregated_sim = aggregated_sim / len(user_watchlist_ids)
 
         sorted_indices = np.argsort(aggregated_sim)[::-1]
-        recommended_indices = [idx for idx in sorted_indices if idx not in watchlist_indices]
         
+        # ── HYBRID SEARCH STRATEGY ──
+        # Apply a popularity filter to de-emphasize obscure similarities.
+        # Only show recommendations that meet a minimum popularity threshold (e.g. 15.0).
+        if media_type == 'tv' and 'popularity' in df.columns:
+            popularity_threshold = 15.0
+            recommended_indices = [
+                idx for idx in sorted_indices 
+                if idx not in watchlist_indices 
+                and df.iloc[idx].get('popularity', 0) >= popularity_threshold
+            ]
+        else:
+            recommended_indices = [idx for idx in sorted_indices if idx not in watchlist_indices]
+            
         top_indices = recommended_indices[:8]
         recommendations = df.iloc[top_indices].to_dict(orient='records')
         
@@ -593,6 +613,9 @@ def movie_detail_view(request, movie_id):
     trailer_key = None
     watch_providers = []
     similar_movies = []
+    belongs_to_collection = None
+    collection_movies = []
+    collection_name = ""
 
     try:
         resp = requests.get(endpoint, timeout=5.0)
@@ -704,6 +727,38 @@ def movie_detail_view(request, movie_id):
                 'trailer_url': f"https://www.youtube.com/results?search_query={encoded}+official+trailer",
             })
 
+        # Franchise / Collection Fetching
+        belongs_to_collection = data.get('belongs_to_collection')
+        if belongs_to_collection:
+            collection_id = belongs_to_collection.get('id')
+            collection_name = belongs_to_collection.get('name', '')
+            collection_endpoint = f"https://api.themoviedb.org/3/collection/{collection_id}?api_key={api_key}&language=en-US"
+            try:
+                col_resp = requests.get(collection_endpoint, timeout=3.0)
+                if col_resp.status_code == 200:
+                    col_data = col_resp.json()
+                    parts = col_data.get('parts', [])
+                    for part in parts:
+                        part_id = part.get('id')
+                        # Exclude current movie from franchise items
+                        if str(part_id) != str(movie_id):
+                            part_poster = part.get('poster_path') or ''
+                            release_date = part.get('release_date', '')
+                            year = release_date.split('-')[0] if release_date else 'N/A'
+                            collection_movies.append({
+                                'id': part_id,
+                                'title': part.get('title', 'Unknown'),
+                                'vote_average': round(part.get('vote_average', 0.0), 1),
+                                'year': year,
+                                'poster_url': (
+                                    f"https://image.tmdb.org/t/p/w300{part_poster}"
+                                    if part_poster else
+                                    'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop'
+                                ),
+                            })
+            except Exception as ce:
+                print(f"[COLLECTION ERROR] Failed to fetch collection details for {collection_id}: {ce}")
+
     except requests.exceptions.RequestException as e:
         print(f"[MOVIE DETAIL] TMDB API request failed for movie_id={movie_id}: {e}")
         movie = {
@@ -749,6 +804,10 @@ def movie_detail_view(request, movie_id):
         'reviews':         reviews,
         'user_review':     user_review,
         'director':        director,
+        # Franchise Groups
+        'belongs_to_collection': belongs_to_collection,
+        'collection_movies':     collection_movies,
+        'collection_name':       collection_name,
     }
 
     return render(request, 'core/movie_detail.html', context)

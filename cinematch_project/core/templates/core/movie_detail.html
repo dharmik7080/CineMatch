@@ -600,6 +600,50 @@
     </div>
 </section>
 
+{% if belongs_to_collection and collection_movies %}
+<section class="container mb-5">
+    <hr style="border-color:rgba(255,255,255,0.07); margin-bottom:2rem;">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="section-heading mb-0">
+            {% if collection_name %}
+                More from the {{ collection_name }}
+            {% else %}
+                More from the Universe
+            {% endif %}
+        </h2>
+    </div>
+    <div class="similar-strip" role="list" aria-label="Franchise movie recommendations">
+        {% for film in collection_movies %}
+        <div class="similar-item" role="listitem">
+            <a href="{% url 'movie_detail' film.id %}" style="text-decoration:none; color:inherit;">
+                <img src="{{ film.poster_url }}"
+                     alt="{{ film.title }} poster"
+                     loading="lazy"
+                     onerror="this.src='https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=300&auto=format&fit=crop'">
+            </a>
+            <div class="similar-item-body">
+                <div class="similar-title" title="{{ film.title }}">{{ film.title }}</div>
+                <div class="d-flex align-items-center justify-content-between mt-1 mb-2">
+                    {% if film.vote_average and film.vote_average > 0 %}
+                    <div class="similar-rating">
+                        <i class="fa-solid fa-star" style="font-size:0.65rem;"></i>
+                        {{ film.vote_average }}
+                    </div>
+                    {% endif %}
+                    <span class="text-secondary small" style="font-size: 0.72rem;">{{ film.year }}</span>
+                </div>
+                <a href="{% url 'movie_detail' film.id %}" 
+   class="btn btn-link btn-sm text-accent text-decoration-none p-0 d-flex align-items-center gap-1"
+   aria-label="View details for {{ film.title }}">
+    Details <i class="fa-solid fa-chevron-right ms-1 small"></i>
+</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
 {% if similar_movies %}
 <section class="container mb-5">
     <hr style="border-color:rgba(255,255,255,0.07); margin-bottom:2rem;">
