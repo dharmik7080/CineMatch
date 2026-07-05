@@ -129,6 +129,40 @@
         {% endif %}
     </div>
 
+    <!-- ── MY CUSTOM REVIEWS SECTION ── -->
+    <div class="mb-5">
+        <h2 class="section-heading">My Reviews</h2>
+        {% if user_reviews %}
+            <div class="watchlist-grid">
+                {% for review in user_reviews %}
+                    <div class="watchlist-card p-3 d-flex flex-column justify-content-between" style="min-height: 220px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 14px; transition: all 0.3s ease;">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="fw-bold text-white text-truncate m-0" style="font-size: 1.05rem; max-width: 70%;" title="{{ review.movie_title }}">{{ review.movie_title }}</h5>
+                                <span class="badge" style="font-size: 0.75rem; background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.4); color: #c084fc; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-star text-warning"></i> {{ review.rating }}/10
+                                </span>
+                            </div>
+                            <p class="text-secondary small" style="line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 1rem;">
+                                {{ review.content }}
+                            </p>
+                        </div>
+                        <div class="border-top border-secondary pt-2 mt-auto">
+                            <a href="{% url 'movie_detail' review.movie_id %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0 d-flex align-items-center gap-1" style="font-size: 0.82rem;">
+                                View Movie <i class="fa-solid fa-chevron-right ms-1 small"></i>
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-placeholder">
+                <i class="fa-solid fa-pen-nib mb-2" style="font-size: 2rem; opacity: 0.3;"></i>
+                <p class="mb-0" style="font-size: 0.88rem;">You haven't written any custom movie reviews yet.</p>
+            </div>
+        {% endif %}
+    </div>
+
 </section>
 {% endblock %}
 

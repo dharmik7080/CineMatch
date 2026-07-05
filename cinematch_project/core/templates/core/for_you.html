@@ -456,6 +456,69 @@
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- 1.5 TALK OF THE TOWN & MOST INTERESTED (SIDE BY SIDE)             -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <div class="row mb-5 g-4">
+        <!-- Left Container: Talk of the Town -->
+        <div class="col-lg-8">
+            <h2 class="section-title mb-4">
+                <i class="fa-solid fa-fire icon-gradient"></i> Talk of the Town
+            </h2>
+            <div class="row row-cols-1 row-cols-sm-3 g-3">
+                {% for movie in talk_of_town %}
+                <div class="col">
+                    <div class="slider-card w-100 h-100" style="position: relative; height: 340px; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: #0f0f15;">
+                        <!-- Poster image -->
+                        <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
+                        
+                        <!-- Overlay Title & Details -->
+                        <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%); padding: 1rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
+                            <div style="max-width: 65%; display: flex; flex-direction: column; gap: 2px;">
+                                <h5 class="card-title title-fade m-0" style="font-size: 0.95rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{{ movie.title }}">{{ movie.title }}</h5>
+                                <span class="small text-secondary" style="font-size: 0.72rem;">{{ movie.year }}</span>
+                            </div>
+                            <div style="z-index: 5;">
+                                <a href="{% url 'movie_detail' movie.id %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0 d-flex align-items-center gap-1" style="font-size: 0.78rem;">
+                                    Details <i class="fa-solid fa-chevron-right ms-1 small"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Right Container: Most Interested -->
+        <div class="col-lg-4">
+            <h2 class="section-title mb-4">
+                <i class="fa-solid fa-ranking-star icon-gradient"></i> Most Interested
+            </h2>
+            <div class="d-flex flex-column gap-3" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 16px; padding: 1.5rem; height: 340px; overflow-y: auto;">
+                {% for movie in most_interested %}
+                <div class="d-flex align-items-center gap-3 justify-content-between">
+                    <div class="d-flex align-items-center gap-3" style="max-width: 65%;">
+                        <span class="fw-bold text-accent" style="font-size: 1.2rem; min-width: 20px;">{{ forloop.counter }}</span>
+                        <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" style="width: 40px; height: 56px; border-radius: 6px; object-fit: cover; border: 1px solid rgba(255,255,255,0.1);">
+                        <div class="d-flex flex-column text-start">
+                            <a href="{% url 'movie_detail' movie.id %}" class="text-white fw-bold text-decoration-none text-truncate" style="font-size: 0.88rem; max-width: 120px;" title="{{ movie.title }}">{{ movie.title }}</a>
+                            <span class="text-secondary" style="font-size: 0.72rem;">{{ movie.release_date|default:"N/A" }}</span>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge" style="font-size: 0.7rem; background: rgba(96, 165, 250, 0.15); border: 1px solid rgba(96, 165, 250, 0.35); color: #60a5fa; display: inline-flex; align-items: center;">
+                            #{{ forloop.counter }} Weekly
+                        </span>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-secondary small text-center my-auto">No weekly trending data available.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
     <!-- 2. NOW SHOWING IN THEATRES                                         -->
     <!-- ══════════════════════════════════════════════════════════════════ -->
     <div class="mb-5">

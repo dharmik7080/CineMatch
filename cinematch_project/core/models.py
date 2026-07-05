@@ -181,5 +181,31 @@ class MediaReview(models.Model):
         # Prevent a single user from spamming multiple root records for the same property
         unique_together = ('user', 'media_id', 'media_type')
 
+    def __name__(self):
+        return f"{self.user.username} - {self.media_type} {self.media_id} ({self.created_at.strftime('%Y-%m-%d')})"
+
     def __str__(self):
         return f"{self.user.username} - {self.media_type} {self.media_id} ({self.created_at.strftime('%Y-%m-%d')})"
+
+
+class Review(models.Model):
+    """
+    Syllabus Reference: Unit 9.1 Database Relations & Schema Mapping
+    Stores user reviews and ratings (1-10) for movies.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_custom_reviews')
+    movie_id = models.IntegerField(help_text="The unique TMDB movie identifier.")
+    movie_title = models.CharField(max_length=255)
+    rating = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Integer rating from 1 (lowest) to 10 (highest)."
+    )
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ('user', 'movie_id')
+
+    def __str__(self):
+        return f"{self.user.username}'s review of {self.movie_title} ({self.rating}/10)"

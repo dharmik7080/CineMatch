@@ -48,4 +48,7 @@ urlpatterns = [
 
     # Unified Person Profile (Actor & Director) Route
     path('person/<int:person_id>/', views.person_profile, name='person_profile'),
+
+    # Custom User Review Submission Route
+    path('review/submit/<int:movie_id>/', views.submit_review, name='submit_review'),
 ]

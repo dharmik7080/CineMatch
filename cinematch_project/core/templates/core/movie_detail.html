@@ -645,19 +645,30 @@
     <div class="row">
         <div class="col-lg-8">
             <h3 class="fw-bold text-white mb-4">
-                <i class="fa-solid fa-comments text-accent me-2"></i> User Reviews
-            </h3>
-
-            <!-- 1. Review Submission Workspace -->
+              <!-- 1. Unified Review Submission Workspace -->
             {% if not user_review %}
                 {% if user.is_authenticated %}
                     <div class="card bg-dark text-white border-secondary border-opacity-25 mb-4 p-3 shadow-sm" style="background-color: rgba(255,255,255,0.015) !important;">
-                        <h5 class="fw-bold mb-2 text-secondary" style="font-size: 0.95rem;">Share Your Critical Assessment</h5>
-                        <form action="{% url 'add_media_review' 'movie' movie.id %}" method="POST">
+                        <h5 class="fw-bold mb-3 text-accent" style="font-size: 0.95rem;">Share Your Rating & Review</h5>
+                        <form action="{% url 'submit_review' movie.id %}" method="POST">
                             {% csrf_token %}
+                            <input type="hidden" name="movie_title" value="{{ movie.title }}">
+                            
                             <div class="mb-3">
-                                <textarea name="review_text" rows="3" class="form-control bg-black text-white border-secondary border-opacity-50 focus-accent" 
-                                          placeholder="Write your constructive critique here... (Text will be captured for future sentiment matrix evaluations)" style="background-color: #000 !important; font-size: 0.9rem;" required></textarea>
+                                <label for="custom_rating" class="form-label small text-secondary">Rating (1 to 10 stars):</label>
+                                <select name="rating" id="custom_rating" class="form-select bg-black text-white border-secondary border-opacity-50 focus-accent" style="background-color: #000 !important; font-size: 0.9rem;" required>
+                                    <option value="" disabled selected>Select rating...</option>
+                                    {% for r in "123456789" %}
+                                        <option value="{{ r }}">{{ r }}/10</option>
+                                    {% endfor %}
+                                    <option value="10">10/10 - Masterpiece</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="custom_content" class="form-label small text-secondary">Review Content:</label>
+                                <textarea name="content" id="custom_content" rows="3" class="form-control bg-black text-white border-secondary border-opacity-50 focus-accent" 
+                                          placeholder="Share your personal thoughts and critique on this movie..." style="background-color: #000 !important; font-size: 0.9rem;" required></textarea>
                             </div>
                             <button type="submit" class="btn btn-sm btn-light rounded-pill px-4 fw-bold" style="font-size: 0.8rem;">
                                 <i class="fa-solid fa-paper-plane me-1"></i> Submit Review
@@ -666,7 +677,7 @@
                     </div>
                 {% else %}
                     <div class="text-center rounded-3 p-4 mb-4" style="background: rgba(255,255,255,0.015); border: 1px dashed rgba(255,255,255,0.12);">
-                        <p class="text-secondary mb-2" style="font-size: 0.88rem;">Want to write a review and contribute data to our upcoming NLP sentiment model?</p>
+                        <p class="text-secondary mb-2" style="font-size: 0.88rem;">Want to write a review and rate this movie?</p>
                         <a href="{% url 'login' %}" class="btn btn-sm btn-outline-light rounded-pill px-4 fw-bold" style="font-size: 0.78rem;">Sign In to Account</a>
                     </div>
                 {% endif %}
@@ -684,7 +695,12 @@
                                             {{ review.user.username|slice:":2"|upper }}
                                         </div>
                                         <div>
-                                            <span class="fw-bold text-white d-block" style="font-size: 0.9rem;">@{{ review.user.username }}</span>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="fw-bold text-white" style="font-size: 0.9rem;">@{{ review.user.username }}</span>
+                                                <span class="badge" style="font-size: 0.68rem; background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.4); color: #c084fc; display: inline-flex; align-items: center; gap: 3px;">
+                                                    <i class="fa-solid fa-star text-warning"></i> {{ review.rating }}/10
+                                                </span>
+                                            </div>
                                             <small class="text-secondary" style="font-size: 0.72rem;">{{ review.created_at|date:"F d, Y" }}</small>
                                         </div>
                                     </div>
@@ -704,13 +720,13 @@
 
                                 <!-- Read-Only Box -->
                                 <p class="text-light mb-0 p-1 raw-review-content" id="review-text-{{ review.id }}" style="font-size: 0.9rem; line-height: 1.6; color: #d1d5db !important;">
-                                    {{ review.review_text }}
+                                    {{ review.content }}
                                 </p>
 
                                 <!-- Hidden Inline Editor Workspace -->
                                 {% if review.user == request.user %}
                                     <div class="d-none mt-2" id="edit-box-{{ review.id }}">
-                                        <textarea id="edit-input-{{ review.id }}" rows="3" class="form-control bg-dark text-white border-secondary mb-2 focus-accent" style="background-color: #000 !important; font-size: 0.9rem;">{{ review.review_text }}</textarea>
+                                        <textarea id="edit-input-{{ review.id }}" rows="3" class="form-control bg-dark text-white border-secondary mb-2 focus-accent" style="background-color: #000 !important; font-size: 0.9rem;">{{ review.content }}</textarea>
                                         <div class="d-flex justify-content-end gap-2">
                                             <button class="btn btn-xs btn-outline-secondary rounded-pill px-3 py-1" onclick="disableEditMode('{{ review.id }}')">Cancel</button>
                                             <button class="btn btn-xs btn-light rounded-pill px-3 py-1 fw-bold" onclick="dispatchUpdateReview('{{ review.id }}')">Save Changes</button>
@@ -723,7 +739,7 @@
                 {% else %}
                     <div class="text-center py-4 rounded-3" style="border: 1px dashed rgba(255,255,255,0.08); background: rgba(255,255,255,0.005);">
                         <i class="fa-solid fa-message text-secondary mb-2 d-block" style="font-size: 1.5rem; opacity: 0.3;"></i>
-                        <span class="text-secondary small">No analytical feedback logged yet. Be the first to start the dataset timeline thread!</span>
+                        <span class="text-secondary small">No reviews logged yet. Be the first to start the thread!</span>
                     </div>
                 {% endif %}
             </div>

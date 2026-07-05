@@ -23,7 +23,7 @@ from django.conf import settings
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.utils.html import escape
 
-from .models import UserProfile, MovieWatchlist, MediaReview
+from .models import UserProfile, MovieWatchlist, MediaReview, Review
 from .tmdb_api import TMDBClient
 
 # ======================================================================
@@ -332,8 +332,48 @@ def for_you_feed(request):
     
     recommended_movies = get_recommendations(saved_movies, 'movie')
     recommended_tv_shows = get_recommendations(saved_tv_shows, 'tv')
+
+    # ── FETCH WEEKLY TRENDING MOVIES FROM TMDB ──
+    weekly_trending = []
+    try:
+        trending_url = f"{client.base_url}/trending/movie/week?language=en-US"
+        trending_resp = requests.get(trending_url, headers=client.headers, timeout=2.5)
+        if trending_resp.status_code == 200:
+            results = trending_resp.json().get('results', [])
+            for item in results[:10]:
+                release_date = item.get('release_date', '')
+                year = release_date.split('-')[0] if release_date else 'N/A'
+                weekly_trending.append({
+                    'id': item.get('id'),
+                    'title': item.get('title'),
+                    'poster_url': get_cached_poster(client, item.get('id'), 'movie'),
+                    'year': year,
+                    'release_date': release_date
+                })
+    except Exception as e:
+        print(f"[WEEKLY TRENDING] TMDB API request exception: {e}")
+
+    if not weekly_trending:
+        defaults_list = [
+            {'id': 27205, 'title': 'Inception', 'year': '2010', 'release_date': '2010-07-16'},
+            {'id': 157336, 'title': 'Interstellar', 'year': '2014', 'release_date': '2014-11-07'},
+            {'id': 19995, 'title': 'Avatar', 'year': '2009', 'release_date': '2009-12-18'},
+            {'id': 49026, 'title': 'The Dark Knight Rises', 'year': '2012', 'release_date': '2012-07-20'},
+            {'id': 24428, 'title': 'The Avengers', 'year': '2012', 'release_date': '2012-05-04'}
+        ]
+        for item in defaults_list:
+            weekly_trending.append({
+                'id': item['id'],
+                'title': item['title'],
+                'poster_url': get_cached_poster(client, item['id'], 'movie'),
+                'year': item['year'],
+                'release_date': item['release_date']
+            })
+
+    talk_of_town = weekly_trending[:3]
+    most_interested = weekly_trending[:5]
     
-    # 💎 NEW: Platform-specific feeds
+    # ── Platform-specific feeds ──
     netflix_data = get_provider_recommendations(8, 'movie')
     prime_data = get_provider_recommendations(119, 'movie')
     hotstar_data = get_provider_recommendations(122, 'movie')
@@ -354,6 +394,8 @@ def for_you_feed(request):
         'recommended_movies': recommended_movies,
         'recommended_tv_shows': recommended_tv_shows,
         'spotlight_movie': spotlight_movie,
+        'talk_of_town': talk_of_town,
+        'most_interested': most_interested,
         # 💎 INJECTED INTO CONTEXT
         'netflix_movies': netflix_data,
         'prime_movies': prime_data,
@@ -371,6 +413,8 @@ def for_you_feed(request):
             'recommended_movies': recommended_movies,
             'recommended_tv_shows': recommended_tv_shows,
             'spotlight_movie': spotlight_movie,
+            'talk_of_town': talk_of_town,
+            'most_interested': most_interested,
             # 💎 INJECTED INTO JSON
             'netflix_movies': netflix_data,
             'prime_movies': prime_data,
@@ -690,7 +734,7 @@ def movie_detail_view(request, movie_id):
             pass
 
     # ── FETCH REVIEWS DATALAYER AND AUTHOR ACCESSORS ──
-    reviews = MediaReview.objects.filter(media_id=movie_id, media_type='movie').select_related('user')
+    reviews = Review.objects.filter(movie_id=movie_id).select_related('user')
     user_review = reviews.filter(user=request.user).first() if request.user.is_authenticated else None
 
     context = {
@@ -886,9 +930,13 @@ def watchlist_hub_view(request):
         else:
             watchlist_tv.append(showcase_item)
 
+    # ── QUERY USER CUSTOM REVIEWS ──
+    user_reviews = Review.objects.filter(user=request.user).order_by('-created_at')
+
     context = {
         'watchlist_movies': watchlist_movies,
         'watchlist_tv':     watchlist_tv,
+        'user_reviews':     user_reviews,
     }
     return render(request, 'core/watchlist_hub.html', context)
 
@@ -924,12 +972,12 @@ def add_media_review(request, media_type, media_id):
 @login_required
 @require_POST
 def update_media_review(request, review_id):
-    review = get_object_or_404(MediaReview, id=review_id)
-    # ... auth check ...
+    review = get_object_or_404(Review, id=review_id)
+    if review.user != request.user:
+        return JsonResponse({'success': False, 'error': 'Unauthorized transaction request.'}, status=403)
     updated_text = request.POST.get('review_text', '').strip()
     if updated_text:
-        # 💎 REMOVED escape()
-        review.review_text = updated_text
+        review.content = updated_text
         review.save()
         return JsonResponse({'success': True, 'message': 'Review updated successfully.'})
     return JsonResponse({'success': False, 'error': 'Review text cannot be blank.'}, status=400)
@@ -940,11 +988,9 @@ def delete_media_review(request, review_id):
     """
     Syllabus Reference: Unit 9.2 (CRUD - Delete with Authorization Guard)
     """
-    review = get_object_or_404(MediaReview, id=review_id)
-    
+    review = get_object_or_404(Review, id=review_id)
     if review.user != request.user:
         return JsonResponse({'success': False, 'error': 'Unauthorized transaction request.'}, status=403)
-        
     review.delete()
     return JsonResponse({'success': True, 'message': 'Review successfully scrubbed from catalog.'})
 
@@ -1117,3 +1163,35 @@ def person_profile(request, person_id):
     }
     
     return render(request, 'core/person_profile.html', context)
+
+
+@login_required
+@require_POST
+def submit_review(request, movie_id):
+    """
+    Syllabus Reference: Unit 9.2 WATCHLIST CRUDS (Create and Update reviews)
+    Saves or updates a custom review for a movie.
+    """
+    movie_title = request.POST.get('movie_title', 'Unknown Movie').strip()
+    rating_val = request.POST.get('rating')
+    content = request.POST.get('content', '').strip()
+    
+    if not rating_val or not content:
+        return redirect('movie_detail', movie_id=movie_id)
+        
+    try:
+        rating = int(rating_val)
+        if 1 <= rating <= 10:
+            Review.objects.update_or_create(
+                user=request.user,
+                movie_id=movie_id,
+                defaults={
+                    'movie_title': movie_title,
+                    'rating': rating,
+                    'content': content
+                }
+            )
+    except Exception as e:
+        print(f"[REVIEW SAVE ERROR] {e}")
+        
+    return redirect('movie_detail', movie_id=movie_id)
