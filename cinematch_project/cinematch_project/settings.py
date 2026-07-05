@@ -117,6 +117,8 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
 # 🌌 Paste this configuration right here:
 STATICFILES_DIRS = [
     BASE_DIR / "static",
@@ -136,4 +138,4 @@ LOGOUT_REDIRECT_URL = 'login'
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 # External TMDB API Key (Unit 7: REST API Integration)
-TMDB_API_KEY = '0b44e484623f5c7e1dde2f61f88ea6b6'
+TMDB_API_KEY = '41fc74ce5602882786e1e9d4933fdcc6'

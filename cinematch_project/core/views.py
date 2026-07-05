@@ -66,7 +66,7 @@ def get_cached_poster(client, media_id, media_type):
     
     try:
         # Enforce strict timeout block to avoid blocking Django server threads
-        poster_url = client.get_media_assets(media_id, media_type, timeout=2.5)
+        poster_url = client.get_media_assets(media_id, media_type, timeout=3.0)
         if poster_url:
             POSTER_CACHE[cache_key] = poster_url
             return poster_url
@@ -333,6 +333,11 @@ def for_you_feed(request):
     recommended_movies = get_recommendations(saved_movies, 'movie')
     recommended_tv_shows = get_recommendations(saved_tv_shows, 'tv')
     
+    # 💎 NEW: Platform-specific feeds
+    netflix_data = get_provider_recommendations(8, 'movie')
+    prime_data = get_provider_recommendations(119, 'movie')
+    hotstar_data = get_provider_recommendations(122, 'movie')
+    
     context = {
         'watchlist_count': watchlist_items.count(),
         'saved_movies': saved_movies,
@@ -342,6 +347,10 @@ def for_you_feed(request):
         'recommended_movies': recommended_movies,
         'recommended_tv_shows': recommended_tv_shows,
         'spotlight_movie': spotlight_movie,
+        # 💎 INJECTED INTO CONTEXT
+        'netflix_movies': netflix_data,
+        'prime_movies': prime_data,
+        'hotstar_movies': hotstar_data,
     }
     
     if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
@@ -355,10 +364,13 @@ def for_you_feed(request):
             'recommended_movies': recommended_movies,
             'recommended_tv_shows': recommended_tv_shows,
             'spotlight_movie': spotlight_movie,
+            # 💎 INJECTED INTO JSON
+            'netflix_movies': netflix_data,
+            'prime_movies': prime_data,
+            'hotstar_movies': hotstar_data,
         })
         
     return render(request, 'core/for_you.html', context)
-
 # ======================================================================
 # Explore Movies View
 # ======================================================================
@@ -926,3 +938,53 @@ def delete_media_review(request, review_id):
         
     review.delete()
     return JsonResponse({'success': True, 'message': 'Review successfully scrubbed from catalog.'})
+
+
+def get_provider_recommendations(provider_id, media_type='movie'):
+    """
+    Fetches the top 5 trending titles for a specific provider in India,
+    including a direct deep-link to the TMDB watch page.
+    """
+    client = TMDBClient()
+    # Dynamic URL based on media_type (movie/tv)
+    url = f"{client.base_url}/discover/{media_type}"
+    
+    params = {
+        'api_key': settings.TMDB_API_KEY,
+        'with_watch_providers': provider_id,
+        'watch_region': 'IN',
+        'sort_by': 'popularity.desc',
+        'language': 'en-US',
+        'watch_monetization_types': 'flatrate'
+    }
+    
+    try:
+        response = requests.get(url, params=params, timeout=5.0)
+        if response.status_code == 200:
+            data = response.json()
+            results = data.get('results', [])
+            
+            # Process results for the template
+            processed_results = []
+            for item in results[:5]:
+                # Handle TV show title differences
+                if media_type == 'tv':
+                    item['title'] = item.get('name')
+                
+                # Fetch cached poster
+                item['poster_url'] = get_cached_poster(client, item['id'], media_type)
+                
+                # Generate the direct watch link for the Indian locale
+                item['watch_url'] = f"https://www.themoviedb.org/{media_type}/{item['id']}/watch?locale=IN"
+                
+                processed_results.append(item)
+                
+            return processed_results
+            
+        else:
+            print(f"[PROVIDER FEED] API returned status code {response.status_code} for provider {provider_id}")
+            
+    except Exception as e:
+        print(f"[PROVIDER FEED] Error fetching for provider {provider_id}: {e}")
+        
+    return []

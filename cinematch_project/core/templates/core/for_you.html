@@ -1,9 +1,148 @@
 {% extends 'core/base.html' %}
+{% load static %}
 
-{% block title %}CineMatch - For You Feed{% endblock %}
+{% block title %}CineMatch — For You Feed{% endblock %}
 
 {% block extra_css %}
-    /* Custom Styling for Home Feed */
+<style>
+
+  /*.platform-logo {
+    height: 40px !important;
+    width: 40px !important;
+   
+    flex-shrink: 0; 
+    object-fit: contain;
+    margin-right: 15px;
+    vertical-align: middle;
+}*/
+
+.overlay-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 20px; /* Increase this to ensure the link isn't cut off */
+    background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+    z-index: 2;
+}
+
+    /* Update your existing .section-title class if you have one, 
+   or just add this rule: */
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Force the span to not break the flexbox alignment */
+.section-title span {
+    display: flex;
+    align-items: center;
+    white-space: nowrap; /* Prevents text from wrapping onto a new line */
+}
+
+    .platform-logo {
+    width: 40px !important;
+    height: 40px !important;
+    /* Use 'cover' instead of 'contain' to fill the whole 40x40 box */
+    object-fit: cover !important; 
+    border-radius: 4px; /* Optional: adds a nice modern look */
+}
+
+    .logo-container {
+        width: 40px !important;
+        height: 40px !important;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Special sizing for Hotstar to account for its different proportions */
+    .hotstar-logo {
+        max-width: 85%; /* Slightly smaller so it doesn't touch the edges */
+        max-height: 85%;
+        object-fit: contain;
+    }
+
+    /* 1. FORCE UNIFORM HEIGHT ON ALL CARDS */
+    .slider-card, 
+    .platform-card, 
+    .theatre-card, 
+    .rec-poster {
+        width: 200px !important;
+        height: 340px !important; /* Fixed height for consistency */
+        flex: 0 0 200px !important;
+        position: relative !important;
+        overflow: hidden !important;
+    }
+
+    /* 2. FORCE POSTERS TO FILL THE FIXED 340px HEIGHT */
+    .slider-card img,
+    .platform-card img,
+    .theatre-card img,
+    .rec-poster img {
+        width: 100% !important;
+        height: 340px !important;
+        object-fit: cover !important; /* This crops posters to fill the space without stretching */
+        display: block;
+    }
+
+    /* 3. ENSURE LAYOUT CONSISTENCY */
+    .horizontal-slider {
+        display: flex;
+        overflow-x: auto;
+        gap: 1.5rem;
+        padding-bottom: 1.5rem;
+    }
+    
+    /* Force consistent card layout */
+    .theatre-card, .slider-card, .platform-card {
+        width: 200px !important;
+        height: 340px !important;
+        flex: 0 0 200px !important;
+        position: relative !important;
+        overflow: hidden !important;
+    }
+    
+    .theatre-card img {
+        width: 100% !important;
+        height: 340px !important;
+        object-fit: cover !important;
+    }
+
+    /* Force icons to render */
+    .theatre-card-overlay {
+        opacity: 0;
+        visibility: hidden;
+        isolation: isolate !important;
+        backdrop-filter: blur(4px) !important;
+        -webkit-backdrop-filter: blur(4px) !important;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    
+    .theatre-card:hover .theatre-card-overlay {
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+    
+    .theatre-card-overlay i, .platform-details-float i {
+        transform: translateZ(0) !important;
+        -webkit-transform: translateZ(0) !important;
+        color: #fff !important;
+    }
+
+    /* Fix Details Link */
+    .platform-details-float {
+        color: #60a5fa !important;
+        font-weight: bold !important;
+        text-decoration: none !important;
+        display: block;
+        margin-top: 5px;
+        isolation: isolate;
+    }
+    
+    /* ── Hero Spotlight ── */
     .hero-spotlight {
         height: 500px;
         border-radius: 24px;
@@ -14,6 +153,7 @@
         position: relative;
         border: 1px solid var(--card-border);
         box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        overflow: hidden;
     }
 
     .hero-badge {
@@ -43,20 +183,7 @@
         text-shadow: 0 2px 5px rgba(0,0,0,0.8);
     }
 
-    .horizontal-slider {
-        display: flex;
-        overflow-x: auto;
-        gap: 1.5rem;
-        padding-bottom: 1.5rem;
-        scrollbar-width: thin;
-    }
-
-    .slider-card {
-        flex: 0 0 220px;
-        height: 380px;
-        position: relative;
-    }
-
+    /* ── Section layout ── */
     .section-title {
         font-size: 1.75rem;
         font-weight: 700;
@@ -66,29 +193,98 @@
         gap: 0.75rem;
     }
 
-    .section-title i {
+    .section-title .icon-gradient {
         background: var(--primary-glow);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
 
-    .recommendation-placeholder {
-        background: linear-gradient(135deg, rgba(168, 85, 247, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
-        border: 1px dashed rgba(168, 85, 247, 0.3);
-        border-radius: 16px;
-        padding: 3rem;
-        text-align: center;
+    .horizontal-slider {
+        display: flex;
+        overflow-x: auto;
+        gap: 1.5rem;
+        padding-bottom: 1.5rem;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(168,85,247,0.4) transparent;
     }
 
-    .placeholder-icon {
-        font-size: 3rem;
-        background: var(--primary-glow);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 1rem;
+    .horizontal-slider::-webkit-scrollbar { height: 4px; }
+    .horizontal-slider::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.4); border-radius: 4px; }
+
+    .slider-card {
+        flex: 0 0 200px;
+        position: relative;
+        height: 340px;
     }
 
-    /* ── Now Showing: hover overlay system ── */
+    /* ── Platform badge strips ── */
+    .platform-strip {
+        display: flex;
+        overflow-x: auto;
+        gap: 1rem;
+        padding-bottom: 1rem;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(168,85,247,0.3) transparent;
+    }
+
+    .platform-card {
+        flex: 0 0 200px;
+        height: 340px;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+        border: 1px solid rgba(255,255,255,0.06);
+        background: #0f0f15;
+        transition: transform 0.35s cubic-bezier(0.165,0.84,0.44,1),
+                    border-color 0.35s ease,
+                    box-shadow 0.35s ease;
+        cursor: pointer;
+    }
+
+    .platform-card:hover {
+        transform: scale(1.05);
+        border-color: rgba(168,85,247,0.45);
+        box-shadow: 0 8px 28px rgba(168,85,247,0.18);
+    }
+
+    .platform-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: transform 0.5s ease;
+    }
+
+    .platform-card:hover img { transform: scale(1.07); }
+
+    /* ── Details float link ── */
+    .platform-details-float {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        z-index: 6;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #60a5fa;
+        text-decoration: none;
+        background: rgba(4,4,6,0.78);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        isolation: isolate;
+        border: 1px solid rgba(96,165,250,0.25);
+        padding: 0.25rem 0.65rem;
+        border-radius: 20px;
+        transition: background 0.25s ease, color 0.25s ease, transform 0.25s ease;
+    }
+
+    .platform-details-float:hover {
+        background: rgba(59,130,246,0.22);
+        color: #bfdbfe;
+        transform: translateY(-2px);
+    }
+
+    .section-title .icon-gradient { font-size: inherit; }
+
     .theatre-card {
         position: relative;
         overflow: hidden;
@@ -104,22 +300,8 @@
         transition: transform 0.4s ease;
     }
 
-    .theatre-card:hover img {
-        transform: scale(1.06);
-    }
+    .theatre-card:hover img { transform: scale(1.06); }
 
-    .theatre-card-overlay {
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.3s ease, visibility 0.3s ease;
-    }
-
-    .theatre-card:hover .theatre-card-overlay {
-        opacity: 1 !important;
-        visibility: visible !important;
-    }
-
-    /* Circular icon buttons */
     .btn-circle {
         width: 44px;
         height: 44px;
@@ -129,53 +311,161 @@
         justify-content: center;
         padding: 0;
         flex-shrink: 0;
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+        isolation: isolate;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
     .btn-circle:hover {
-        transform: scale(1.15);
+        transform: scale(1.15) translateZ(0);
         box-shadow: 0 4px 16px rgba(0,0,0,0.5);
     }
+
+    .rec-poster {
+        aspect-ratio: 2 / 3;
+        overflow: hidden;
+        position: relative;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.06);
+        background: #0f0f15;
+        transition: transform 0.4s cubic-bezier(0.165,0.84,0.44,1),
+                    border-color 0.4s ease,
+                    box-shadow 0.4s ease;
+    }
+
+    .rec-poster:hover {
+        transform: scale(1.04);
+        border-color: rgba(168,85,247,0.45);
+        box-shadow: 0 8px 28px rgba(168,85,247,0.18), 0 0 0 1px rgba(168,85,247,0.10);
+    }
+
+    .rec-poster img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: transform 0.5s ease;
+    }
+
+    .rec-poster:hover img { transform: scale(1.06); }
+
+    .rec-watchlist-float {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 5;
+        isolation: isolate;
+    }
+
+    .rec-watchlist-float .btn-circle {
+        background: rgba(4,4,6,0.72);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        border: 1px solid rgba(255,255,255,0.10);
+    }
+
+    .rec-details-float {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        z-index: 5;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #c084fc;
+        text-decoration: none;
+        background: rgba(4,4,6,0.72);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        isolation: isolate;
+        border: 1px solid rgba(168,85,247,0.25);
+        padding: 0.28rem 0.7rem;
+        border-radius: 20px;
+        transition: background 0.25s ease, color 0.25s ease, transform 0.25s ease;
+    }
+
+    .rec-details-float:hover {
+        background: rgba(168,85,247,0.22);
+        color: #e9d5ff;
+        transform: translateY(-2px);
+    }
+
+    .title-fade {
+        white-space: nowrap;
+        overflow: hidden;
+        -webkit-mask-image: linear-gradient(to right, #000 72%, transparent 100%);
+        mask-image: linear-gradient(to right, #000 72%, transparent 100%);
+    }
+
+    .recommendation-placeholder {
+        background: linear-gradient(135deg, rgba(168,85,247,0.05) 0%, rgba(59,130,246,0.05) 100%);
+        border: 1px dashed rgba(168,85,247,0.3);
+        border-radius: 16px;
+        padding: 3rem;
+        text-align: center;
+    }
+
+    .placeholder-icon {
+        font-size: 3rem;
+        background: var(--primary-glow);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1rem;
+    }
+</style>
 {% endblock %}
+
 
 {% block content %}
 <div class="container py-4">
 
-    <div class="hero-spotlight" style="background: linear-gradient(to right, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=2070&auto=format&fit=cover') center/cover no-repeat;">
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- 1. HERO SPOTLIGHT                                                  -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <div class="hero-spotlight"
+         style="background: linear-gradient(to right, rgba(0,0,0,0.95), rgba(0,0,0,0.4)),
+                url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=2070&auto=format&fit=cover')
+                center/cover no-repeat;">
         <div>
             <span class="hero-badge"><i class="fa-solid fa-fire me-1"></i> Today's Spotlight</span>
             <h1 class="hero-title">{{ spotlight_movie.title }}</h1>
             <p class="hero-overview">{{ spotlight_movie.overview }}</p>
-            <div class="d-flex gap-3">
-                <button onclick="toggleWatchlist(this, {{ spotlight_movie.movie_id }}, 'movie')" class="btn btn-glow" data-saved="{% if spotlight_movie.movie_id in saved_ids %}true{% else %}false{% endif %}">
+            <div class="d-flex gap-3 flex-wrap">
+                <button onclick="toggleWatchlist(this, {{ spotlight_movie.movie_id }}, 'movie')"
+                        class="btn btn-glow"
+                        data-saved="{% if spotlight_movie.movie_id in saved_ids %}true{% else %}false{% endif %}">
                     {% if spotlight_movie.movie_id in saved_ids %}
                         <i class="fa-solid fa-bookmark text-warning me-1"></i> Saved to Watchlist
                     {% else %}
                         <i class="fa-regular fa-bookmark me-1"></i> Add to Watchlist
                     {% endif %}
                 </button>
-                <a href="{% url 'movie_detail' spotlight_movie.movie_id %}" class="btn btn-outline-custom">
+                {% if spotlight_movie.movie_id %}
+                <a href="{% url 'movie_detail' spotlight_movie.movie_id %}" class="platform-details-float">
                     <i class="fa-solid fa-circle-info me-1"></i> View Details
                 </a>
-                <a href="https://www.youtube.com/results?search_query={{ spotlight_movie.title }}+official+trailer" target="_blank" class="btn btn-outline-custom">
+                {% endif %}
+                <a href="https://www.youtube.com/results?search_query={{ spotlight_movie.title }}+official+trailer"
+                   target="_blank" class="btn btn-outline-custom">
                     <i class="fa-solid fa-play me-1 text-accent"></i> Watch Trailer
                 </a>
             </div>
         </div>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- 2. NOW SHOWING IN THEATRES                                         -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
     <div class="mb-5">
         <h2 class="section-title">
-            <i class="fa-solid fa-ticket"></i> Now Showing in Theatres
+            <i class="fa-solid fa-ticket icon-gradient"></i> Now Showing in Theatres
         </h2>
         <div class="horizontal-slider">
             {% for item in now_showing %}
                 <div class="slider-card">
-
-                    <!-- Poster container with hover overlay -->
                     <div class="theatre-card position-relative overflow-hidden rounded-3">
 
-                        <!-- Poster image (or fallback icon) -->
+                        <!-- Poster image -->
                         {% if item.poster_url %}
                             <img src="{{ item.poster_url }}" alt="{{ item.title }}">
                         {% else %}
@@ -185,65 +475,63 @@
                             </div>
                         {% endif %}
 
-                        <!-- Hover overlay (sits over the poster, hidden by default) -->
+                        <!-- Hover overlay — isolation:isolate prevents backdrop-filter from eating child icons -->
                         <div class="theatre-card-overlay d-flex flex-column justify-content-center
-                                    align-items-center gap-2 position-absolute top-0 start-0
-                                    w-100 h-100"
+                                    align-items-center gap-2 position-absolute top-0 start-0 w-100 h-100"
                              style="background: rgba(7,7,11,0.85);
                                     backdrop-filter: blur(4px);
-                                    -webkit-backdrop-filter: blur(4px);">
+                                    -webkit-backdrop-filter: blur(4px);
+                                    isolation: isolate;">
 
-                            <!-- Movie title inside overlay -->
-                            <h6 class="text-white fw-700 text-center px-3 mb-1"
-                                style="font-size:0.88rem; line-height:1.3;
+                            <!-- Title -->
+                            <h6 class="text-white text-center px-3 mb-1"
+                                style="font-size:0.88rem; font-weight:700; line-height:1.3;
                                        overflow:hidden; display:-webkit-box;
                                        -webkit-line-clamp:2; -webkit-box-orient:vertical;"
                                 title="{{ item.title }}">
                                 {{ item.title }}
                             </h6>
 
-                            <!-- Genre label -->
+                            <!-- Genre -->
                             {% if item.genres %}
                             <p class="text-secondary mb-2" style="font-size:0.72rem; letter-spacing:0.04em;">
                                 {{ item.genres }}
                             </p>
                             {% endif %}
 
-                            <!-- Action buttons row -->
+                            <!-- Action buttons -->
                             {% if item.media_type == 'movie' %}
                             <div class="d-flex gap-2">
-
-                                <!-- Details: internal route -->
+                                {% if item.media_id %}
                                 <a href="{% url 'movie_detail' item.media_id %}"
                                    class="btn btn-primary btn-circle"
-                                   title="View Details">
+                                   title="View Details"
+                                   style="transform:translateZ(0);">
                                     <i class="fa-solid fa-circle-info fs-5"></i>
                                 </a>
-
-                                <!-- Tickets: BookMyShow -->
+                                {% endif %}
                                 {% if item.booking_url %}
                                 <a href="{{ item.booking_url }}" target="_blank" rel="noopener"
                                    class="btn btn-outline-light btn-circle"
-                                   title="Book Tickets">
+                                   title="Book Tickets"
+                                   style="transform:translateZ(0);">
                                     <i class="fa-solid fa-ticket fs-5"></i>
                                 </a>
                                 {% endif %}
-
-                                <!-- Trailer: YouTube -->
                                 {% if item.trailer_url %}
                                 <a href="{{ item.trailer_url }}" target="_blank" rel="noopener"
                                    class="btn btn-outline-danger btn-circle"
-                                   title="Watch Trailer">
+                                   title="Watch Trailer"
+                                   style="transform:translateZ(0);">
                                     <i class="fa-brands fa-youtube fs-5"></i>
                                 </a>
                                 {% endif %}
-
                             </div>
                             {% else %}
-                            <!-- TV show fallback: watchlist toggle -->
                             <button onclick="toggleWatchlist(this, {{ item.media_id }}, 'tv')"
                                     class="btn {% if item.media_id in saved_ids %}btn-danger{% else %}btn-outline-light{% endif %} btn-sm rounded-pill px-3"
-                                    data-saved="{% if item.media_id in saved_ids %}true{% else %}false{% endif %}">
+                                    data-saved="{% if item.media_id in saved_ids %}true{% else %}false{% endif %}"
+                                    style="transform:translateZ(0);">
                                 {% if item.media_id in saved_ids %}
                                     <i class="fa-solid fa-bookmark text-warning me-1"></i> Saved
                                 {% else %}
@@ -254,101 +542,313 @@
 
                         </div><!-- /theatre-card-overlay -->
                     </div><!-- /theatre-card -->
-
                 </div><!-- /slider-card -->
             {% endfor %}
         </div>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- 3. NETFLIX                                                         -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    {% if netflix_movies %}
+    <div class="mb-5">
+        <h2 class="section-title d-flex align-items-center" style="gap: 12px; margin-bottom: 20px;">
+            <div class="logo-container">
+                <img src="{% static 'images/netflix_logo.png' %}" alt="Logo" class="platform-logo">
+            </div>
+            <span>Netflix — Now Streaming</span>
+        </h2>
+        <div class="horizontal-slider">
+            {% for film in netflix_movies %}
+            <div class="slider-card">
+                <div class="rec-poster" style="position: relative; width: 100%; height: 340px; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: #0f0f15;">
+                    
+                    <!-- Media Badge (Top-Left) -->
+                    <span class="badge-media" style="position: absolute; top: 12px; left: 12px; z-index: 5; background: rgba(4, 4, 6, 0.75); backdrop-filter: blur(5px); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(255,255,255,0.1);">
+                        <i class="fa-solid fa-film text-warning me-1"></i> Movie
+                    </span>
+
+                    <!-- Floating top-right: Watchlist bookmark -->
+                    <div class="rec-watchlist-float" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
+                        <button type="button" class="btn btn-circle border-0 {% if film.movie_id in saved_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}" onclick="toggleWatchlist('{{ film.movie_id }}')" data-saved="{% if film.movie_id in saved_ids %}true{% else %}false{% endif %}" data-media-type="movie" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
+                            <i class="fa-bookmark {% if film.movie_id in saved_ids %}fa-solid text-warning{% else %}fa-regular text-white{% endif %}"></i>
+                        </button>
+                    </div>
+
+                    <!-- Poster image -->
+                    {% if film.poster_url %}
+                        <img src="{{ film.poster_url }}" alt="{{ film.title }}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
+                    {% else %}
+                        <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
+                            <i class="fa-solid fa-film fs-2"></i>
+                        </div>
+                    {% endif %}
+
+                    <!-- Bottom Text & Link Overlay -->
+                    <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%); padding: 1.25rem 1rem 1rem 1rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
+                        <div style="max-width: 65%; display: flex; flex-direction: column; gap: 2px;">
+                            <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{{ film.title }}">{{ film.title }}</h5>
+                            <p class="card-text text-muted m-0" style="font-size: 0.75rem;">ID: {{ film.movie_id|default:"N/A" }}</p>
+                        </div>
+                        {% if film.movie_id %}
+                        <div style="z-index: 5;">
+                            <a href="{% url 'movie_detail' film.movie_id %}" class="d-flex align-items-center gap-1 text-decoration-none" style="color: #60a5fa; font-weight: 600; font-size: 0.85rem;">
+                                Details <i class="fa-solid fa-chevron-right small"></i>
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- 4. AMAZON PRIME VIDEO                                              -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    {% if prime_movies %}
+    <div class="mb-5">
+        <h2 class="section-title d-flex align-items-center" style="gap: 12px; margin-bottom: 20px;">
+            <div class="logo-container">
+                <img src="{% static 'images/prime_logo.png' %}" alt="Logo" class="platform-logo">
+            </div>
+            <span>Prime Video — Now Streaming</span>
+        </h2>
+        <div class="horizontal-slider">
+            {% for film in prime_movies %}
+            <div class="slider-card">
+                <div class="rec-poster" style="position: relative; width: 100%; height: 340px; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: #0f0f15;">
+                    
+                    <!-- Media Badge (Top-Left) -->
+                    <span class="badge-media" style="position: absolute; top: 12px; left: 12px; z-index: 5; background: rgba(4, 4, 6, 0.75); backdrop-filter: blur(5px); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(255,255,255,0.1);">
+                        <i class="fa-solid fa-film text-warning me-1"></i> Movie
+                    </span>
+
+                    <!-- Floating top-right: Watchlist bookmark -->
+                    <div class="rec-watchlist-float" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
+                        <button type="button" class="btn btn-circle border-0 {% if film.movie_id in saved_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}" onclick="toggleWatchlist('{{ film.movie_id }}')" data-saved="{% if film.movie_id in saved_ids %}true{% else %}false{% endif %}" data-media-type="movie" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
+                            <i class="fa-bookmark {% if film.movie_id in saved_ids %}fa-solid text-warning{% else %}fa-regular text-white{% endif %}"></i>
+                        </button>
+                    </div>
+
+                    <!-- Poster image -->
+                    {% if film.poster_url %}
+                        <img src="{{ film.poster_url }}" alt="{{ film.title }}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
+                    {% else %}
+                        <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
+                            <i class="fa-solid fa-film fs-2"></i>
+                        </div>
+                    {% endif %}
+
+                    <!-- Bottom Text & Link Overlay -->
+                    <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%); padding: 1.25rem 1rem 1rem 1rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
+                        <div style="max-width: 65%; display: flex; flex-direction: column; gap: 2px;">
+                            <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{{ film.title }}">{{ film.title }}</h5>
+                            <p class="card-text text-muted m-0" style="font-size: 0.75rem;">ID: {{ film.movie_id|default:"N/A" }}</p>
+                        </div>
+                        {% if film.movie_id %}
+                        <div style="z-index: 5;">
+                            <a href="{% url 'movie_detail' film.movie_id %}" class="d-flex align-items-center gap-1 text-decoration-none" style="color: #60a5fa; font-weight: 600; font-size: 0.85rem;">
+                                Details <i class="fa-solid fa-chevron-right small"></i>
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- 5. JIO HOTSTAR                                                     -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    {% if hotstar_movies %}
+    <div class="mb-5">
+        <h2 class="section-title d-flex align-items-center" style="gap: 12px; margin-bottom: 20px;">
+            <div class="logo-container">
+                <img src="{% static 'images/hotstar_logo.png' %}" alt="Logo" class="platform-logo hotstar-logo">
+            </div>
+            <span>JioHotstar — Now Streaming</span>
+        </h2>
+        <div class="horizontal-slider">
+            {% for film in hotstar_movies %}
+            <div class="slider-card">
+                <div class="rec-poster" style="position: relative; width: 100%; height: 340px; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: #0f0f15;">
+                    
+                    <!-- Media Badge (Top-Left) -->
+                    <span class="badge-media" style="position: absolute; top: 12px; left: 12px; z-index: 5; background: rgba(4, 4, 6, 0.75); backdrop-filter: blur(5px); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(255,255,255,0.1);">
+                        <i class="fa-solid fa-film text-warning me-1"></i> Movie
+                    </span>
+
+                    <!-- Floating top-right: Watchlist bookmark -->
+                    <div class="rec-watchlist-float" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
+                        <button type="button" class="btn btn-circle border-0 {% if film.movie_id in saved_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}" onclick="toggleWatchlist('{{ film.movie_id }}')" data-saved="{% if film.movie_id in saved_ids %}true{% else %}false{% endif %}" data-media-type="movie" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
+                            <i class="fa-bookmark {% if film.movie_id in saved_ids %}fa-solid text-warning{% else %}fa-regular text-white{% endif %}"></i>
+                        </button>
+                    </div>
+
+                    <!-- Poster image -->
+                    {% if film.poster_url %}
+                        <img src="{{ film.poster_url }}" alt="{{ film.title }}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
+                    {% else %}
+                        <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
+                            <i class="fa-solid fa-film fs-2"></i>
+                        </div>
+                    {% endif %}
+
+                    <!-- Bottom Text & Link Overlay -->
+                    <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%); padding: 1.25rem 1rem 1rem 1rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
+                        <div style="max-width: 65%; display: flex; flex-direction: column; gap: 2px;">
+                            <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{{ film.title }}">{{ film.title }}</h5>
+                            <p class="card-text text-muted m-0" style="font-size: 0.75rem;">ID: {{ film.movie_id|default:"N/A" }}</p>
+                        </div>
+                        {% if film.movie_id %}
+                        <div style="z-index: 5;">
+                            <a href="{% url 'movie_detail' film.movie_id %}" class="d-flex align-items-center gap-1 text-decoration-none" style="color: #60a5fa; font-weight: 600; font-size: 0.85rem;">
+                                Details <i class="fa-solid fa-chevron-right small"></i>
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- 6 & 7. AI RECOMMENDATIONS (MOVIES + TV)                            -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
     <div class="mb-5">
         {% if saved_movies or saved_tv_shows %}
+
+            <!-- 6. Recommended Movies for You -->
             {% if saved_movies %}
-                <h2 class="section-title mt-4">
-                    <i class="fa-solid fa-wand-magic-sparkles text-accent"></i> Recommended Movies for You
-                </h2>
-                <div class="horizontal-slider">
-                    {% for movie in recommended_movies %}
-                        <div class="slider-card">
-                            <div class="show-card">
-                                <div style="height: 280px; overflow: hidden; position: relative;">
-                                    {% if movie.poster_url %}
-                                        <img src="{{ movie.poster_url }}" class="w-100 h-100" style="object-fit: cover;" alt="{{ movie.title }}">
-                                    {% else %}
-                                        <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
-                                            <i class="fa-solid fa-film fs-2"></i>
-                                        </div>
-                                    {% endif %}
-                                </div>
-                                <div class="card-body-content">
-                                    <h5 class="card-title-custom" title="{{ movie.title }}">{{ movie.title }}</h5>
-                                    <div class="d-flex gap-2">
-                                        <button onclick="toggleWatchlist(this, {{ movie.movie_id }}, 'movie')" 
-                                                class="btn {% if movie.movie_id in saved_ids %}btn-danger{% else %}btn-outline-light{% endif %} btn-sm w-50" 
-                                                data-saved="{% if movie.movie_id in saved_ids %}true{% else %}false{% endif %}">
-                                            {% if movie.movie_id in saved_ids %}
-                                                <i class="fa-solid fa-bookmark text-warning"></i> Saved
-                                            {% else %}
-                                                <i class="fa-regular fa-bookmark"></i> Watchlist
-                                            {% endif %}
-                                        </button>
-                                        <a href="{% url 'movie_detail' movie.movie_id %}" class="btn btn-outline-light btn-sm w-50">
-                                            <i class="fa-solid fa-circle-info me-1"></i>Details
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
+            <h2 class="section-title mt-4">
+                <i class="fa-solid fa-wand-magic-sparkles icon-gradient text-accent"></i> Recommended Movies for You
+            </h2>
+            <div class="horizontal-slider mb-5">
+                {% for movie in recommended_movies %}
+                <div class="slider-card">
+                    <div class="rec-poster" style="position: relative; width: 100%; height: 340px; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: #0f0f15;">
+
+                        <!-- Media Badge (Top-Left) -->
+                        <span class="badge-media" style="position: absolute; top: 12px; left: 12px; z-index: 5; background: rgba(4, 4, 6, 0.75); backdrop-filter: blur(5px); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(255,255,255,0.1);">
+                            <i class="fa-solid fa-film text-warning me-1"></i> Movie
+                        </span>
+
+                        <!-- Floating top-right: Watchlist bookmark -->
+                        <div class="rec-watchlist-float" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
+                            <button type="button" class="btn btn-circle border-0 {% if movie.movie_id in saved_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}" onclick="toggleWatchlist('{{ movie.movie_id }}')" data-saved="{% if movie.movie_id in saved_ids %}true{% else %}false{% endif %}" data-media-type="movie" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
+                                <i class="fa-bookmark {% if movie.movie_id in saved_ids %}fa-solid text-warning{% else %}fa-regular text-white{% endif %}"></i>
+                            </button>
                         </div>
-                    {% endfor %}
+
+                        <!-- Poster image -->
+                        {% if movie.poster_url %}
+                            <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
+                        {% else %}
+                            <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
+                                <i class="fa-solid fa-film fs-2"></i>
+                            </div>
+                        {% endif %}
+
+                        <!-- Bottom Text & Link Overlay -->
+                        <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%); padding: 1.25rem 1rem 1rem 1rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
+                            <div style="max-width: 65%; display: flex; flex-direction: column; gap: 2px;">
+                                <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{{ movie.title }}">{{ movie.title }}</h5>
+                                <p class="card-text text-muted m-0" style="font-size: 0.75rem;">ID: {{ movie.movie_id|default:"N/A" }}</p>
+                            </div>
+                            {% if movie.movie_id %}
+                            <div style="z-index: 5;">
+                                <a href="{% url 'movie_detail' movie.movie_id %}" class="d-flex align-items-center gap-1 text-decoration-none" style="color: #60a5fa; font-weight: 600; font-size: 0.85rem;">
+                                    Details <i class="fa-solid fa-chevron-right small"></i>
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                    </div>
                 </div>
+                {% endfor %}
+            </div>
             {% endif %}
 
+            <!-- 7. Recommended TV Shows for You -->
             {% if saved_tv_shows %}
-                <h2 class="section-title mt-4">
-                    <i class="fa-solid fa-wand-magic-sparkles text-accent"></i> Recommended TV Shows for You
-                </h2>
-                <div class="horizontal-slider">
-                    {% for tv in recommended_tv_shows %}
-                        <div class="slider-card">
-                            <div class="show-card">
-                                <div style="height: 280px; overflow: hidden; position: relative;">
-                                    {% if tv.poster_url %}
-                                        <img src="{{ tv.poster_url }}" class="w-100 h-100" style="object-fit: cover;" alt="{{ tv.title }}">
-                                    {% else %}
-                                        <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
-                                            <i class="fa-solid fa-tv fs-2"></i>
-                                        </div>
-                                    {% endif %}
-                                </div>
-                                <div class="card-body-content">
-                                    <h5 class="card-title-custom" title="{{ tv.title }}">{{ tv.title }}</h5>
-                                    <div class="d-flex gap-2">
-                                        <button onclick="toggleWatchlist(this, {{ tv.id }}, 'tv')" 
-                                                class="btn {% if tv.id in saved_ids %}btn-danger{% else %}btn-outline-light{% endif %} btn-sm w-50" 
-                                                data-saved="{% if tv.id in saved_ids %}true{% else %}false{% endif %}">
-                                            {% if tv.id in saved_ids %}
-                                                <i class="fa-solid fa-bookmark text-warning"></i> Saved
-                                            {% else %}
-                                                <i class="fa-regular fa-bookmark"></i> Watchlist
-                                            {% endif %}
-                                        </button>
-                                        <a href="{{ tv.watch_link }}" target="_blank" class="btn btn-outline-light btn-sm w-50">Watch</a>
-                                    </div>
-                                </div>
-                            </div>
+            <h2 class="section-title mt-4">
+                <i class="fa-solid fa-wand-magic-sparkles icon-gradient text-accent"></i> Recommended TV Shows for You
+            </h2>
+            <div class="horizontal-slider">
+                {% for tv in recommended_tv_shows %}
+                <div class="slider-card">
+                    <div class="rec-poster" style="position: relative; width: 100%; height: 340px; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: #0f0f15;">
+
+                        <!-- Media Badge (Top-Left) -->
+                        <span class="badge-media" style="position: absolute; top: 12px; left: 12px; z-index: 5; background: rgba(4, 4, 6, 0.75); backdrop-filter: blur(5px); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(255,255,255,0.1);">
+                            <i class="fa-solid fa-tv text-warning me-1"></i> TV Show
+                        </span>
+
+                        <!-- Floating top-right: Watchlist bookmark -->
+                        <div class="rec-watchlist-float" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
+                            <button type="button" class="btn btn-circle border-0 {% if tv.id in saved_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}" onclick="toggleWatchlist('{{ tv.id }}')" data-saved="{% if tv.id in saved_ids %}true{% else %}false{% endif %}" data-media-type="tv" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
+                                <i class="fa-bookmark {% if tv.id in saved_ids %}fa-solid text-warning{% else %}fa-regular text-white{% endif %}"></i>
+                            </button>
                         </div>
-                    {% endfor %}
+
+                        <!-- Poster image -->
+                        {% if tv.poster_url %}
+                            <img src="{{ tv.poster_url }}" alt="{{ tv.title }}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
+                        {% else %}
+                            <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
+                                <i class="fa-solid fa-tv fs-2"></i>
+                            </div>
+                        {% endif %}
+
+                        <!-- Bottom Text & Link Overlay -->
+                        <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%); padding: 1.25rem 1rem 1rem 1rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
+                            <div style="max-width: 65%; display: flex; flex-direction: column; gap: 2px;">
+                                <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{{ tv.title }}">{{ tv.title }}</h5>
+                                <p class="card-text text-muted m-0" style="font-size: 0.75rem;">ID: {{ tv.id|default:"N/A" }}</p>
+                            </div>
+                            {% if tv.id %}
+                            <div style="z-index: 5;">
+                                <a href="{% url 'tv_show_detail' tv.id %}" class="d-flex align-items-center gap-1 text-decoration-none" style="color: #60a5fa; font-weight: 600; font-size: 0.85rem;">
+                                    Details <i class="fa-solid fa-chevron-right small"></i>
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                    </div>
                 </div>
+                {% endfor %}
+            </div>
             {% endif %}
+
         {% else %}
+            <!-- Empty state: no watchlist data -->
             <h2 class="section-title">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> Recommended for You (AI Matching)
+                <i class="fa-solid fa-wand-magic-sparkles icon-gradient"></i> Recommended for You (AI Matching)
             </h2>
             <div class="recommendation-placeholder">
                 <div class="placeholder-icon">
                     <i class="fa-solid fa-heart-crack"></i>
                 </div>
                 <h4 class="fw-bold">No Watchlist Data Found</h4>
-                <p class="text-secondary max-width-600 mx-auto">Start browsing films and TV shows and bookmark your favorites. Once you save records, our vector similarity engine will automatically build high-dimensional recommendation shelves custom-tailored to your taste!</p>
+                <p class="text-secondary mx-auto" style="max-width:600px;">
+                    Start browsing films and TV shows and bookmark your favorites. Once you save records,
+                    our vector similarity engine will automatically build high-dimensional recommendation
+                    shelves custom-tailored to your taste!
+                </p>
                 <div class="mt-3">
                     <a href="{% url 'explore_movies' %}" class="btn btn-glow me-2">Explore Movies</a>
                     <a href="{% url 'explore_tv' %}" class="btn btn-outline-custom">Explore TV Shows</a>
@@ -358,4 +858,63 @@
     </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Sync single-argument calls to toggleWatchlist('123') with the backend MVT handler
+const parentToggleWatchlist = window.toggleWatchlist;
+window.toggleWatchlist = function(elementOrId, mediaId, mediaType) {
+    if (typeof elementOrId === 'string' || typeof elementOrId === 'number') {
+        const id = elementOrId;
+        const btn = document.querySelector(`button[onclick*="toggleWatchlist('${id}')"]`) || 
+                    document.querySelector(`button[onclick*="toggleWatchlist(${id})"]`);
+        if (!btn) return;
+        
+        const type = btn.getAttribute('data-media-type') || 'movie';
+        const isSaved = btn.getAttribute('data-saved') === 'true';
+        const url = isSaved ? "{% url 'watchlist_delete' %}" : "{% url 'watchlist_add' %}";
+        
+        const formData = new FormData();
+        formData.append('media_id', id);
+        formData.append('media_type', type);
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message);
+                const icon = btn.querySelector('i.fa-bookmark');
+                if (isSaved) {
+                    btn.setAttribute('data-saved', 'false');
+                    btn.className = 'btn btn-circle border-0 btn-dark rgba-bg';
+                    if (icon) {
+                        icon.className = 'fa-bookmark fa-regular text-white';
+                    }
+                } else {
+                    btn.setAttribute('data-saved', 'true');
+                    btn.className = 'btn btn-circle border-0 btn-danger';
+                    if (icon) {
+                        icon.className = 'fa-bookmark fa-solid text-warning';
+                    }
+                }
+            } else {
+                showNotification("Error: " + data.error);
+            }
+        })
+        .catch(error => {
+            console.error("Watchlist AJAX error:", error);
+        });
+    } else {
+        parentToggleWatchlist(elementOrId, mediaId, mediaType);
+    }
+};
+</script>
 {% endblock %}
