@@ -444,131 +444,120 @@ def for_you_feed(request):
     return render(request, 'core/for_you.html', context)
 # ======================================================================
 # Explore Movies View
-# ======================================================================
-@login_required
+# =================@login_required
 def explore_movies(request):
-    import json
-    client = TMDBClient()
-
-    movies_df = pd.DataFrame()
-    try:
-        csv_path = os.path.join(settings.BASE_DIR, '..', 'movies.csv')
-        movies_df = pd.read_csv(csv_path, usecols=['movie_id', 'title', 'cast', 'crew'])
-    except Exception as e:
-        print("Error reading movies.csv in explore view:", e)
-
+    from core.utils import fetch_tmdb_catalog
+    
     query = request.GET.get('q', '').strip()
-
-    if not movies_df.empty:
-        if query:
-            q_lower = query.lower()
-
-            def _names_from_json(cell):
-                try:
-                    entries = json.loads(cell) if isinstance(cell, str) else []
-                    return ' '.join(e.get('name', '') for e in entries).lower()
-                except (json.JSONDecodeError, TypeError, AttributeError):
-                    return ''
-
-            def _directors_from_crew(cell):
-                try:
-                    entries = json.loads(cell) if isinstance(cell, str) else []
-                    return ' '.join(
-                        e.get('name', '') for e in entries
-                        if e.get('job', '').lower() == 'director'
-                    ).lower()
-                except (json.JSONDecodeError, TypeError, AttributeError):
-                    return ''
-
-            title_match    = movies_df['title'].str.lower().str.contains(q_lower, na=False)
-            cast_series    = movies_df['cast'].apply(_names_from_json)
-            crew_series    = movies_df['crew'].apply(_directors_from_crew)
-            cast_match     = cast_series.str.contains(q_lower, na=False)
-            director_match = crew_series.str.contains(q_lower, na=False)
-
-            combined_mask  = title_match | cast_match | director_match
-            filtered_df    = movies_df[combined_mask].drop_duplicates(subset=['movie_id'])
-        else:
-            filtered_df = movies_df
-
-        movies_records = filtered_df[['movie_id', 'title']].to_dict(orient='records')
-    else:
-        movies_records = []
-
-    paginator = Paginator(movies_records, 12)
     page_number = request.GET.get('page', 1)
-
     try:
-        page_obj = paginator.page(page_number)
-    except PageNotAnInteger:
-        page_obj = paginator.page(1)
-    except EmptyPage:
-        page_obj = paginator.page(paginator.num_pages)
+        page_number = int(page_number)
+    except ValueError:
+        page_number = 1
+        
+    api_response = fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", query=query, page=page_number)
+    movies_records = api_response.get('results', [])
+    total_pages = min(api_response.get('total_pages', 1), 500)
+    
+    # Simulate page obj mapping for template pagination compatibility
+    class MockPage:
+        def __init__(self, number, object_list, max_pages):
+            self.number = number
+            self.object_list = object_list
+            self.has_previous = number > 1
+            self.previous_page_number = number - 1
+            self.has_next = number < max_pages
+            self.next_page_number = number + 1
+            self.has_other_pages = max_pages > 1
 
-    movies_on_page = []
-    for movie in page_obj.object_list:
-        movie['poster_url'] = get_cached_poster(client, movie['movie_id'], 'movie')
-        movies_on_page.append(movie)
+    class MockPaginator:
+        def __init__(self, max_pages):
+            self.max_pages = max_pages
+
+        @property
+        def num_pages(self):
+            return self.max_pages
+
+    page_obj = MockPage(page_number, movies_records, total_pages)
+    page_obj.paginator = MockPaginator(total_pages)
+
+    # Check if request is AJAX
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == 'true'
 
     watchlist_ids = list(MovieWatchlist.objects.filter(
         user=request.user, media_type='movie'
     ).values_list('media_id', flat=True))
 
-    return render(request, 'core/explore_movies.html', {
-        'movies':       movies_on_page,
+    context = {
+        'movies':       movies_records,
         'page_obj':     page_obj,
         'watchlist_ids': watchlist_ids,
-        'query':        query,
-    })
+        'query':         query,
+    }
+
+    if is_ajax:
+        return render(request, 'core/includes/movie_grid_partial.html', context)
+
+    return render(request, 'core/explore_movies.html', context)
 
 # ======================================================================
 # Explore TV Shows View
 # ======================================================================
 @login_required
 def explore_tv(request):
-    client = TMDBClient()
+    from core.utils import fetch_tmdb_catalog
     
-    tv_records_list = []
-    try:
-        csv_path = os.path.join(settings.BASE_DIR, '..', 'tv_shows.csv')
-        tv_df = pd.read_csv(csv_path)
-        tv_df = tv_df.drop_duplicates(subset=['name'])
-        tv_raw = tv_df[['id', 'name', 'overview']].to_dict(orient='records')
-        
-        for rec in tv_raw:
-            rec['title'] = rec.pop('name')
-            tv_records_list.append(rec)
-    except Exception as e:
-        print("Error reading tv_shows.csv in explore view:", e)
-        
-    query = request.GET.get('q')
-    if query:
-        tv_records_list = [t for t in tv_records_list if query.lower() in t['title'].lower()]
-        
-    paginator = Paginator(tv_records_list, 12)
+    query = request.GET.get('q', '').strip()
     page_number = request.GET.get('page', 1)
-    
     try:
-        page_obj = paginator.page(page_number)
-    except PageNotAnInteger:
-        page_obj = paginator.page(1)
-    except EmptyPage:
-        page_obj = paginator.page(paginator.num_pages)
+        page_number = int(page_number)
+    except ValueError:
+        page_number = 1
         
-    tv_on_page = []
-    for tv in page_obj.object_list:
-        tv['poster_url'] = get_cached_poster(client, tv['id'], 'tv')
-        tv_on_page.append(tv)
-        
+    api_response = fetch_tmdb_catalog(endpoint_type="tv", list_type="popular", query=query, page=page_number)
+    tv_records = api_response.get('results', [])
+    total_pages = min(api_response.get('total_pages', 1), 500)
+    
+    # Simulate page obj mapping for template pagination compatibility
+    class MockPage:
+        def __init__(self, number, object_list, max_pages):
+            self.number = number
+            self.object_list = object_list
+            self.has_previous = number > 1
+            self.previous_page_number = number - 1
+            self.has_next = number < max_pages
+            self.next_page_number = number + 1
+            self.has_other_pages = max_pages > 1
+
+    class MockPaginator:
+        def __init__(self, max_pages):
+            self.max_pages = max_pages
+
+        @property
+        def num_pages(self):
+            return self.max_pages
+
+    page_obj = MockPage(page_number, tv_records, total_pages)
+    page_obj.paginator = MockPaginator(total_pages)
+
+    # Check if request is AJAX
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == 'true'
+
     watchlist_ids = list(MovieWatchlist.objects.filter(
         user=request.user, media_type='tv'
     ).values_list('media_id', flat=True))
-    
-    return render(request, 'core/explore_tv.html', {
-        'tv_shows': tv_on_page,
-        'page_obj': page_obj,
-        'watchlist_ids': watchlist_ids
-    })
+
+    context = {
+        'tv_shows':      tv_records,
+        'page_obj':      page_obj,
+        'watchlist_ids': watchlist_ids,
+        'query':         query,
+    }
+
+    if is_ajax:
+        return render(request, 'core/includes/tv_grid_partial.html', context)
+
+    return render(request, 'core/explore_tv.html', context)
 
 # ======================================================================
 # Interactive Analytics Dashboard View
@@ -1254,3 +1243,157 @@ def submit_review(request, movie_id):
         print(f"[REVIEW SAVE ERROR] {e}")
         
     return redirect('movie_detail', movie_id=movie_id)
+
+
+def universal_search(request):
+    """
+    Query the TMDB /search/multi API using client headers.
+    Groups results into 'Movies', 'TV Shows', and 'People'.
+    """
+    from django.http import JsonResponse
+    import requests
+    import urllib.parse
+    from .tmdb_api import TMDBClient
+    
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return JsonResponse({'movies': [], 'tv_shows': [], 'people': []})
+
+    client = TMDBClient()
+    url = f"{client.base_url}/search/multi"
+    params = {
+        'query': query,
+        'language': 'en-US',
+        'page': 1,
+        'include_adult': 'false'
+    }
+    
+    try:
+        response = requests.get(url, headers=client.headers, params=params, timeout=5.0)
+        response.raise_for_status()
+        data = response.json()
+        results = data.get('results', [])
+        
+        movies = []
+        tv_shows = []
+        people = []
+        
+        for item in results:
+            media_type = item.get('media_type')
+            if media_type == 'movie':
+                poster_path = item.get('poster_path')
+                movies.append({
+                    'id': item.get('id'),
+                    'title': item.get('title') or item.get('original_title') or 'Unknown Movie',
+                    'release_date': item.get('release_date', 'N/A'),
+                    'poster': f"https://image.tmdb.org/t/p/w200{poster_path}" if poster_path else client.movie_fallback,
+                    'rating': item.get('vote_average', 0.0)
+                })
+            elif media_type == 'tv':
+                poster_path = item.get('poster_path')
+                tv_shows.append({
+                    'id': item.get('id'),
+                    'name': item.get('name') or item.get('original_name') or 'Unknown TV Show',
+                    'first_air_date': item.get('first_air_date', 'N/A'),
+                    'poster': f"https://image.tmdb.org/t/p/w200{poster_path}" if poster_path else client.tv_fallback,
+                    'rating': item.get('vote_average', 0.0)
+                })
+            elif media_type == 'person':
+                profile_path = item.get('profile_path')
+                known_for = [work.get('title') or work.get('name') for work in item.get('known_for', []) if work.get('title') or work.get('name')]
+                people.append({
+                    'id': item.get('id'),
+                    'name': item.get('name') or 'Unknown Person',
+                    'profile': f"https://image.tmdb.org/t/p/w200{profile_path}" if profile_path else f"https://ui-avatars.com/api/?name={urllib.parse.quote_plus(item.get('name', 'Actor'))}",
+                    'known_for': ", ".join(known_for[:2])
+                })
+        
+        return JsonResponse({
+            'movies': movies[:5],
+            'tv_shows': tv_shows[:5],
+            'people': people[:5]
+        })
+    except Exception as e:
+        print(f"[UNIVERSAL SEARCH] Error: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+def search_results_view(request):
+    """
+    Renders the dedicated search results page using TMDB search/multi query.
+    """
+    from .tmdb_api import TMDBClient
+    import requests
+    import urllib.parse
+    
+    query = request.GET.get('q', '').strip()
+    movies = []
+    tv_shows = []
+    people = []
+    
+    if query:
+        client = TMDBClient()
+        url = f"{client.base_url}/search/multi"
+        params = {
+            'query': query,
+            'language': 'en-US',
+            'page': 1,
+            'include_adult': 'false'
+        }
+        try:
+            response = requests.get(url, headers=client.headers, params=params, timeout=5.0)
+            if response.status_code == 200:
+                results = response.json().get('results', [])
+                for item in results:
+                    media_type = item.get('media_type')
+                    if media_type == 'movie':
+                        poster_path = item.get('poster_path')
+                        movies.append({
+                            'id': item.get('id'),
+                            'title': item.get('title') or item.get('original_title') or 'Unknown Movie',
+                            'release_date': item.get('release_date', 'N/A'),
+                            'poster_url': f"https://image.tmdb.org/t/p/w300{poster_path}" if poster_path else client.movie_fallback,
+                            'vote_average': round(item.get('vote_average', 0.0), 1),
+                            'overview': item.get('overview', '')
+                        })
+                    elif media_type == 'tv':
+                        poster_path = item.get('poster_path')
+                        tv_shows.append({
+                            'id': item.get('id'),
+                            'title': item.get('name') or item.get('original_name') or 'Unknown TV Show',
+                            'first_air_date': item.get('first_air_date', 'N/A'),
+                            'poster_url': f"https://image.tmdb.org/t/p/w300{poster_path}" if poster_path else client.tv_fallback,
+                            'vote_average': round(item.get('vote_average', 0.0), 1),
+                            'overview': item.get('overview', '')
+                        })
+                    elif media_type == 'person':
+                        profile_path = item.get('profile_path')
+                        known_for = [work.get('title') or work.get('name') for work in item.get('known_for', []) if work.get('title') or work.get('name')]
+                        people.append({
+                            'id': item.get('id'),
+                            'name': item.get('name') or 'Unknown Person',
+                            'profile_url': f"https://image.tmdb.org/t/p/w300{profile_path}" if profile_path else f"https://ui-avatars.com/api/?name={urllib.parse.quote_plus(item.get('name', 'Actor'))}",
+                            'known_for': ", ".join(known_for[:3])
+                        })
+        except Exception as e:
+            print(f"[SEARCH VIEW] Error querying TMDB API: {e}")
+
+    watchlist_movies = []
+    watchlist_tv = []
+    if request.user.is_authenticated:
+        watchlist_movies = list(MovieWatchlist.objects.filter(
+            user=request.user, media_type='movie'
+        ).values_list('media_id', flat=True))
+        watchlist_tv = list(MovieWatchlist.objects.filter(
+            user=request.user, media_type='tv'
+        ).values_list('media_id', flat=True))
+
+    context = {
+        'query':            query,
+        'movies':           movies,
+        'tv_shows':         tv_shows,
+        'people':           people,
+        'watchlist_movies': watchlist_movies,
+        'watchlist_tv':     watchlist_tv,
+    }
+    return render(request, 'core/search_results.html', context)

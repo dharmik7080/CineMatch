@@ -51,4 +51,10 @@ urlpatterns = [
 
     # Custom User Review Submission Route
     path('review/submit/<int:movie_id>/', views.submit_review, name='submit_review'),
+
+    # Universal Search AJAX Channel
+    path('universal-search/', views.universal_search, name='universal_search'),
+
+    # Full Search Results Page Route
+    path('search/', views.search_results_view, name='search_results'),
 ]

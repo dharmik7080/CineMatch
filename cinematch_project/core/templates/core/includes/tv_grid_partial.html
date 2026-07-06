@@ -1,0 +1,103 @@
+{% if tv_shows %}
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 mb-5 animate-fade-in">
+        {% for tv in tv_shows %}
+            <div class="col">
+                <div class="show-card">
+                    <div class="movie-poster-container">
+                        <span class="badge-media"><i class="fa-solid fa-tv text-warning me-1"></i> TV Show</span>
+                        
+                        <!-- Watchlist Action Button -->
+                        <div class="watchlist-btn-overlay">
+                            <button onclick="toggleWatchlist(this, {{ tv.id }}, 'tv')" 
+                                    class="btn btn-circle {% if tv.id in watchlist_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}"
+                                    data-saved="{% if tv.id in watchlist_ids %}true{% else %}false{% endif %}"
+                                    title="Watchlist">
+                                {% if tv.id in watchlist_ids %}
+                                    <i class="fa-solid fa-bookmark text-warning"></i>
+                                {% else %}
+                                    <i class="fa-regular fa-bookmark"></i>
+                                {% endif %}
+                            </button>
+                        </div>
+                        
+                        <!-- Dynamic variable image with fallback check -->
+                        {% if tv.poster_url %}
+                            <img src="{{ tv.poster_url }}" alt="{{ tv.title }}">
+                        {% else %}
+                            <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
+                                <i class="fa-solid fa-tv fs-1"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-body-content">
+                        <!-- Long titles wrapped in text-truncate class -->
+                        <h5 class="card-title-custom text-truncate" title="{{ tv.title }}">{{ tv.title }}</h5>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="small text-secondary">ID: {{ tv.id }}</span>
+                            <a href="{% url 'tv_show_detail' tv.id %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0">Details <i class="fa-solid fa-chevron-right ms-1 small"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination Navigation Controls (Unit 9.2) -->
+    {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation" class="mt-4 mb-5">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link bg-dark text-white border-secondary" href="?page=1{% if query %}&q={{ query }}{% endif %}" aria-label="First">
+                            <span>&laquo;&laquo; First</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link bg-dark text-white border-secondary" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" aria-label="Previous">
+                            <span>&laquo; Previous</span>
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link bg-dark text-secondary border-secondary">&laquo;&laquo; First</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link bg-dark text-secondary border-secondary">&laquo; Previous</span>
+                    </li>
+                {% endif %}
+
+                <li class="page-item disabled">
+                    <span class="page-link bg-dark text-white border-secondary fw-semibold">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link bg-dark text-white border-secondary" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}" aria-label="Next">
+                            <span>Next &raquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link bg-dark text-white border-secondary" href="?page={{ page_obj.paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}" aria-label="Last">
+                            <span>Last &raquo;&raquo;</span>
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link bg-dark text-secondary border-secondary">Next &raquo;</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link bg-dark text-secondary border-secondary">Last &raquo;&raquo;</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% else %}
+    <div class="text-center py-5">
+        <i class="fa-solid fa-triangle-exclamation text-warning fs-1 mb-3"></i>
+        <h4>No TV Shows Found</h4>
+        <p class="text-secondary">Please check your query or clear your filters.</p>
+    </div>
+{% endif %}
