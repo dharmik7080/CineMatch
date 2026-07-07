@@ -708,6 +708,7 @@ def movie_detail_view(request, movie_id):
             encoded = urllib.parse.quote_plus(s.get('title', ''))
             similar_movies.append({
                 'id':         s.get('id'),
+                'movie_id':   s.get('id'),
                 'title':      s.get('title', 'Unknown'),
                 'vote_average': round(s.get('vote_average', 0.0), 1),
                 'poster_url': (
@@ -738,6 +739,7 @@ def movie_detail_view(request, movie_id):
                             year = release_date.split('-')[0] if release_date else 'N/A'
                             collection_movies.append({
                                 'id': part_id,
+                                'movie_id': part_id,
                                 'title': part.get('title', 'Unknown'),
                                 'vote_average': round(part.get('vote_average', 0.0), 1),
                                 'year': year,
@@ -783,12 +785,20 @@ def movie_detail_view(request, movie_id):
     reviews = Review.objects.filter(movie_id=movie_id).select_related('user')
     user_review = reviews.filter(user=request.user).first() if request.user.is_authenticated else None
 
+    # Fetch watchlist IDs for bookmark toggle states
+    watchlist_ids = []
+    if request.user.is_authenticated:
+        watchlist_ids = list(MovieWatchlist.objects.filter(
+            user=request.user, media_type='movie'
+        ).values_list('media_id', flat=True))
+
     context = {
         'movie':           movie,
         'cast':            cast,
         'trailer_key':     trailer_key,
         'watch_providers': watch_providers,
         'similar_movies':  similar_movies,
+        'recommendations': similar_movies, # mapped to recommendations
         'is_in_watchlist': is_in_watchlist,
         'is_now_showing':  is_now_showing,
         # 💎 INJECTED REVIEWS DATA CONTEXTS
@@ -799,6 +809,7 @@ def movie_detail_view(request, movie_id):
         'belongs_to_collection': belongs_to_collection,
         'collection_movies':     collection_movies,
         'collection_name':       collection_name,
+        'watchlist_ids':         watchlist_ids,
     }
 
     return render(request, 'core/movie_detail.html', context)
