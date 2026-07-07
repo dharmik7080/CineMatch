@@ -1090,6 +1090,38 @@ def tv_detail_view(request, series_id):
     reviews = MediaReview.objects.filter(media_id=series_id, media_type='tv').select_related('user')
     user_review = reviews.filter(user=request.user).first() if request.user.is_authenticated else None
 
+    # Fetch streaming links from Watchmode API via Cache (24 hour retention)
+    from django.core.cache import cache
+    from core.utils import get_streaming_links
+
+    tv_title = tv_show.get('title', '')
+    cache_key = f"watchmode_links_tv_{series_id}"
+    streaming_links = cache.get(cache_key)
+
+    if streaming_links is None:
+        streaming_links = get_streaming_links(tv_title)
+        cache.set(cache_key, streaming_links, 86400)
+
+    # Map streaming links directly to the watch_providers items
+    if watch_providers and streaming_links:
+        for provider in watch_providers:
+            provider_name = provider.get('name', '')
+            norm_name = provider_name
+            if "Prime" in provider_name or "Amazon" in provider_name:
+                norm_name = "Prime Video"
+            elif "Disney" in provider_name:
+                norm_name = "Disney+"
+            elif "Apple" in provider_name:
+                norm_name = "Apple TV+"
+
+            # Find matching link
+            for service_name, url in streaming_links.items():
+                if (service_name.lower() in provider_name.lower() or 
+                    provider_name.lower() in service_name.lower() or
+                    norm_name.lower() in service_name.lower()):
+                    provider['web_url'] = url
+                    break
+
     context = {
         'tv_show':         tv_show,
         'cast':            cast,

@@ -519,28 +519,26 @@
                     <h2 class="section-heading">Where to Watch</h2>
                     {% if watch_providers %}
                         {% for provider in watch_providers %}
-                        <div class="provider-row">
                             {% if provider.web_url %}
-                            <a href="{{ provider.web_url }}" target="_blank" class="d-flex align-items-center text-decoration-none w-100" style="color: inherit;">
+                            <a href="{{ provider.web_url }}" target="_blank" class="text-decoration-none" style="color: inherit;">
                             {% endif %}
-
-                            {% if provider.logo_url %}
-                            <img class="provider-logo"
-                                 src="{{ provider.logo_url }}"
-                                 alt="{{ provider.name }} logo"
-                                 loading="lazy">
-                            {% else %}
-                            <div class="provider-logo d-flex align-items-center justify-content-center"
-                                 style="background:rgba(168,85,247,0.1);">
-                                <i class="fa-solid fa-tv" style="color:#a855f7;"></i>
+                            <div class="provider-row" style="{% if provider.web_url %}cursor: pointer;{% endif %}">
+                                {% if provider.logo_url %}
+                                <img class="provider-logo"
+                                     src="{{ provider.logo_url }}"
+                                     alt="{{ provider.name }} logo"
+                                     loading="lazy">
+                                {% else %}
+                                <div class="provider-logo d-flex align-items-center justify-content-center"
+                                     style="background:rgba(168,85,247,0.1);">
+                                    <i class="fa-solid fa-tv" style="color:#a855f7;"></i>
+                                </div>
+                                {% endif %}
+                                <span class="provider-name">{{ provider.name }}</span>
                             </div>
-                            {% endif %}
-                            <span class="provider-name">{{ provider.name }}</span>
-
                             {% if provider.web_url %}
                             </a>
                             {% endif %}
-                        </div>
                         {% endfor %}
                         <p class="mt-3 mb-0" style="font-size:0.72rem; color:#6b7280; text-align:right;">
                             Streaming data via TMDB &bull; Region: IN / US
