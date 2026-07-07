@@ -238,7 +238,7 @@
                         </a>
                     {% else %}
                         <a href="{% url 'login' %}" class="text-light text-decoration-none me-2">Sign In</a>
-                        <a href="{% url 'register' %}" class="btn btn-glow btn-sm">Register</a>
+                        <a href="{% url 'signup' %}" class="btn btn-glow btn-sm">Register</a>
                     {% endif %}
                 </div>
             </div>
@@ -246,6 +246,17 @@
     </nav>
 
     <main class="flex-grow-1">
+        {% if messages %}
+            <div class="container mt-3">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show text-white" role="alert" style="border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; background-color: rgba(255,255,255,0.05); backdrop-filter: blur(5px);">
+                        <i class="fa-solid {% if message.tags == 'success' %}fa-circle-check text-success{% elif message.tags == 'error' or message.tags == 'danger' %}fa-circle-exclamation text-danger{% else %}fa-circle-info text-info{% endif %} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
         {% block content %}{% endblock %}
     </main>
 

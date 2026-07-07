@@ -738,19 +738,23 @@
                     
                     <!-- Media Badge (Top-Left) -->
                     <span class="badge-media" style="position: absolute; top: 12px; left: 12px; z-index: 5; background: rgba(4, 4, 6, 0.75); backdrop-filter: blur(5px); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(255,255,255,0.1);">
-                        <i class="fa-solid fa-film text-warning me-1"></i> Movie
+                        {% if film.media_type == 'tv' %}
+                            <i class="fa-solid fa-tv text-warning me-1"></i> TV Show
+                        {% else %}
+                            <i class="fa-solid fa-film text-warning me-1"></i> Movie
+                        {% endif %}
                     </span>
 
                     <!-- Floating top-right: Watchlist bookmark -->
                     <div class="rec-watchlist-float" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
-                        <button type="button" class="btn btn-circle border-0 {% if film.id in saved_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}" onclick="toggleWatchlist('{{ film.id }}')" data-saved="{% if film.id in saved_ids %}true{% else %}false{% endif %}" data-media-type="movie" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
+                        <button type="button" class="btn btn-circle border-0 {% if film.id in saved_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}" onclick="toggleWatchlist('{{ film.id }}')" data-saved="{% if film.id in saved_ids %}true{% else %}false{% endif %}" data-media-type="{{ film.media_type|default:'movie' }}" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
                             <i class="fa-bookmark {% if film.id in saved_ids %}fa-solid text-warning{% else %}fa-regular text-white{% endif %}"></i>
                         </button>
                     </div>
 
                     <!-- Poster image -->
                     {% if film.poster_url %}
-                        <img src="{{ film.poster_url }}" alt="{{ film.title }}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
+                        <img src="{{ film.poster_url }}" alt="{% if film.title %}{{ film.title }}{% else %}{{ film.name }}{% endif %}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
                     {% else %}
                         <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
                             <i class="fa-solid fa-film fs-2"></i>
@@ -760,12 +764,12 @@
                     <!-- Bottom Text & Link Overlay -->
                     <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%); padding: 1.25rem 1rem 1rem 1rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
                         <div style="max-width: 65%; display: flex; flex-direction: column; gap: 2px;">
-                            <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{{ film.title }}">{{ film.title }}</h5>
+                            <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{% if film.title %}{{ film.title }}{% else %}{{ film.name }}{% endif %}">{% if film.title %}{{ film.title }}{% else %}{{ film.name }}{% endif %}</h5>
                             <p class="card-text text-muted m-0" style="font-size: 0.75rem;">ID: {{ film.id|default:"N/A" }}</p>
                         </div>
                         {% if film.id %}
                         <div style="z-index: 5;">
-                            <a href="{% url 'movie_detail' film.id %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0 d-flex align-items-center gap-1">
+                            <a href="{% if film.media_type == 'tv' %}{% url 'tv_show_detail' film.id %}{% else %}{% url 'movie_detail' film.id %}{% endif %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0 d-flex align-items-center gap-1">
                                 Details <i class="fa-solid fa-chevron-right ms-1 small"></i>
                             </a>
                         </div>
@@ -797,19 +801,23 @@
                     
                     <!-- Media Badge (Top-Left) -->
                     <span class="badge-media" style="position: absolute; top: 12px; left: 12px; z-index: 5; background: rgba(4, 4, 6, 0.75); backdrop-filter: blur(5px); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(255,255,255,0.1);">
-                        <i class="fa-solid fa-film text-warning me-1"></i> Movie
+                        {% if film.media_type == 'tv' %}
+                            <i class="fa-solid fa-tv text-warning me-1"></i> TV Show
+                        {% else %}
+                            <i class="fa-solid fa-film text-warning me-1"></i> Movie
+                        {% endif %}
                     </span>
 
                     <!-- Floating top-right: Watchlist bookmark -->
                     <div class="rec-watchlist-float" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
-                        <button type="button" class="btn btn-circle border-0 {% if film.id in saved_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}" onclick="toggleWatchlist('{{ film.id }}')" data-saved="{% if film.id in saved_ids %}true{% else %}false{% endif %}" data-media-type="movie" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
+                        <button type="button" class="btn btn-circle border-0 {% if film.id in saved_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}" onclick="toggleWatchlist('{{ film.id }}')" data-saved="{% if film.id in saved_ids %}true{% else %}false{% endif %}" data-media-type="{{ film.media_type|default:'movie' }}" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
                             <i class="fa-bookmark {% if film.id in saved_ids %}fa-solid text-warning{% else %}fa-regular text-white{% endif %}"></i>
                         </button>
                     </div>
 
                     <!-- Poster image -->
                     {% if film.poster_url %}
-                        <img src="{{ film.poster_url }}" alt="{{ film.title }}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
+                        <img src="{{ film.poster_url }}" alt="{% if film.title %}{{ film.title }}{% else %}{{ film.name }}{% endif %}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
                     {% else %}
                         <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
                             <i class="fa-solid fa-film fs-2"></i>
@@ -819,12 +827,12 @@
                     <!-- Bottom Text & Link Overlay -->
                     <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%); padding: 1.25rem 1rem 1rem 1rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
                         <div style="max-width: 65%; display: flex; flex-direction: column; gap: 2px;">
-                            <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{{ film.title }}">{{ film.title }}</h5>
+                            <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{% if film.title %}{{ film.title }}{% else %}{{ film.name }}{% endif %}">{% if film.title %}{{ film.title }}{% else %}{{ film.name }}{% endif %}</h5>
                             <p class="card-text text-muted m-0" style="font-size: 0.75rem;">ID: {{ film.id|default:"N/A" }}</p>
                         </div>
                         {% if film.id %}
                         <div style="z-index: 5;">
-                            <a href="{% url 'movie_detail' film.id %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0 d-flex align-items-center gap-1">
+                            <a href="{% if film.media_type == 'tv' %}{% url 'tv_show_detail' film.id %}{% else %}{% url 'movie_detail' film.id %}{% endif %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0 d-flex align-items-center gap-1">
                                 Details <i class="fa-solid fa-chevron-right ms-1 small"></i>
                             </a>
                         </div>
@@ -856,19 +864,23 @@
                     
                     <!-- Media Badge (Top-Left) -->
                     <span class="badge-media" style="position: absolute; top: 12px; left: 12px; z-index: 5; background: rgba(4, 4, 6, 0.75); backdrop-filter: blur(5px); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(255,255,255,0.1);">
-                        <i class="fa-solid fa-film text-warning me-1"></i> Movie
+                        {% if film.media_type == 'tv' %}
+                            <i class="fa-solid fa-tv text-warning me-1"></i> TV Show
+                        {% else %}
+                            <i class="fa-solid fa-film text-warning me-1"></i> Movie
+                        {% endif %}
                     </span>
 
                     <!-- Floating top-right: Watchlist bookmark -->
                     <div class="rec-watchlist-float" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
-                        <button type="button" class="btn btn-circle border-0 {% if film.id in saved_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}" onclick="toggleWatchlist('{{ film.id }}')" data-saved="{% if film.id in saved_ids %}true{% else %}false{% endif %}" data-media-type="movie" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
+                        <button type="button" class="btn btn-circle border-0 {% if film.id in saved_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}" onclick="toggleWatchlist('{{ film.id }}')" data-saved="{% if film.id in saved_ids %}true{% else %}false{% endif %}" data-media-type="{{ film.media_type|default:'movie' }}" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
                             <i class="fa-bookmark {% if film.id in saved_ids %}fa-solid text-warning{% else %}fa-regular text-white{% endif %}"></i>
                         </button>
                     </div>
 
                     <!-- Poster image -->
                     {% if film.poster_url %}
-                        <img src="{{ film.poster_url }}" alt="{{ film.title }}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
+                        <img src="{{ film.poster_url }}" alt="{% if film.title %}{{ film.title }}{% else %}{{ film.name }}{% endif %}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
                     {% else %}
                         <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
                             <i class="fa-solid fa-film fs-2"></i>
@@ -878,12 +890,12 @@
                     <!-- Bottom Text & Link Overlay -->
                     <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%); padding: 1.25rem 1rem 1rem 1rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
                         <div style="max-width: 65%; display: flex; flex-direction: column; gap: 2px;">
-                            <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{{ film.title }}">{{ film.title }}</h5>
+                            <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{% if film.title %}{{ film.title }}{% else %}{{ film.name }}{% endif %}">{% if film.title %}{{ film.title }}{% else %}{{ film.name }}{% endif %}</h5>
                             <p class="card-text text-muted m-0" style="font-size: 0.75rem;">ID: {{ film.id|default:"N/A" }}</p>
                         </div>
                         {% if film.id %}
                         <div style="z-index: 5;">
-                            <a href="{% url 'movie_detail' film.id %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0 d-flex align-items-center gap-1">
+                            <a href="{% if film.media_type == 'tv' %}{% url 'tv_show_detail' film.id %}{% else %}{% url 'movie_detail' film.id %}{% endif %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0 d-flex align-items-center gap-1">
                                 Details <i class="fa-solid fa-chevron-right ms-1 small"></i>
                             </a>
                         </div>

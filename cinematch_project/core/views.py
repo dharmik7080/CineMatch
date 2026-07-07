@@ -199,10 +199,14 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
         return []
 
 # ======================================================================
-# User Authentication & Registration View
+# User Authentication, Registration, and Home Views
 # ======================================================================
+from django.contrib import messages
+from django.contrib.auth import logout, authenticate
+from django.contrib.auth.forms import AuthenticationForm
+
 @csrf_protect
-def register_user(request):
+def signup_view(request):
     if request.user.is_authenticated:
         return redirect('for_you_feed')
 
@@ -210,13 +214,56 @@ def register_user(request):
         form = UserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            UserProfile.objects.create(user=user)
+            UserProfile.objects.get_or_create(user=user)
             login(request, user)
+            messages.success(request, f"Welcome to CineMatch, {user.username}! Your account was created successfully.")
             return redirect('for_you_feed')
+        else:
+            messages.error(request, "Please correct the registration errors below.")
     else:
         form = UserCreationForm()
         
-    return render(request, 'core/register.html', {'form': form})
+    return render(request, 'core/signup.html', {'form': form})
+
+# Maintain register_user as a compatibility alias for signup_view
+register_user = signup_view
+
+@csrf_protect
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('for_you_feed')
+
+    if request.method == 'POST':
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            user = authenticate(username=username, password=password)
+            if user is not None:
+                login(request, user)
+                messages.success(request, f"Welcome back, {username}!")
+                next_url = request.GET.get('next')
+                if next_url:
+                    return redirect(next_url)
+                return redirect('for_you_feed')
+        else:
+            messages.error(request, "Invalid username or password.")
+    else:
+        form = AuthenticationForm()
+        
+    return render(request, 'core/login.html', {'form': form})
+
+def logout_view(request):
+    logout(request)
+    messages.info(request, "You have been logged out successfully.")
+    return redirect('login')
+
+def home_view(request):
+    if request.user.is_authenticated:
+        return redirect('for_you_feed')
+    if request.method == 'POST':
+        return signup_view(request)
+    return render(request, 'core/signup.html', {'form': UserCreationForm()})
 
 # ======================================================================
 # Watchlist CRUD: Add Item View (Create)
@@ -396,9 +443,34 @@ def for_you_feed(request):
     most_interested = weekly_trending[:5]
     
     # ── Platform-specific feeds ──
-    netflix_data = get_provider_recommendations(8, 'movie')
-    prime_data = get_provider_recommendations(119, 'movie')
-    hotstar_data = get_provider_recommendations(122, 'movie')
+    import random
+    
+    # Netflix (8)
+    netflix_movies = get_provider_recommendations(8, 'movie')[:5]
+    netflix_tv = get_provider_recommendations(8, 'tv')[:5]
+    netflix_data = netflix_movies + netflix_tv
+    random.shuffle(netflix_data)
+    for film in netflix_data:
+        if 'title' not in film: film['title'] = film.get('name', 'N/A')
+        if 'name' not in film: film['name'] = film.get('title', 'N/A')
+    
+    # Prime (119)
+    prime_movies = get_provider_recommendations(119, 'movie')[:5]
+    prime_tv = get_provider_recommendations(119, 'tv')[:5]
+    prime_data = prime_movies + prime_tv
+    random.shuffle(prime_data)
+    for film in prime_data:
+        if 'title' not in film: film['title'] = film.get('name', 'N/A')
+        if 'name' not in film: film['name'] = film.get('title', 'N/A')
+    
+    # Hotstar (122)
+    hotstar_movies = get_provider_recommendations(122, 'movie')[:5]
+    hotstar_tv = get_provider_recommendations(122, 'tv')[:5]
+    hotstar_data = hotstar_movies + hotstar_tv
+    random.shuffle(hotstar_data)
+    for film in hotstar_data:
+        if 'title' not in film: film['title'] = film.get('name', 'N/A')
+        if 'name' not in film: film['name'] = film.get('title', 'N/A')
     
     # ── DEBUG LOGGING FOR USER QUERY VERIFICATION ──
     print(f"[DEBUG] netflix_movies count: {len(netflix_data)}")
@@ -446,7 +518,8 @@ def for_you_feed(request):
     return render(request, 'core/for_you.html', context)
 # ======================================================================
 # Explore Movies View
-# =================@login_required
+# ======================================================================
+@login_required
 def explore_movies(request):
     from core.utils import fetch_tmdb_catalog
     
@@ -590,8 +663,7 @@ def analytics_dashboard(request):
 # ======================================================================
 @login_required
 def movie_detail_view(request, movie_id):
-    api_key = "41fc74ce5602882786e1e9d4933fdcc6"
-
+    api_key = settings.TMDB_API_KEY
     endpoint = (
         f"https://api.themoviedb.org/3/movie/{movie_id}"
         f"?api_key={api_key}"
@@ -853,7 +925,7 @@ def movie_detail_view(request, movie_id):
 # ======================================================================
 @login_required
 def tv_detail_view(request, series_id):
-    api_key = "41fc74ce5602882786e1e9d4933fdcc6"
+    api_key = settings.TMDB_API_KEY
 
     endpoint = (
         f"https://api.themoviedb.org/3/tv/{series_id}"
@@ -1112,13 +1184,11 @@ def get_provider_recommendations(provider_id, media_type='movie'):
         if response.status_code == 200:
             data = response.json()
             results = data.get('results', [])
-            
+
             # Process results for the template
             processed_results = []
-            for item in results[:5]:
-                # Handle TV show title differences
-                if media_type == 'tv':
-                    item['title'] = item.get('name')
+            for item in results[:10]:
+                item['media_type'] = media_type
                 
                 # Fetch cached poster
                 item['poster_url'] = get_cached_poster(client, item['id'], media_type)

@@ -8,15 +8,16 @@ from django.contrib.auth import views as auth_views
 from . import views
 
 urlpatterns = [
-    # Custom root redirect to feed
-    path('', views.for_you_feed, name='home'),
+    # Intelligent Root Routing
+    path('', views.home_view, name='home'),
 
-    # User Registration (Custom View)
-    path('register/', views.register_user, name='register'),
+    # User Registration / Signup
+    path('register/', views.signup_view, name='register'),
+    path('signup/', views.signup_view, name='signup'),
     
-    # User Login & Logout (Django's inbuilt auth views)
-    path('login/', auth_views.LoginView.as_view(template_name='core/login.html'), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
+    # Custom User Login & Logout
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
     
     # "For You" Feed dashboard
     path('feed/', views.for_you_feed, name='for_you_feed'),
