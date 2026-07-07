@@ -204,11 +204,20 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
 from django.contrib import messages
 from django.contrib.auth import logout, authenticate
 from django.contrib.auth.forms import AuthenticationForm
+from django.views.decorators.cache import never_cache
 
 @csrf_protect
+@never_cache
 def signup_view(request):
     if request.user.is_authenticated:
         return redirect('for_you_feed')
+
+    from core.utils import fetch_tmdb_catalog
+    catalog_p1 = fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", page=1)
+    catalog_p2 = fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", page=2)
+    movies_list = catalog_p1.get('results', []) + catalog_p2.get('results', [])
+    movies_list = movies_list[:24]
+    random_posters = [m['poster_url'] for m in movies_list if m.get('poster_url')]
 
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
@@ -223,15 +232,26 @@ def signup_view(request):
     else:
         form = UserCreationForm()
         
-    return render(request, 'core/signup.html', {'form': form})
+    return render(request, 'core/signup.html', {
+        'form': form,
+        'random_posters': random_posters,
+    })
 
 # Maintain register_user as a compatibility alias for signup_view
 register_user = signup_view
 
 @csrf_protect
+@never_cache
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('for_you_feed')
+
+    from core.utils import fetch_tmdb_catalog
+    catalog_p1 = fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", page=1)
+    catalog_p2 = fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", page=2)
+    movies_list = catalog_p1.get('results', []) + catalog_p2.get('results', [])
+    movies_list = movies_list[:24]
+    random_posters = [m['poster_url'] for m in movies_list if m.get('poster_url')]
 
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
@@ -251,19 +271,35 @@ def login_view(request):
     else:
         form = AuthenticationForm()
         
-    return render(request, 'core/login.html', {'form': form})
+    return render(request, 'core/login.html', {
+        'form': form,
+        'random_posters': random_posters,
+    })
 
 def logout_view(request):
     logout(request)
     messages.info(request, "You have been logged out successfully.")
     return redirect('login')
 
+@csrf_protect
+@never_cache
 def home_view(request):
     if request.user.is_authenticated:
         return redirect('for_you_feed')
+    
+    from core.utils import fetch_tmdb_catalog
+    catalog_p1 = fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", page=1)
+    catalog_p2 = fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", page=2)
+    movies_list = catalog_p1.get('results', []) + catalog_p2.get('results', [])
+    movies_list = movies_list[:24]
+    random_posters = [m['poster_url'] for m in movies_list if m.get('poster_url')]
+
     if request.method == 'POST':
         return signup_view(request)
-    return render(request, 'core/signup.html', {'form': UserCreationForm()})
+    return render(request, 'core/signup.html', {
+        'form': UserCreationForm(),
+        'random_posters': random_posters,
+    })
 
 # ======================================================================
 # Watchlist CRUD: Add Item View (Create)

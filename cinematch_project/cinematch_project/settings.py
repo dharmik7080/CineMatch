@@ -141,3 +141,7 @@ SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 TMDB_API_KEY = '41fc74ce5602882786e1e9d4933fdcc6'
 
 WATCHMODE_API_KEY = 'PiTJpSFDkmR40M6cvWqBwyuJjrielWKSnL9ZQuaz'
+
+# Custom CSRF and Session cookie names to prevent conflicts on localhost:8000
+CSRF_COOKIE_NAME = 'cinematch_csrftoken'
+SESSION_COOKIE_NAME = 'cinematch_sessionid'

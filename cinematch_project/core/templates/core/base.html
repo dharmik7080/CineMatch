@@ -300,7 +300,7 @@
             return cookieValue;
         }
 
-        const csrftoken = getCookie('csrftoken');
+        const csrftoken = getCookie('cinematch_csrftoken') || getCookie('csrftoken');
 
         function showNotification(message) {
             const toastEl = document.getElementById('liveToast');

@@ -3,21 +3,56 @@
 {% block title %}CineMatch - Sign In{% endblock %}
 
 {% block extra_css %}
+    /* Fixed poster grid backdrop */
+    .trakt-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        pointer-events: none;
+    }
+    
+    .trakt-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        grid-template-rows: repeat(4, 1fr);
+        gap: 0;
+        width: 100%;
+        height: 100%;
+    }
+    
+    .backdrop-poster {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: blur(8px) brightness(0.3);
+    }
+
+    .auth-wrapper {
+        min-height: 85vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        z-index: 5;
+        padding: 2rem 0;
+    }
+
     .auth-card {
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
+        background: #040406 !important;
+        border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 24px;
         padding: 3rem;
-        box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 40px rgba(168, 85, 247, 0.15);
         max-width: 480px;
-        margin: 4rem auto;
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+        width: 100%;
     }
 
     .form-control {
         background: rgba(255, 255, 255, 0.05);
-        border: 1px solid var(--card-border);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         color: #ffffff;
         border-radius: 12px;
         padding: 0.75rem 1rem;
@@ -39,7 +74,18 @@
 {% endblock %}
 
 {% block content %}
-<div class="container">
+<!-- Trakt Cinematic Background -->
+{% if random_posters %}
+<div class="trakt-backdrop">
+    <div class="trakt-grid">
+        {% for poster in random_posters %}
+            <img src="{{ poster }}" class="backdrop-poster" alt="Backdrop movie poster" loading="lazy">
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="container auth-wrapper">
     <div class="auth-card">
         <div class="text-center mb-4">
             <h2 class="fw-extrabold mb-1"><i class="fa-solid fa-circle-user text-accent me-2"></i>Sign In</h2>
