@@ -520,6 +520,10 @@
                     {% if watch_providers %}
                         {% for provider in watch_providers %}
                         <div class="provider-row">
+                            {% if provider.web_url %}
+                            <a href="{{ provider.web_url }}" target="_blank" class="d-flex align-items-center text-decoration-none w-100" style="color: inherit;">
+                            {% endif %}
+
                             {% if provider.logo_url %}
                             <img class="provider-logo"
                                  src="{{ provider.logo_url }}"
@@ -532,6 +536,10 @@
                             </div>
                             {% endif %}
                             <span class="provider-name">{{ provider.name }}</span>
+
+                            {% if provider.web_url %}
+                            </a>
+                            {% endif %}
                         </div>
                         {% endfor %}
                         <p class="mt-3 mb-0" style="font-size:0.72rem; color:#6b7280; text-align:right;">

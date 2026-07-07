@@ -792,11 +792,44 @@ def movie_detail_view(request, movie_id):
             user=request.user, media_type='movie'
         ).values_list('media_id', flat=True))
 
+    # Fetch streaming links from Watchmode API via Cache (24 hour retention)
+    from django.core.cache import cache
+    from core.utils import get_streaming_links
+
+    movie_title = movie.get('title', '')
+    cache_key = f"watchmode_links_{movie_id}"
+    streaming_links = cache.get(cache_key)
+
+    if streaming_links is None:
+        streaming_links = get_streaming_links(movie_title)
+        cache.set(cache_key, streaming_links, 86400)
+
+    # Map streaming links directly to the watch_providers items
+    if watch_providers and streaming_links:
+        for provider in watch_providers:
+            provider_name = provider.get('name', '')
+            norm_name = provider_name
+            if "Prime" in provider_name or "Amazon" in provider_name:
+                norm_name = "Prime Video"
+            elif "Disney" in provider_name:
+                norm_name = "Disney+"
+            elif "Apple" in provider_name:
+                norm_name = "Apple TV+"
+
+            # Find matching link
+            for service_name, url in streaming_links.items():
+                if (service_name.lower() in provider_name.lower() or 
+                    provider_name.lower() in service_name.lower() or
+                    norm_name.lower() in service_name.lower()):
+                    provider['web_url'] = url
+                    break
+
     context = {
         'movie':           movie,
         'cast':            cast,
         'trailer_key':     trailer_key,
         'watch_providers': watch_providers,
+        'streaming_links': streaming_links, # passed directly to context
         'similar_movies':  similar_movies,
         'recommendations': similar_movies, # mapped to recommendations
         'is_in_watchlist': is_in_watchlist,

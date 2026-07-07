@@ -71,3 +71,61 @@ def fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", query=None, p
     except Exception as e:
         print(f"[TMDB UTILS] Fetch error for {endpoint_type} (query={query}): {e}")
         return {'results': [], 'total_pages': 1}
+
+def get_streaming_links(movie_title):
+    """
+    Queries Watchmode API to find streaming links for a movie title.
+    1. Search for Watchmode ID of the movie title.
+    2. Query sources for that Watchmode ID.
+    3. Return dict of {service_name: web_url}.
+    """
+    from django.conf import settings
+    api_key = getattr(settings, 'WATCHMODE_API_KEY', '')
+    if not api_key:
+        print("[WATCHMODE] API key is not configured.")
+        return {}
+
+    # Step 1: Search Watchmode ID
+    search_url = "https://api.watchmode.com/v1/search/"
+    params = {
+        'apiKey': api_key,
+        'search_field': 'name',
+        'search_value': movie_title
+    }
+    try:
+        response = requests.get(search_url, params=params, timeout=5.0)
+        response.raise_for_status()
+        search_data = response.json()
+        results = search_data.get('title_results', [])
+        if not results:
+            print(f"[WATCHMODE] No title results found for '{movie_title}'")
+            return {}
+        
+        # Pick the first matching item ID
+        watchmode_id = results[0].get('id')
+        if not watchmode_id:
+            return {}
+
+        # Step 2: Query Sources for the Watchmode ID
+        sources_url = f"https://api.watchmode.com/v1/title/{watchmode_id}/sources/"
+        sources_params = {
+            'apiKey': api_key
+        }
+        sources_response = requests.get(sources_url, params=sources_params, timeout=5.0)
+        sources_response.raise_for_status()
+        sources_data = sources_response.json()
+        
+        # Step 3: Extract and filter sources
+        streaming_links = {}
+        for source in sources_data:
+            name = source.get('name')
+            web_url = source.get('web_url')
+            if name and web_url:
+                # Store the direct URL under the service name
+                if name not in streaming_links:
+                    streaming_links[name] = web_url
+        
+        return streaming_links
+    except Exception as e:
+        print(f"[WATCHMODE] Error fetching links for '{movie_title}': {e}")
+        return {}
