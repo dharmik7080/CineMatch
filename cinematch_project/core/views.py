@@ -12,6 +12,8 @@ import requests
 import urllib.parse
 import numpy as np
 import pandas as pd
+import joblib
+from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
 from django.contrib.auth.forms import UserCreationForm
@@ -85,10 +87,10 @@ def load_ml_models():
     global MOVIE_DICT, MOVIE_SIMILARITY, TV_DICT, TV_SIMILARITY
     if MOVIE_DICT is None:
         try:
-            movie_dict_path = os.path.join(settings.BASE_DIR, '..', 'movie_dict.pkl')
-            movie_sim_path = os.path.join(settings.BASE_DIR, '..', 'similarity.pkl')
-            tv_dict_path = os.path.join(settings.BASE_DIR, '..', 'tv_dict.pkl')
-            tv_sim_path = os.path.join(settings.BASE_DIR, '..', 'tv_similarity.pkl')
+            movie_dict_path = os.path.join(settings.BASE_DIR, 'movie_dict.pkl')
+            movie_sim_path = os.path.join(settings.BASE_DIR, 'similarity.pkl')
+            tv_dict_path = os.path.join(settings.BASE_DIR, 'tv_dict.pkl')
+            tv_sim_path = os.path.join(settings.BASE_DIR, 'tv_similarity.pkl')
 
             with open(movie_dict_path, 'rb') as f:
                 MOVIE_DICT = pickle.load(f)
