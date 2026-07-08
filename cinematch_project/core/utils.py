@@ -189,3 +189,52 @@ def get_daily_trending_movies():
         print(f"[TMDB TRENDING ERROR] Failed to fetch daily trending movies: {e}")
         
     return [], None
+
+
+def get_upcoming_movies():
+    """
+    Fetches upcoming movies from TMDB /movie/upcoming API.
+    Caches result for 24 hours (86400 seconds).
+    """
+    from django.conf import settings
+    from django.core.cache import cache
+    import requests
+
+    api_key = getattr(settings, 'TMDB_API_KEY', '')
+    if not api_key:
+        return []
+
+    cache_key = "upcoming_movies_cache"
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        return cached_data
+
+    url = "https://api.themoviedb.org/3/movie/upcoming"
+    params = {
+        'api_key': api_key,
+        'language': 'en-US',
+        'page': 1,
+        'region': 'IN'
+    }
+    try:
+        response = requests.get(url, params=params, timeout=10.0)
+        if response.status_code == 200:
+            results = response.json().get('results', [])
+            upcoming_movies = []
+            for item in results:
+                poster_path = item.get('poster_path')
+                upcoming_movies.append({
+                    'id': item.get('id'),
+                    'movie_id': item.get('id'),
+                    'title': item.get('title', 'Unknown'),
+                    'poster_url': f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop",
+                    'release_date': item.get('release_date', ''),
+                    'vote_average': round(item.get('vote_average', 0.0), 1),
+                })
+            # Cache for 24 hours
+            cache.set(cache_key, upcoming_movies, 86400)
+            return upcoming_movies
+    except Exception as e:
+        print(f"[TMDB UPCOMING ERROR] Failed to fetch upcoming movies: {e}")
+
+    return []

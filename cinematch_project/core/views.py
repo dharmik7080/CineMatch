@@ -521,6 +521,10 @@ def for_you_feed(request):
     talk_of_town = daily_trending[:3]
     most_interested = daily_trending[:5]
     
+    # ── FETCH UPCOMING MOVIES FROM TMDB WITH CACHE-ASIDE (24H CACHE) ──
+    from core.utils import get_upcoming_movies
+    upcoming_movies = get_upcoming_movies()[:6]
+    
     # ── Platform-specific feeds ──
     import random
     
@@ -570,6 +574,7 @@ def for_you_feed(request):
         'talk_of_town': talk_of_town,
         'most_interested': most_interested,
         'trending_last_updated': trending_last_updated,
+        'upcoming_movies': upcoming_movies,
         # 💎 INJECTED INTO CONTEXT
         'netflix_movies': netflix_data,
         'prime_movies': prime_data,
@@ -589,6 +594,7 @@ def for_you_feed(request):
             'spotlight_movie': spotlight_movie,
             'talk_of_town': talk_of_town,
             'most_interested': most_interested,
+            'upcoming_movies': upcoming_movies,
             # 💎 INJECTED INTO JSON
             'netflix_movies': netflix_data,
             'prime_movies': prime_data,
