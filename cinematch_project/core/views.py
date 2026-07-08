@@ -867,23 +867,9 @@ def movie_detail_view(request, movie_id):
                 ),
             })
 
-        similar_payload = data.get('similar', {})
-        raw_similar = similar_payload.get('results', [])
-        for s in raw_similar[:5]:
-            s_poster = s.get('poster_path') or ''
-            encoded = urllib.parse.quote_plus(s.get('title', ''))
-            similar_movies.append({
-                'id':         s.get('id'),
-                'movie_id':   s.get('id'),
-                'title':      s.get('title', 'Unknown'),
-                'vote_average': round(s.get('vote_average', 0.0), 1),
-                'poster_url': (
-                    f"https://image.tmdb.org/t/p/w300{s_poster}"
-                    if s_poster else
-                    'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop'
-                ),
-                'trailer_url': f"https://www.youtube.com/results?search_query={encoded}+official+trailer",
-            })
+        # Fetch similar movies via the official TMDB similar API
+        client = TMDBClient()
+        similar_movies = client.get_similar_movies(movie_id)
 
         # Franchise / Collection Fetching
         belongs_to_collection = data.get('belongs_to_collection')

@@ -130,3 +130,43 @@ class TMDBClient:
         else:
             # Google Search query shortcut link for streaming
             return f"https://www.google.com/search?q=watch+{encoded_title}+online"
+
+    def get_similar_movies(self, movie_id):
+        """
+        Fetches similar movies for a given movie_id using the TMDB Similar API.
+        Uses TMDB_API_KEY from django settings.
+        """
+        from django.conf import settings
+        api_key = getattr(settings, 'TMDB_API_KEY', '')
+        if not api_key:
+            print("[TMDB] API key is not configured in settings.")
+            return []
+
+        url = f"{self.base_url}/movie/{movie_id}/similar"
+        params = {
+            'api_key': api_key,
+            'language': 'en-US',
+            'page': 1
+        }
+        try:
+            response = requests.get(url, params=params, timeout=10.0)
+            if response.status_code == 200:
+                data = response.json()
+                results = data.get('results', [])
+                similar_movies = []
+                for item in results:
+                    poster_path = item.get('poster_path')
+                    poster_url = f"{self.image_base_url}{poster_path}" if poster_path else self.movie_fallback
+                    similar_movies.append({
+                        'id': item.get('id'),
+                        'title': item.get('title'),
+                        'poster_url': poster_url,
+                        'release_date': item.get('release_date', ''),
+                        'vote_average': item.get('vote_average', 0.0),
+                    })
+                return similar_movies
+            else:
+                print(f"[TMDB] Failed to fetch similar movies. Status code: {response.status_code}")
+        except Exception as e:
+            print(f"[TMDB] Error in get_similar_movies for movie_id={movie_id}: {e}")
+        return []
