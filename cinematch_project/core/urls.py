@@ -24,6 +24,7 @@ urlpatterns = [
     
     # Explore Grids
     path('movies/', views.explore_movies, name='explore_movies'),
+    path('movies/random/', views.random_movie_view, name='random_movie'),
     path('tv-shows/', views.explore_tv, name='explore_tv'),
     
     # Analytics Panel

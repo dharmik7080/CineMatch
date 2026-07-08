@@ -1678,3 +1678,57 @@ def search_results_view(request):
         'watchlist_tv':     watchlist_tv,
     }
     return render(request, 'core/search_results.html', context)
+
+
+import random
+from django.contrib import messages
+
+def random_movie_view(request):
+    """
+    Selects a random movie from TMDB discover/movie (random page 1-500)
+    and redirects the user directly to its detail view.
+    """
+    from django.conf import settings
+    api_key = getattr(settings, 'TMDB_API_KEY', '')
+    if not api_key:
+        messages.error(request, 'Could not find a surprise, please try again!')
+        return redirect('explore_movies')
+
+    # Generate a random page number (TMDB allows up to 500 pages for discover)
+    random_page = random.randint(1, 500)
+    
+    url = "https://api.themoviedb.org/3/discover/movie"
+    params = {
+        'api_key': api_key,
+        'language': 'en-US',
+        'sort_by': 'popularity.desc',
+        'include_adult': 'false',
+        'include_video': 'false',
+        'page': random_page
+    }
+    
+    try:
+        response = requests.get(url, params=params, timeout=10.0)
+        if response.status_code == 200:
+            results = response.json().get('results', [])
+            if results:
+                random_movie = random.choice(results)
+                movie_id = random_movie.get('id')
+                if movie_id:
+                    return redirect('movie_detail', movie_id=movie_id)
+        
+        # Fallback to page 1 if the randomly generated page fails
+        params['page'] = 1
+        response = requests.get(url, params=params, timeout=10.0)
+        if response.status_code == 200:
+            results = response.json().get('results', [])
+            if results:
+                random_movie = random.choice(results)
+                movie_id = random_movie.get('id')
+                if movie_id:
+                    return redirect('movie_detail', movie_id=movie_id)
+    except Exception as e:
+        print(f"[RANDOM MOVIE ERROR] Failed to fetch random movie: {e}")
+
+    messages.error(request, 'Could not find a surprise, please try again!')
+    return redirect('explore_movies')

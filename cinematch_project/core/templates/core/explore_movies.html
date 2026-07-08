@@ -177,7 +177,12 @@
     </div>
 
     <!-- Movie Grid -->
-    <h3 class="fw-bold mb-4"><i class="fa-solid fa-list-ul text-accent me-2"></i> Catalog List</h3>
+    <div class="d-flex align-items-center mb-4">
+        <h3 class="fw-bold mb-0"><i class="fa-solid fa-list-ul text-accent me-2"></i> Catalog List</h3>
+        <a href="{% url 'random_movie' %}" class="text-accent ms-3" title="Surprise Me!" style="transition: transform 0.2s ease; display: inline-block;" onmouseover="this.style.transform='scale(1.15) rotate(15deg)';" onmouseout="this.style.transform='scale(1) rotate(0deg)';" data-bs-toggle="tooltip" data-bs-placement="right">
+            <i class="fas fa-dice fs-3 align-middle" style="color: #c084fc; text-shadow: 0 0 10px rgba(168, 85, 247, 0.4);"></i>
+        </a>
+    </div>
     
     <div id="movie-grid-container">
         {% include 'core/includes/movie_grid_partial.html' %}

@@ -133,8 +133,8 @@ class TMDBClient:
 
     def get_similar_movies(self, movie_id):
         """
-        Fetches similar movies for a given movie_id using the TMDB Similar API.
-        Uses TMDB_API_KEY from django settings.
+        Fetches similar movies, filters by popularity > 5.0 and vote_average > 6.0,
+        and falls back to popular movies of the same genre if < 3 results are found.
         """
         from django.conf import settings
         api_key = getattr(settings, 'TMDB_API_KEY', '')
@@ -142,31 +142,82 @@ class TMDBClient:
             print("[TMDB] API key is not configured in settings.")
             return []
 
-        url = f"{self.base_url}/movie/{movie_id}/similar"
+        # Step 1: Query Similar movies
+        similar_url = f"{self.base_url}/movie/{movie_id}/similar"
         params = {
             'api_key': api_key,
             'language': 'en-US',
             'page': 1
         }
+        
+        filtered_movies = []
+        seen_ids = {int(movie_id)}  # Prevent including the current movie itself
+
         try:
-            response = requests.get(url, params=params, timeout=10.0)
+            response = requests.get(similar_url, params=params, timeout=10.0)
             if response.status_code == 200:
-                data = response.json()
-                results = data.get('results', [])
-                similar_movies = []
+                results = response.json().get('results', [])
                 for item in results:
-                    poster_path = item.get('poster_path')
-                    poster_url = f"{self.image_base_url}{poster_path}" if poster_path else self.movie_fallback
-                    similar_movies.append({
-                        'id': item.get('id'),
-                        'title': item.get('title'),
-                        'poster_url': poster_url,
-                        'release_date': item.get('release_date', ''),
-                        'vote_average': item.get('vote_average', 0.0),
-                    })
-                return similar_movies
-            else:
-                print(f"[TMDB] Failed to fetch similar movies. Status code: {response.status_code}")
+                    pop = item.get('popularity', 0.0)
+                    vote = item.get('vote_average', 0.0)
+                    m_id = item.get('id')
+                    
+                    # Popularity & Rating Filtering
+                    if pop > 5.0 and vote > 6.0 and m_id not in seen_ids:
+                        seen_ids.add(m_id)
+                        poster_path = item.get('poster_path')
+                        poster_url = f"{self.image_base_url}{poster_path}" if poster_path else self.movie_fallback
+                        filtered_movies.append({
+                            'id': m_id,
+                            'title': item.get('title'),
+                            'poster_url': poster_url,
+                            'release_date': item.get('release_date', ''),
+                            'vote_average': round(vote, 1),
+                        })
         except Exception as e:
-            print(f"[TMDB] Error in get_similar_movies for movie_id={movie_id}: {e}")
-        return []
+            print(f"[TMDB WARNING] Error fetching similar movies for movie_id={movie_id}: {e}")
+
+        # Step 2: Hybrid Fallback if filtered list contains fewer than 3 movies
+        if len(filtered_movies) < 3:
+            print(f"[TMDB INFO] Similar results count ({len(filtered_movies)}) is less than 3. Triggering genre fallback...")
+            try:
+                # 2a. Get movie details to extract the primary genre ID
+                details_url = f"{self.base_url}/movie/{movie_id}"
+                det_resp = requests.get(details_url, params={'api_key': api_key}, timeout=5.0)
+                if det_resp.status_code == 200:
+                    genres = det_resp.json().get('genres', [])
+                    if genres:
+                        primary_genre_id = genres[0].get('id')
+                        
+                        # 2b. Query discover/movie for popular movies in this genre
+                        discover_url = f"{self.base_url}/discover/movie"
+                        disc_params = {
+                            'api_key': api_key,
+                            'with_genres': primary_genre_id,
+                            'sort_by': 'popularity.desc',
+                            'language': 'en-US',
+                            'page': 1
+                        }
+                        disc_resp = requests.get(discover_url, params=disc_params, timeout=5.0)
+                        if disc_resp.status_code == 200:
+                            disc_results = disc_resp.json().get('results', [])
+                            for item in disc_results:
+                                m_id = item.get('id')
+                                if m_id not in seen_ids:
+                                    seen_ids.add(m_id)
+                                    poster_path = item.get('poster_path')
+                                    poster_url = f"{self.image_base_url}{poster_path}" if poster_path else self.movie_fallback
+                                    filtered_movies.append({
+                                        'id': m_id,
+                                        'title': item.get('title'),
+                                        'poster_url': poster_url,
+                                        'release_date': item.get('release_date', ''),
+                                        'vote_average': round(item.get('vote_average', 0.0), 1),
+                                    })
+                                    # Limit the list to 5 or 6 recommendations total
+                                    if len(filtered_movies) >= 6:
+                                        break
+            except Exception as ex:
+                print(f"[TMDB WARNING] Fallback genre discovery failed for movie_id={movie_id}: {ex}")
+
+        return filtered_movies
