@@ -712,11 +712,29 @@
                                             {{ review.user.username|slice:":2"|upper }}
                                         </div>
                                         <div>
-                                            <div class="d-flex align-items-center gap-2">
+                                            <div class="d-flex align-items-center gap-2 flex-wrap">
                                                 <span class="fw-bold text-white" style="font-size: 0.9rem;">@{{ review.user.username }}</span>
                                                 <span class="badge" style="font-size: 0.68rem; background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.4); color: #c084fc; display: inline-flex; align-items: center; gap: 3px;">
                                                     <i class="fa-solid fa-star text-warning"></i> {{ review.rating }}/10
                                                 </span>
+                                                {% if review.sentiment_label %}
+                                                <span class="badge d-inline-flex align-items-center gap-1" style="font-size: 0.68rem;
+                                                    {% if review.sentiment_label == 'positive' %}
+                                                        background: rgba(74, 222, 128, 0.12); border: 1px solid rgba(74, 222, 128, 0.3); color: #4ade80;
+                                                    {% elif review.sentiment_label == 'negative' %}
+                                                        background: rgba(248, 113, 113, 0.12); border: 1px solid rgba(248, 113, 113, 0.3); color: #f87171;
+                                                    {% else %}
+                                                        background: rgba(156, 163, 175, 0.12); border: 1px solid rgba(156, 163, 175, 0.3); color: #9ca3af;
+                                                    {% endif %}">
+                                                    {% if review.sentiment_label == 'positive' %}
+                                                        <i class="fa-solid fa-face-smile"></i> Positive ({{ review.sentiment_score }}%)
+                                                    {% elif review.sentiment_label == 'negative' %}
+                                                        <i class="fa-solid fa-face-frown"></i> Negative ({{ review.sentiment_score }}%)
+                                                    {% else %}
+                                                        <i class="fa-solid fa-face-meh"></i> Neutral
+                                                    {% endif %}
+                                                </span>
+                                                {% endif %}
                                             </div>
                                             <small class="text-secondary" style="font-size: 0.72rem;">{{ review.created_at|date:"F d, Y" }}</small>
                                         </div>

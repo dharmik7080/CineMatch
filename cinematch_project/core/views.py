@@ -34,6 +34,64 @@ from .tmdb_api import TMDBClient
 # PERSISTENT RAM CACHE: Persists fetched poster URLs across requests.
 POSTER_CACHE = {}
 
+# ======================================================================
+# Sentiment Analysis Engine (ML Inference: Logistic Regression)
+# ======================================================================
+import re
+MODEL_DIR = os.path.join(settings.BASE_DIR.parent, 'models')
+SENTIMENT_MODEL_PATH = os.path.join(MODEL_DIR, 'sentiment_model.pkl')
+VECTORIZER_PATH = os.path.join(MODEL_DIR, 'vectorizer.pkl')
+
+_sentiment_model = None
+_vectorizer = None
+
+def load_sentiment_assets():
+    global _sentiment_model, _vectorizer
+    if _sentiment_model is None or _vectorizer is None:
+        try:
+            if os.path.exists(SENTIMENT_MODEL_PATH) and os.path.exists(VECTORIZER_PATH):
+                _sentiment_model = joblib.load(SENTIMENT_MODEL_PATH)
+                _vectorizer = joblib.load(VECTORIZER_PATH)
+                print("[SENTIMENT] Model and Vectorizer loaded successfully.")
+            else:
+                print("[SENTIMENT WARNING] Model files not found at:", SENTIMENT_MODEL_PATH)
+        except Exception as e:
+            print(f"[SENTIMENT ERROR] Failed to load sentiment assets: {e}")
+
+def predict_sentiment(review_text):
+    if not review_text or not isinstance(review_text, str):
+        return "neutral", 50
+    
+    load_sentiment_assets()
+    if _sentiment_model is None or _vectorizer is None:
+        return "neutral", 50
+        
+    try:
+        # Preprocess text (clean HTML and non-alphabetic chars)
+        cleaned = re.sub(r'<[^>]*>', ' ', review_text)
+        cleaned = cleaned.lower()
+        cleaned = re.sub(r'[^a-zA-Z\s]', '', cleaned)
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        
+        if not cleaned:
+            return "neutral", 50
+            
+        # Transform and Predict
+        vec = _vectorizer.transform([cleaned])
+        prediction = _sentiment_model.predict(vec)[0]
+        
+        try:
+            proba = _sentiment_model.predict_proba(vec)[0]
+            score = int(proba[1] * 100)
+        except Exception:
+            score = 100 if prediction == 1 else 0
+            
+        label = "positive" if prediction == 1 else "negative"
+        return label, score
+    except Exception as e:
+        print(f"[SENTIMENT ERROR] Prediction failed: {e}")
+        return "neutral", 50
+
 # Global variables to cache high-dimensional vector similarity matrices
 MOVIE_DICT = None
 MOVIE_SIMILARITY = None
@@ -890,8 +948,20 @@ def movie_detail_view(request, movie_id):
             pass
 
     # ── FETCH REVIEWS DATALAYER AND AUTHOR ACCESSORS ──
-    reviews = Review.objects.filter(movie_id=movie_id).select_related('user')
-    user_review = reviews.filter(user=request.user).first() if request.user.is_authenticated else None
+    raw_reviews = Review.objects.filter(movie_id=movie_id).select_related('user')
+    reviews_list = []
+    for r in raw_reviews:
+        sentiment_label, sentiment_score = predict_sentiment(r.content)
+        r.sentiment_label = sentiment_label
+        r.sentiment_score = sentiment_score
+        reviews_list.append(r)
+        
+    user_review = None
+    if request.user.is_authenticated:
+        for r in reviews_list:
+            if r.user == request.user:
+                user_review = r
+                break
 
     # Fetch watchlist IDs for bookmark toggle states
     watchlist_ids = []
@@ -954,7 +1024,7 @@ def movie_detail_view(request, movie_id):
         'is_in_watchlist': is_in_watchlist,
         'is_now_showing':  is_now_showing,
         # 💎 INJECTED REVIEWS DATA CONTEXTS
-        'reviews':         reviews,
+        'reviews':         reviews_list,
         'user_review':     user_review,
         'director':        director,
         # Franchise Groups
@@ -1098,8 +1168,20 @@ def tv_detail_view(request, series_id):
     ).exists()
 
     # ── FETCH REVIEWS DATALAYER AND AUTHOR ACCESSORS ──
-    reviews = MediaReview.objects.filter(media_id=series_id, media_type='tv').select_related('user')
-    user_review = reviews.filter(user=request.user).first() if request.user.is_authenticated else None
+    raw_reviews = MediaReview.objects.filter(media_id=series_id, media_type='tv').select_related('user')
+    reviews_list = []
+    for r in raw_reviews:
+        sentiment_label, sentiment_score = predict_sentiment(r.review_text)
+        r.sentiment_label = sentiment_label
+        r.sentiment_score = sentiment_score
+        reviews_list.append(r)
+        
+    user_review = None
+    if request.user.is_authenticated:
+        for r in reviews_list:
+            if r.user == request.user:
+                user_review = r
+                break
 
     # Fetch streaming links from Watchmode API via Cache (24 hour retention)
     from django.core.cache import cache
@@ -1152,7 +1234,7 @@ def tv_detail_view(request, series_id):
         'similar_shows':   similar_shows,
         'is_in_watchlist': is_in_watchlist,
         # 💎 INJECTED REVIEWS DATA CONTEXTS
-        'reviews':         reviews,
+        'reviews':         reviews_list,
         'user_review':     user_review,
     }
 
