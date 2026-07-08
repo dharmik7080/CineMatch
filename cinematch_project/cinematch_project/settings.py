@@ -145,3 +145,11 @@ WATCHMODE_API_KEY = 'PiTJpSFDkmR40M6cvWqBwyuJjrielWKSnL9ZQuaz'
 # Custom CSRF and Session cookie names to prevent conflicts on localhost:8000
 CSRF_COOKIE_NAME = 'cinematch_csrftoken'
 SESSION_COOKIE_NAME = 'cinematch_sessionid'
+
+# Caching Configuration: Activate Local Memory Cache (LocMemCache)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'cinematch-local-memory-cache',
+    }
+}

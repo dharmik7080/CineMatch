@@ -496,27 +496,11 @@ def for_you_feed(request):
     recommended_movies = get_recommendations(saved_movies, 'movie')
     recommended_tv_shows = get_recommendations(saved_tv_shows, 'tv')
 
-    # ── FETCH WEEKLY TRENDING MOVIES FROM TMDB ──
-    weekly_trending = []
-    try:
-        trending_url = f"{client.base_url}/trending/movie/week?language=en-US"
-        trending_resp = requests.get(trending_url, headers=client.headers, timeout=2.5)
-        if trending_resp.status_code == 200:
-            results = trending_resp.json().get('results', [])
-            for item in results[:10]:
-                release_date = item.get('release_date', '')
-                year = release_date.split('-')[0] if release_date else 'N/A'
-                weekly_trending.append({
-                    'id': item.get('id'),
-                    'title': item.get('title'),
-                    'poster_url': get_cached_poster(client, item.get('id'), 'movie'),
-                    'year': year,
-                    'release_date': release_date
-                })
-    except Exception as e:
-        print(f"[WEEKLY TRENDING] TMDB API request exception: {e}")
+    # ── FETCH DAILY TRENDING MOVIES FROM TMDB WITH CACHE-ASIDE ──
+    from core.utils import get_daily_trending_movies
+    daily_trending, trending_last_updated = get_daily_trending_movies()
 
-    if not weekly_trending:
+    if not daily_trending:
         defaults_list = [
             {'id': 27205, 'title': 'Inception', 'year': '2010', 'release_date': '2010-07-16'},
             {'id': 157336, 'title': 'Interstellar', 'year': '2014', 'release_date': '2014-11-07'},
@@ -524,8 +508,9 @@ def for_you_feed(request):
             {'id': 49026, 'title': 'The Dark Knight Rises', 'year': '2012', 'release_date': '2012-07-20'},
             {'id': 24428, 'title': 'The Avengers', 'year': '2012', 'release_date': '2012-05-04'}
         ]
+        daily_trending = []
         for item in defaults_list:
-            weekly_trending.append({
+            daily_trending.append({
                 'id': item['id'],
                 'title': item['title'],
                 'poster_url': get_cached_poster(client, item['id'], 'movie'),
@@ -533,8 +518,8 @@ def for_you_feed(request):
                 'release_date': item['release_date']
             })
 
-    talk_of_town = weekly_trending[:3]
-    most_interested = weekly_trending[:5]
+    talk_of_town = daily_trending[:3]
+    most_interested = daily_trending[:5]
     
     # ── Platform-specific feeds ──
     import random
@@ -584,6 +569,7 @@ def for_you_feed(request):
         'spotlight_movie': spotlight_movie,
         'talk_of_town': talk_of_town,
         'most_interested': most_interested,
+        'trending_last_updated': trending_last_updated,
         # 💎 INJECTED INTO CONTEXT
         'netflix_movies': netflix_data,
         'prime_movies': prime_data,

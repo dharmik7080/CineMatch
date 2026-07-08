@@ -551,8 +551,13 @@
     <div class="row mb-5 g-4 align-items-stretch">
         <!-- Left Container: Talk of the Town -->
         <div class="col-lg-8">
-            <h2 class="section-title mb-4">
+            <h2 class="section-title mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <span class="shimmer-header"><i class="fa-solid fa-fire icon-gradient me-2"></i>Talk of the Town</span>
+                {% if trending_last_updated %}
+                <small class="text-muted" style="font-size: 0.76rem; font-weight: 500; letter-spacing: 0.3px;">
+                    <i class="fa-regular fa-clock me-1 text-secondary"></i> Last refreshed: {{ trending_last_updated|date:"P, M d, Y" }}
+                </small>
+                {% endif %}
             </h2>
             <div class="row row-cols-1 row-cols-sm-3 g-3">
                 {% for movie in talk_of_town %}

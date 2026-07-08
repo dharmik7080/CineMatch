@@ -129,3 +129,63 @@ def get_streaming_links(movie_title):
     except Exception as e:
         print(f"[WATCHMODE] Error fetching links for '{movie_title}': {e}")
         return {}
+
+
+from datetime import datetime
+
+def get_daily_trending_movies():
+    """
+    Fetches daily trending movies from TMDB /trending/movie/day API.
+    Utilizes Cache-Aside pattern: stores (movies, timestamp) tuple.
+    Returns: (trending_movies_list, last_updated_datetime)
+    """
+    from django.conf import settings
+    api_key = getattr(settings, 'TMDB_API_KEY', '')
+    if not api_key:
+        print("[TMDB TRENDING WARNING] API Key not configured.")
+        return [], None
+
+    cache_key = "daily_trending_movies_cache"
+    cached_payload = cache.get(cache_key)
+    
+    if cached_payload:
+        # Return cached results and timestamp
+        return cached_payload
+        
+    # Cache-Aside: Fetch fresh data from TMDB on cache miss
+    url = "https://api.themoviedb.org/3/trending/movie/day"
+    params = {
+        'api_key': api_key,
+        'language': 'en-US'
+    }
+    
+    try:
+        response = requests.get(url, params=params, timeout=10.0)
+        if response.status_code == 200:
+            data = response.json()
+            results = data.get('results', [])
+            
+            trending_movies = []
+            for item in results:
+                poster_path = item.get('poster_path')
+                trending_movies.append({
+                    'id': item.get('id'),
+                    'movie_id': item.get('id'),
+                    'title': item.get('title', 'Unknown'),
+                    'poster_url': f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop",
+                    'vote_average': round(item.get('vote_average', 0.0), 1),
+                    'release_date': item.get('release_date', '')
+                })
+            
+            # Record current timestamp
+            last_updated = datetime.now()
+            
+            payload = (trending_movies, last_updated)
+            # Store in cache (daily trends refresh, cache for 12 hours = 43200 seconds)
+            cache.set(cache_key, payload, 43200)
+            return payload
+            
+    except Exception as e:
+        print(f"[TMDB TRENDING ERROR] Failed to fetch daily trending movies: {e}")
+        
+    return [], None
