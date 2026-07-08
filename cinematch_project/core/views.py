@@ -25,7 +25,7 @@ from django.conf import settings
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.utils.html import escape
 
-from .models import UserProfile, MovieWatchlist, MediaReview, Review
+from .models import UserProfile, MovieWatchlist, MediaReview, Review, WatchedHistory
 from .tmdb_api import TMDBClient
 
 # ======================================================================
@@ -729,15 +729,159 @@ def explore_tv(request):
     return render(request, 'core/explore_tv.html', context)
 
 # ======================================================================
+# User History Statistics & Persona Aggregation Helpers
+# ======================================================================
+from django.db.models import Sum, Avg
+
+def get_user_stats(user):
+    """
+    Queries WatchedHistory database model to calculate watchtime, rating, and genre counts.
+    Seeds mock entries if user has no prior history.
+    """
+    history = WatchedHistory.objects.filter(user=user)
+    
+    # If user has no watch history, populate mock records for instant visualizations
+    if history.count() == 0:
+        mock_data = [
+            {"movie_id": 299534, "movie_title": "Avengers: Endgame", "duration": 181, "rating": 9.0, "genres": "Action, Adventure, Sci-Fi"},
+            {"movie_id": 550, "movie_title": "Fight Club", "duration": 139, "rating": 8.5, "genres": "Drama"},
+            {"movie_id": 155, "movie_title": "The Dark Knight", "duration": 152, "rating": 9.5, "genres": "Action, Crime, Drama"},
+            {"movie_id": 680, "movie_title": "Pulp Fiction", "duration": 154, "rating": 8.0, "genres": "Crime, Thriller"},
+            {"movie_id": 13, "movie_title": "Forrest Gump", "duration": 142, "rating": 7.5, "genres": "Comedy, Drama, Romance"},
+            {"movie_id": 27205, "movie_title": "Inception", "duration": 148, "rating": 8.8, "genres": "Action, Sci-Fi, Thriller"},
+            {"movie_id": 120, "movie_title": "The Lord of the Rings: The Fellowship of the Ring", "duration": 178, "rating": 9.2, "genres": "Action, Adventure, Fantasy"},
+        ]
+        for item in mock_data:
+            WatchedHistory.objects.create(
+                user=user,
+                movie_id=item["movie_id"],
+                movie_title=item["movie_title"],
+                duration=item["duration"],
+                rating=item["rating"],
+                genres=item["genres"]
+            )
+        history = WatchedHistory.objects.filter(user=user)
+    
+    agg = history.aggregate(total_time=Sum('duration'), avg_rating=Avg('rating'))
+    total_time = agg['total_time'] or 0
+    avg_rating = agg['avg_rating'] or 0.0
+    
+    genre_counts = {}
+    for entry in history:
+        if entry.genres:
+            for g in entry.genres.split(','):
+                g_clean = g.strip()
+                if g_clean:
+                    genre_counts[g_clean] = genre_counts.get(g_clean, 0) + 1
+                    
+    return {
+        'total_watchtime_mins': total_time,
+        'total_watchtime_hours': round(total_time / 60.0, 1),
+        'genre_distribution': genre_counts,
+        'avg_rating': round(avg_rating, 1),
+        'movies_watched_count': history.count()
+    }
+
+def get_user_persona(stats):
+    """
+    Evaluates statistics metrics and assigns a user profile label persona.
+    """
+    hours = stats.get('total_watchtime_hours', 0)
+    avg_rating = stats.get('avg_rating', 0.0)
+    count = stats.get('movies_watched_count', 0)
+    
+    if hours > 100:
+        return {
+            'title': 'The Binge-Watcher',
+            'desc': 'You devour movies in massive quantities. Sleeping is optional; the cinema is your home.',
+            'icon': 'fa-tv'
+        }
+    elif avg_rating > 8.5:
+        return {
+            'title': 'The Optimistic Fanatic',
+            'desc': 'You love everything you watch! Every movie is a masterpiece in your eyes.',
+            'icon': 'fa-heart'
+        }
+    elif avg_rating < 5.0 and avg_rating > 0:
+        return {
+            'title': 'The Critical Cinephile',
+            'desc': 'Hard to please. You spot flaws in scripts, editing, and cinematography with ease.',
+            'icon': 'fa-magnifying-glass'
+        }
+    elif count > 5:
+        return {
+            'title': 'The Balanced Connoisseur',
+            'desc': 'A diverse viewer who enjoys a good mix of drama, actions, and comedies.',
+            'icon': 'fa-circle-check'
+        }
+    else:
+        return {
+            'title': 'The Casual Viewer',
+            'desc': 'You watch movies selectively when the mood strikes.',
+            'icon': 'fa-ticket'
+        }
+
+# ======================================================================
 # Interactive Analytics Dashboard View
 # ======================================================================
 @login_required
 def analytics_dashboard(request):
+    import plotly.graph_objects as go
+    import plotly.io as pio
     from .analytics_engine import generate_seaborn_heatmap, generate_plotly_scatter, generate_networkx_graph
     
     user = request.user
     watchlist_items = MovieWatchlist.objects.filter(user=user, media_type='movie')
     watchlist_movies = list(watchlist_items.values_list('media_id', flat=True))
+    
+    # ── CALCULATE STATS & PERSONA ──
+    stats = get_user_stats(user)
+    persona = get_user_persona(stats)
+    
+    # ── PLOTLY PIE CHART: GENRE WATCH DISTRIBUTION ──
+    genres = list(stats['genre_distribution'].keys())
+    counts = list(stats['genre_distribution'].values())
+    
+    fig_pie = go.Figure(data=[go.Pie(
+        labels=genres, 
+        values=counts,
+        hole=.3,
+        marker=dict(colors=['#a855f7', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6'])
+    )])
+    fig_pie.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font={'color': "#ffffff", 'family': "Inter"},
+        margin=dict(l=20, r=20, t=20, b=20),
+        legend={'font': {'color': '#ffffff', 'size': 11}}
+    )
+    pie_json = pio.to_json(fig_pie)
+    
+    # ── PLOTLY GAUGE: MEAN RATINGS ──
+    fig_gauge = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = stats['avg_rating'],
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        gauge = {
+            'axis': {'range': [None, 10], 'tickwidth': 1, 'tickcolor': "#ffffff"},
+            'bar': {'color': "#a855f7"},
+            'bgcolor': "rgba(255,255,255,0.05)",
+            'borderwidth': 2,
+            'bordercolor': "rgba(255,255,255,0.1)",
+            'steps': [
+                {'range': [0, 5], 'color': 'rgba(239, 68, 68, 0.2)'},
+                {'range': [5, 8], 'color': 'rgba(234, 179, 8, 0.2)'},
+                {'range': [8, 10], 'color': 'rgba(34, 197, 94, 0.2)'}
+            ],
+        }
+    ))
+    fig_gauge.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font={'color': "#ffffff", 'family': "Inter"},
+        margin=dict(l=30, r=30, t=50, b=20)
+    )
+    gauge_json = pio.to_json(fig_gauge)
     
     heatmap_base64 = generate_seaborn_heatmap()
     plotly_div_html = generate_plotly_scatter()
@@ -747,6 +891,10 @@ def analytics_dashboard(request):
         'heatmap_img': heatmap_base64,
         'plotly_div': plotly_div_html,
         'network_img': network_base64,
+        'stats': stats,
+        'persona': persona,
+        'pie_json': pie_json,
+        'gauge_json': gauge_json,
     }
     
     return render(request, 'core/analytics.html', context)

@@ -58,6 +58,63 @@
         <p class="text-secondary mb-0">Academic verification statistics and visual metrics mapping (Unit 2 visualization criteria).</p>
     </div>
 
+    <!-- ── PERSONALIZED USER INSIGHTS & STATS (PLOTLY) ── -->
+    <div class="row g-4 mb-4">
+        
+        <!-- Persona & Stats Summary Card -->
+        <div class="col-lg-4">
+            <div class="analytics-card d-flex flex-column justify-content-between" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.05) 0%, rgba(59, 130, 246, 0.02) 100%);">
+                <div>
+                    <h4 class="card-title-dashboard mb-3">
+                        <i class="fa-solid fa-user-tag"></i> Your CineMatch Persona
+                    </h4>
+                    <div class="text-center py-3">
+                        <div class="rounded-circle d-inline-flex align-items-center justify-content-center bg-accent-glow mb-3" style="width: 70px; height: 70px; background: rgba(168, 85, 247, 0.15); border: 2px solid rgba(168, 85, 247, 0.4);">
+                            <i class="fa-solid {{ persona.icon }} fs-2 text-accent"></i>
+                        </div>
+                        <h3 class="fw-bold text-white mb-2">{{ persona.title }}</h3>
+                        <p class="text-secondary px-3" style="font-size: 0.88rem; line-height: 1.5; margin-bottom: 0;">{{ persona.desc }}</p>
+                    </div>
+                </div>
+                <div class="border-top border-secondary border-opacity-10 pt-3 mt-3">
+                    <div class="row text-center g-2">
+                        <div class="col-6">
+                            <span class="d-block text-secondary small">Watch Time</span>
+                            <strong class="fs-5 text-white">{{ stats.total_watchtime_hours }} hrs</strong>
+                        </div>
+                        <div class="col-6">
+                            <span class="d-block text-secondary small">Movies Watched</span>
+                            <strong class="fs-5 text-white">{{ stats.movies_watched_count }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rating Gauge Chart -->
+        <div class="col-lg-4">
+            <div class="analytics-card">
+                <h4 class="card-title-dashboard mb-1">
+                    <i class="fa-solid fa-gauge-high"></i> Average Rating Gauge
+                </h4>
+                <div id="plotly-rating-gauge" class="w-100" style="height: 220px;"></div>
+                <p class="small text-secondary mt-1 mb-0 text-center">Your mean rating of movies watched.</p>
+            </div>
+        </div>
+
+        <!-- Genre Pie Chart -->
+        <div class="col-lg-4">
+            <div class="analytics-card">
+                <h4 class="card-title-dashboard mb-1">
+                    <i class="fa-solid fa-chart-pie"></i> Genre Watch Ratio
+                </h4>
+                <div id="plotly-genre-pie" class="w-100" style="height: 220px;"></div>
+                <p class="small text-secondary mt-1 mb-0 text-center">Ratio of genres across watched movies.</p>
+            </div>
+        </div>
+
+    </div>
+
     <!-- Visualization Grid -->
     <div class="row g-4 mb-4">
         
@@ -131,4 +188,15 @@
 {% block extra_js %}
     <!-- Include Plotly JS CDN to allow interactive zoom/pan -->
     <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Render Rating Gauge Chart
+            var gaugeData = {{ gauge_json|safe }};
+            Plotly.newPlot('plotly-rating-gauge', gaugeData.data, gaugeData.layout, {responsive: true, displayModeBar: false});
+
+            // Render Genre Pie Chart
+            var pieData = {{ pie_json|safe }};
+            Plotly.newPlot('plotly-genre-pie', pieData.data, pieData.layout, {responsive: true, displayModeBar: false});
+        });
+    </script>
 {% endblock %}

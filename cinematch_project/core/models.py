@@ -209,3 +209,19 @@ class Review(models.Model):
 
     def __str__(self):
         return f"{self.user.username}'s review of {self.movie_title} ({self.rating}/10)"
+
+
+class WatchedHistory(models.Model):
+    """
+    Stores watched movie history to track analytics and total watch duration.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='watched_history')
+    movie_id = models.IntegerField()
+    movie_title = models.CharField(max_length=255)
+    duration = models.IntegerField(help_text="Watch duration in minutes.")
+    rating = models.FloatField(null=True, blank=True, help_text="Rating given by user (1 to 10).")
+    genres = models.CharField(max_length=255, help_text="Comma-separated genre names.")
+    watched_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} watched {self.movie_title}"
