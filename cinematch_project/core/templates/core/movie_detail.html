@@ -128,6 +128,15 @@
     background: rgba(168,85,247,0.12);
     border: 1px solid rgba(168,85,247,0.30);
     color: #c084fc;
+    transition: all 0.25s ease;
+    cursor: pointer;
+}
+.genre-badge:hover {
+    background: rgba(168,85,247,0.25);
+    border-color: rgba(168,85,247,0.60);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.25);
 }
 .rating-badge {
     display: inline-flex;
@@ -367,7 +376,11 @@
                 {% if movie.genres %}
                 <div class="d-flex flex-wrap gap-2 mb-4">
                     {% for genre in movie.genres %}
-                        {% if genre %}<span class="genre-badge">{{ genre }}</span>{% endif %}
+                        {% if genre %}
+                        <a href="{% url 'movies_by_genre' genre_name=genre %}" class="text-decoration-none">
+                            <span class="genre-badge">{{ genre }}</span>
+                        </a>
+                        {% endif %}
                     {% endfor %}
                 </div>
                 {% endif %}

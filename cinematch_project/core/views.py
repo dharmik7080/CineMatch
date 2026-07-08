@@ -1732,3 +1732,123 @@ def random_movie_view(request):
 
     messages.error(request, 'Could not find a surprise, please try again!')
     return redirect('explore_movies')
+
+
+def movies_by_genre_view(request, genre_name):
+    """
+    Renders the catalog list filtered by the chosen genre name.
+    """
+    from core.tmdb_api import TMDBClient
+    from core.models import MovieWatchlist
+    from django.shortcuts import render, redirect
+    from django.contrib import messages
+    import requests
+
+    # Map name to ID using TMDB_GENRE_MAP with synonym normalizations
+    genre_name_lower = genre_name.strip().lower()
+    if "science fiction" in genre_name_lower or "scifi" in genre_name_lower or "sci-fi" in genre_name_lower:
+        genre_name_lower = "sci-fi"
+    elif "tv" in genre_name_lower or "television" in genre_name_lower:
+        genre_name_lower = "tv movie"
+
+    genre_id = None
+    target_genre_name = genre_name
+    
+    for gid, gname in TMDB_GENRE_MAP.items():
+        if gname.lower() == genre_name_lower:
+            genre_id = gid
+            target_genre_name = gname
+            break
+
+    if not genre_id:
+        messages.error(request, f"Genre '{genre_name}' not found.")
+        return redirect('explore_movies')
+
+    page_number = request.GET.get('page', 1)
+    try:
+        page_number = int(page_number)
+    except ValueError:
+        page_number = 1
+
+    client = TMDBClient()
+    url = f"{client.base_url}/discover/movie"
+    
+    # Ensure parameter holds ONLY the selected single genre ID (preventing stale/OR logic)
+    params = {
+        'api_key': getattr(settings, 'TMDB_API_KEY', ''),
+        'language': 'en-US',
+        'sort_by': 'popularity.desc',
+        'include_adult': 'false',
+        'page': page_number,
+        'with_genres': int(genre_id)
+    }
+
+    # Print Debugging: Log the exact URL and params sent to the TMDB API
+    print(f"[DEBUG] TMDB discover query: URL={url}, params={params}")
+
+    # Fresh local variable instantiation to ensure no stale data carries over between requests
+    movies_records = []
+    total_pages = 1
+    try:
+        response = requests.get(url, params=params, timeout=10.0)
+        if response.status_code == 200:
+            data = response.json()
+            raw_results = data.get('results', [])
+            for item in raw_results:
+                m_id = item.get('id')
+                # Backend Data Validation: Only add if ID is valid
+                if m_id:
+                    # Print Debugging: Log the title and id of every movie processed
+                    print(f"[DEBUG] Processing genre movie: Title={item.get('title')}, ID={m_id}")
+                    poster_path = item.get('poster_path')
+                    movies_records.append({
+                        'id': int(m_id),
+                        'movie_id': int(m_id),  # Explicitly map movie_id for template compatibility
+                        'title': item.get('title', 'Unknown Title'),
+                        'poster_url': f"https://image.tmdb.org/t/p/w300{poster_path}" if poster_path else client.movie_fallback,
+                        'vote_average': round(item.get('vote_average', 0.0), 1),
+                        'release_date': item.get('release_date', '')
+                    })
+            total_pages = min(data.get('total_pages', 1), 500)
+    except Exception as e:
+        print(f"[GENRE VIEW ERROR] Failed to fetch movies for genre={genre_name}: {e}")
+
+    class MockPage:
+        def __init__(self, number, object_list, max_pages):
+            self.number = number
+            self.object_list = object_list
+            self.has_previous = number > 1
+            self.previous_page_number = number - 1
+            self.has_next = number < max_pages
+            self.next_page_number = number + 1
+            self.has_other_pages = max_pages > 1
+
+    class MockPaginator:
+        def __init__(self, max_pages):
+            self.max_pages = max_pages
+
+        @property
+        def num_pages(self):
+            return self.max_pages
+
+    page_obj = MockPage(page_number, movies_records, total_pages)
+    page_obj.paginator = MockPaginator(total_pages)
+
+    watchlist_ids = []
+    if request.user.is_authenticated:
+        watchlist_ids = list(MovieWatchlist.objects.filter(
+            user=request.user, media_type='movie'
+        ).values_list('media_id', flat=True))
+
+    context = {
+        'movies':       movies_records,
+        'page_obj':     page_obj,
+        'watchlist_ids': watchlist_ids,
+        'query':         "",
+        'selected_genre': target_genre_name,
+    }
+
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == 'true'
+    if is_ajax:
+        return render(request, 'core/includes/movie_grid_partial.html', context)
+    return render(request, 'core/explore_movies.html', context)
