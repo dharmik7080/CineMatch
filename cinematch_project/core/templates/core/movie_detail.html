@@ -727,11 +727,11 @@
                                                         background: rgba(156, 163, 175, 0.12); border: 1px solid rgba(156, 163, 175, 0.3); color: #9ca3af;
                                                     {% endif %}">
                                                     {% if review.sentiment_label == 'positive' %}
-                                                        <i class="fa-solid fa-face-smile"></i> Positive ({{ review.sentiment_score }}%)
+                                                        <i class="fa-solid fa-thumbs-up"></i> Positive ({{ review.sentiment_score }}%)
                                                     {% elif review.sentiment_label == 'negative' %}
-                                                        <i class="fa-solid fa-face-frown"></i> Negative ({{ review.sentiment_score }}%)
+                                                        <i class="fa-solid fa-thumbs-down"></i> Negative ({{ review.sentiment_score }}%)
                                                     {% else %}
-                                                        <i class="fa-solid fa-face-meh"></i> Neutral
+                                                        <i class="fa-solid fa-circle-question"></i> Neutral
                                                     {% endif %}
                                                 </span>
                                                 {% endif %}
