@@ -93,7 +93,7 @@ def get_streaming_links(movie_title):
         'search_value': movie_title
     }
     try:
-        response = requests.get(search_url, params=params, timeout=5.0)
+        response = requests.get(search_url, params=params, timeout=15.0)
         response.raise_for_status()
         search_data = response.json()
         results = search_data.get('title_results', [])
@@ -111,7 +111,7 @@ def get_streaming_links(movie_title):
         sources_params = {
             'apiKey': api_key
         }
-        sources_response = requests.get(sources_url, params=sources_params, timeout=5.0)
+        sources_response = requests.get(sources_url, params=sources_params, timeout=15.0)
         sources_response.raise_for_status()
         sources_data = sources_response.json()
         

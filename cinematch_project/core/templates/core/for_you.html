@@ -6,6 +6,11 @@
 {% block extra_css %}
 <style>
 
+    .apple-tv-logo {
+    filter: brightness(0) invert(1);
+    mix-blend-mode: screen;
+}
+
   /*.platform-logo {
     height: 40px !important;
     width: 40px !important;
@@ -58,11 +63,10 @@
         justify-content: center;
     }
 
-    /* Special sizing for Hotstar to account for its different proportions */
-    .hotstar-logo {
-        max-width: 85%; /* Slightly smaller so it doesn't touch the edges */
-        max-height: 85%;
-        object-fit: contain;
+    /* Styling for Apple TV logo */
+    .apple-tv-logo {
+        object-fit: cover !important;
+        border-radius: 6px;
     }
 
     /* 1. FORCE UNIFORM HEIGHT ON ALL CARDS */
@@ -847,18 +851,18 @@
     {% endif %}
 
     <!-- ══════════════════════════════════════════════════════════════════ -->
-    <!-- 5. JIO HOTSTAR                                                     -->
+    <!-- 5. APPLE TV                                                        -->
     <!-- ══════════════════════════════════════════════════════════════════ -->
-    {% if hotstar_movies %}
+    {% if apple_tv_movies %}
     <div class="mb-5">
         <h2 class="section-title d-flex align-items-center" style="gap: 12px; margin-bottom: 20px;">
             <div class="logo-container">
-                <img src="{% static 'images/hotstar_logo.png' %}" alt="Logo" class="platform-logo hotstar-logo">
+                <img src="{% static 'images/apple_tv_logo.png' %}" alt="Logo" class="platform-logo apple-tv-logo">
             </div>
-            <span>JioHotstar — Now Streaming</span>
+            <span>Apple TV — Now Streaming</span>
         </h2>
         <div class="horizontal-slider">
-            {% for film in hotstar_movies %}
+            {% for film in apple_tv_movies %}
             <div class="slider-card">
                 <div class="rec-poster" style="position: relative; width: 100%; height: 340px; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: #0f0f15;">
                     

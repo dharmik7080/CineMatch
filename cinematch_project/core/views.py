@@ -499,12 +499,12 @@ def for_you_feed(request):
         if 'title' not in film: film['title'] = film.get('name', 'N/A')
         if 'name' not in film: film['name'] = film.get('title', 'N/A')
     
-    # Hotstar (122)
-    hotstar_movies = get_provider_recommendations(122, 'movie')[:5]
-    hotstar_tv = get_provider_recommendations(122, 'tv')[:5]
-    hotstar_data = hotstar_movies + hotstar_tv
-    random.shuffle(hotstar_data)
-    for film in hotstar_data:
+    # Apple TV (350)
+    apple_tv_movies = get_provider_recommendations(350, 'movie')[:5]
+    apple_tv_tv = get_provider_recommendations(350, 'tv')[:5]
+    apple_tv_data = apple_tv_movies + apple_tv_tv
+    random.shuffle(apple_tv_data)
+    for film in apple_tv_data:
         if 'title' not in film: film['title'] = film.get('name', 'N/A')
         if 'name' not in film: film['name'] = film.get('title', 'N/A')
     
@@ -529,7 +529,7 @@ def for_you_feed(request):
         # 💎 INJECTED INTO CONTEXT
         'netflix_movies': netflix_data,
         'prime_movies': prime_data,
-        'hotstar_movies': hotstar_data,
+        'apple_tv_movies': apple_tv_data,
     }
     
     if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
@@ -548,7 +548,7 @@ def for_you_feed(request):
             # 💎 INJECTED INTO JSON
             'netflix_movies': netflix_data,
             'prime_movies': prime_data,
-            'hotstar_movies': hotstar_data,
+            'apple_tv_movies': apple_tv_data,
         })
         
     return render(request, 'core/for_you.html', context)
@@ -912,8 +912,8 @@ def movie_detail_view(request, movie_id):
         streaming_links = get_streaming_links(movie_title)
         cache.set(cache_key, streaming_links, 86400)
 
-    # Map streaming links directly to the watch_providers items
-    if watch_providers and streaming_links:
+    # Map streaming links directly to the watch_providers items with TMDB fallback
+    if watch_providers:
         for provider in watch_providers:
             provider_name = provider.get('name', '')
             norm_name = provider_name
@@ -924,13 +924,24 @@ def movie_detail_view(request, movie_id):
             elif "Apple" in provider_name:
                 norm_name = "Apple TV+"
 
-            # Find matching link
-            for service_name, url in streaming_links.items():
-                if (service_name.lower() in provider_name.lower() or 
-                    provider_name.lower() in service_name.lower() or
-                    norm_name.lower() in service_name.lower()):
-                    provider['web_url'] = url
-                    break
+            # Find matching link from Watchmode
+            matched_url = None
+            if streaming_links:
+                for service_name, url in streaming_links.items():
+                    if (service_name.lower() in provider_name.lower() or 
+                        provider_name.lower() in service_name.lower() or
+                        norm_name.lower() in service_name.lower()):
+                        matched_url = url
+                        break
+            
+            # Fallback to TMDB watch URL if no Watchmode link matches
+            if not matched_url:
+                matched_url = f"https://www.themoviedb.org/movie/{movie_id}/watch?locale=IN"
+                
+            provider['web_url'] = matched_url
+
+    # Data Debugging: Log the raw where_to_watch data to the terminal
+    print(f"[DEBUG] movie_detail_view where_to_watch: {watch_providers}")
 
     context = {
         'movie':           movie,
@@ -1102,8 +1113,8 @@ def tv_detail_view(request, series_id):
         streaming_links = get_streaming_links(tv_title)
         cache.set(cache_key, streaming_links, 86400)
 
-    # Map streaming links directly to the watch_providers items
-    if watch_providers and streaming_links:
+    # Map streaming links directly to the watch_providers items with TMDB fallback
+    if watch_providers:
         for provider in watch_providers:
             provider_name = provider.get('name', '')
             norm_name = provider_name
@@ -1114,13 +1125,24 @@ def tv_detail_view(request, series_id):
             elif "Apple" in provider_name:
                 norm_name = "Apple TV+"
 
-            # Find matching link
-            for service_name, url in streaming_links.items():
-                if (service_name.lower() in provider_name.lower() or 
-                    provider_name.lower() in service_name.lower() or
-                    norm_name.lower() in service_name.lower()):
-                    provider['web_url'] = url
-                    break
+            # Find matching link from Watchmode
+            matched_url = None
+            if streaming_links:
+                for service_name, url in streaming_links.items():
+                    if (service_name.lower() in provider_name.lower() or 
+                        provider_name.lower() in service_name.lower() or
+                        norm_name.lower() in service_name.lower()):
+                        matched_url = url
+                        break
+            
+            # Fallback to TMDB watch URL if no Watchmode link matches
+            if not matched_url:
+                matched_url = f"https://www.themoviedb.org/tv/{series_id}/watch?locale=IN"
+                
+            provider['web_url'] = matched_url
+
+    # Data Debugging: Log the raw where_to_watch data to the terminal
+    print(f"[DEBUG] tv_detail_view where_to_watch: {watch_providers}")
 
     context = {
         'tv_show':         tv_show,
@@ -1247,33 +1269,40 @@ def get_provider_recommendations(provider_id, media_type='movie'):
         'watch_monetization_types': 'flatrate'
     }
     
-    try:
-        response = requests.get(url, params=params, timeout=5.0)
-        if response.status_code == 200:
-            data = response.json()
-            results = data.get('results', [])
+    import time
+    max_retries = 3
+    retry_delay = 1.0
+    
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, params=params, timeout=5.0)
+            if response.status_code == 200:
+                data = response.json()
+                results = data.get('results', [])
 
-            # Process results for the template
-            processed_results = []
-            for item in results[:10]:
-                item['media_type'] = media_type
-                
-                # Fetch cached poster
-                item['poster_url'] = get_cached_poster(client, item['id'], media_type)
-                
-                # Generate the direct watch link for the Indian locale
-                item['watch_url'] = f"https://www.themoviedb.org/{media_type}/{item['id']}/watch?locale=IN"
-                
-                processed_results.append(item)
-                
-            return processed_results
+                # Process results for the template
+                processed_results = []
+                for item in results[:10]:
+                    item['media_type'] = media_type
+                    
+                    # Fetch cached poster
+                    item['poster_url'] = get_cached_poster(client, item['id'], media_type)
+                    
+                    # Generate the direct watch link for the Indian locale
+                    item['watch_url'] = f"https://www.themoviedb.org/{media_type}/{item['id']}/watch?locale=IN"
+                    
+                    processed_results.append(item)
+                    
+                return processed_results
+            else:
+                print(f"[PROVIDER FEED] Attempt {attempt+1}: API returned status code {response.status_code} for provider {provider_id}")
+        except Exception as e:
+            print(f"[PROVIDER FEED] Attempt {attempt+1}: Error fetching for provider {provider_id}: {e}")
             
-        else:
-            print(f"[PROVIDER FEED] API returned status code {response.status_code} for provider {provider_id}")
+        if attempt < max_retries - 1:
+            time.sleep(retry_delay)
+            retry_delay *= 2
             
-    except Exception as e:
-        print(f"[PROVIDER FEED] Error fetching for provider {provider_id}: {e}")
-        
     return []
 
 

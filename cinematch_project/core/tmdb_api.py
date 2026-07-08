@@ -75,7 +75,7 @@ class TMDBClient:
         """
         Syllabus Topic: Nested JSON data manipulation (Unit 7)
         Queries TMDB's watch provider endpoint and filters for providers located in India ('IN').
-        Retrieves streaming networks (e.g. Netflix, Hotstar) and their logo icon resources.
+        Retrieves streaming networks (e.g. Netflix, Apple TV) and their logo icon resources.
         """
         if media_type not in ['movie', 'tv']:
             return []
