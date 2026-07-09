@@ -27,7 +27,7 @@ def get_credits_df():
     Helper to safely load the credits metadata csv dataset.
     """
     try:
-        csv_path = os.path.join(settings.BASE_DIR, '..', 'credits.csv')
+        csv_path = os.path.join(settings.BASE_DIR, '..', 'data', 'credits.csv')
         df = pd.read_csv(csv_path)
         return df
     except Exception as e:

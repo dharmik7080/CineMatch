@@ -50,4 +50,21 @@ class ExploreViewsTests(TestCase):
         self.assertContains(response, "Explore TV Series Library")
 
 
+class AnalyticsDashboardTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser2', password='password')
+        self.client.login(username='testuser2', password='password')
+
+    def test_analytics_dashboard_view_renders(self):
+        response = self.client.get(reverse('analytics_dashboard'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('heatmap_img', response.context)
+        self.assertIn('plotly_div', response.context)
+        self.assertIn('network_img', response.context)
+        # Verify that the Seaborn heatmap and Plotly scatter are not empty
+        self.assertTrue(len(response.context['heatmap_img']) > 0)
+        self.assertTrue(len(response.context['plotly_div']) > 0)
+        self.assertTrue(len(response.context['network_img']) > 0)
+
+
 
