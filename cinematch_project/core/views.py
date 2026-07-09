@@ -897,6 +897,17 @@ def analytics_dashboard(request):
 # ======================================================================
 @login_required
 def movie_detail_view(request, movie_id):
+    # ── SESSION BASED RECENTLY VIEWED LOGIC ──
+    recently_viewed = request.session.get('recently_viewed', [])
+    try:
+        movie_id_val = int(movie_id)
+        if movie_id_val in recently_viewed:
+            recently_viewed.remove(movie_id_val)
+        recently_viewed.insert(0, movie_id_val)
+        request.session['recently_viewed'] = recently_viewed[:6]
+    except Exception as e:
+        print(f"[RECENTLY VIEWED] Session log failed: {e}")
+
     api_key = settings.TMDB_API_KEY
     endpoint = (
         f"https://api.themoviedb.org/3/movie/{movie_id}"
@@ -1397,10 +1408,25 @@ def watchlist_hub_view(request):
     # ── QUERY USER CUSTOM REVIEWS ──
     user_reviews = Review.objects.filter(user=request.user).order_by('-created_at')
 
+    # ── QUERY SESSION BASED RECENTLY VIEWED ──
+    recently_viewed_ids = request.session.get('recently_viewed', [])
+    recently_viewed_movies = []
+    for m_id in recently_viewed_ids:
+        cache_key = f"movie_{m_id}"
+        poster_url = POSTER_CACHE.get(cache_key)
+        if not poster_url:
+            poster_url = get_cached_poster(client, m_id, 'movie')
+            
+        recently_viewed_movies.append({
+            'id': m_id,
+            'poster_url': poster_url or 'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop',
+        })
+
     context = {
-        'watchlist_movies': watchlist_movies,
-        'watchlist_tv':     watchlist_tv,
-        'user_reviews':     user_reviews,
+        'watchlist_movies':       watchlist_movies,
+        'watchlist_tv':           watchlist_tv,
+        'user_reviews':           user_reviews,
+        'recently_viewed_movies': recently_viewed_movies,
     }
     return render(request, 'core/watchlist_hub.html', context)
 
