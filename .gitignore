@@ -12,6 +12,7 @@ cinematch_project/db.sqlite3
 *.csv
 *.pkl
 *.pkl.gz
+data/
 
 # Virtual environments
 venv/
