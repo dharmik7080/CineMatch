@@ -901,9 +901,8 @@ def movie_detail_view(request, movie_id):
     recently_viewed = request.session.get('recently_viewed', [])
     try:
         movie_id_val = int(movie_id)
-        if movie_id_val in recently_viewed:
-            recently_viewed.remove(movie_id_val)
-        recently_viewed.insert(0, movie_id_val)
+        recently_viewed = [item for item in recently_viewed if not (isinstance(item, dict) and item.get('id') == movie_id_val and item.get('type') == 'movie')]
+        recently_viewed.insert(0, {'id': movie_id_val, 'type': 'movie'})
         request.session['recently_viewed'] = recently_viewed[:6]
     except Exception as e:
         print(f"[RECENTLY VIEWED] Session log failed: {e}")
@@ -1179,6 +1178,16 @@ def movie_detail_view(request, movie_id):
 # ======================================================================
 @login_required
 def tv_detail_view(request, series_id):
+    # ── SESSION BASED RECENTLY VIEWED LOGIC ──
+    recently_viewed = request.session.get('recently_viewed', [])
+    try:
+        series_id_val = int(series_id)
+        recently_viewed = [item for item in recently_viewed if not (isinstance(item, dict) and item.get('id') == series_id_val and item.get('type') == 'tv')]
+        recently_viewed.insert(0, {'id': series_id_val, 'type': 'tv'})
+        request.session['recently_viewed'] = recently_viewed[:6]
+    except Exception as e:
+        print(f"[RECENTLY VIEWED] Session log failed: {e}")
+
     api_key = settings.TMDB_API_KEY
 
     endpoint = (
@@ -1410,23 +1419,35 @@ def watchlist_hub_view(request):
 
     # ── QUERY SESSION BASED RECENTLY VIEWED ──
     recently_viewed_ids = request.session.get('recently_viewed', [])
-    recently_viewed_movies = []
-    for m_id in recently_viewed_ids:
-        cache_key = f"movie_{m_id}"
+    recently_viewed_media = []
+    for item in recently_viewed_ids:
+        # Backward compatibility if session contains old format integers
+        if not isinstance(item, dict):
+            m_id = item
+            m_type = 'movie'
+        else:
+            m_id = item.get('id')
+            m_type = item.get('type')
+            
+        if not m_id or not m_type:
+            continue
+            
+        cache_key = f"{m_type}_{m_id}"
         poster_url = POSTER_CACHE.get(cache_key)
         if not poster_url:
-            poster_url = get_cached_poster(client, m_id, 'movie')
+            poster_url = get_cached_poster(client, m_id, m_type)
             
-        recently_viewed_movies.append({
+        recently_viewed_media.append({
             'id': m_id,
-            'poster_url': poster_url or 'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop',
+            'type': m_type,
+            'poster_url': poster_url or ('https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop' if m_type == 'movie' else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'),
         })
 
     context = {
         'watchlist_movies':       watchlist_movies,
         'watchlist_tv':           watchlist_tv,
         'user_reviews':           user_reviews,
-        'recently_viewed_movies': recently_viewed_movies,
+        'recently_viewed_media':  recently_viewed_media,
     }
     return render(request, 'core/watchlist_hub.html', context)
 
