@@ -705,38 +705,46 @@
             <h3 class="fw-bold text-white mb-4">
               <!-- 1. Unified Review Submission Workspace -->
             {% if not user_review %}
-                {% if user.is_authenticated %}
-                    <div class="card bg-dark text-white border-secondary border-opacity-25 mb-4 p-3 shadow-sm" style="background-color: rgba(255,255,255,0.015) !important;">
-                        <h5 class="fw-bold mb-3 text-accent" style="font-size: 0.95rem;">Share Your Rating & Review</h5>
-                        <form action="{% url 'submit_review' movie.id %}" method="POST">
-                            {% csrf_token %}
-                            <input type="hidden" name="movie_title" value="{{ movie.title }}">
-                            
-                            <div class="mb-3">
-                                <label for="custom_rating" class="form-label small text-secondary">Rating (1 to 10 stars):</label>
-                                <select name="rating" id="custom_rating" class="form-select bg-black text-white border-secondary border-opacity-50 focus-accent" style="background-color: #000 !important; font-size: 0.9rem;" required>
-                                    <option value="" disabled selected>Select rating...</option>
-                                    {% for r in "123456789" %}
-                                        <option value="{{ r }}">{{ r }}/10</option>
-                                    {% endfor %}
-                                    <option value="10">10/10 - Masterpiece</option>
-                                </select>
-                            </div>
+                {% if is_released %}
+                    {% if user.is_authenticated %}
+                        <div class="card bg-dark text-white border-secondary border-opacity-25 mb-4 p-3 shadow-sm" style="background-color: rgba(255,255,255,0.015) !important;">
+                            <h5 class="fw-bold mb-3 text-accent" style="font-size: 0.95rem;">Share Your Rating & Review</h5>
+                            <form action="{% url 'submit_review' movie.id %}" method="POST">
+                                {% csrf_token %}
+                                <input type="hidden" name="movie_title" value="{{ movie.title }}">
+                                
+                                <div class="mb-3">
+                                    <label for="custom_rating" class="form-label small text-secondary">Rating (1 to 10 stars):</label>
+                                    <select name="rating" id="custom_rating" class="form-select bg-black text-white border-secondary border-opacity-50 focus-accent" style="background-color: #000 !important; font-size: 0.9rem;" required>
+                                        <option value="" disabled selected>Select rating...</option>
+                                        {% for r in "123456789" %}
+                                            <option value="{{ r }}">{{ r }}/10</option>
+                                        {% endfor %}
+                                        <option value="10">10/10 - Masterpiece</option>
+                                    </select>
+                                </div>
 
-                            <div class="mb-3">
-                                <label for="custom_content" class="form-label small text-secondary">Review Content:</label>
-                                <textarea name="content" id="custom_content" rows="3" class="form-control bg-black text-white border-secondary border-opacity-50 focus-accent" 
-                                          placeholder="Share your personal thoughts and critique on this movie..." style="background-color: #000 !important; font-size: 0.9rem;" required></textarea>
-                            </div>
-                            <button type="submit" class="btn btn-sm btn-light rounded-pill px-4 fw-bold" style="font-size: 0.8rem;">
-                                <i class="fa-solid fa-paper-plane me-1"></i> Submit Review
-                            </button>
-                        </form>
-                    </div>
+                                <div class="mb-3">
+                                    <label for="custom_content" class="form-label small text-secondary">Review Content:</label>
+                                    <textarea name="content" id="custom_content" rows="3" class="form-control bg-black text-white border-secondary border-opacity-50 focus-accent" 
+                                              placeholder="Share your personal thoughts and critique on this movie..." style="background-color: #000 !important; font-size: 0.9rem;" required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-sm btn-light rounded-pill px-4 fw-bold" style="font-size: 0.8rem;">
+                                    <i class="fa-solid fa-paper-plane me-1"></i> Submit Review
+                                </button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <div class="text-center rounded-3 p-4 mb-4" style="background: rgba(255,255,255,0.015); border: 1px dashed rgba(255,255,255,0.12);">
+                            <p class="text-secondary mb-2" style="font-size: 0.88rem;">Want to write a review and rate this movie?</p>
+                            <a href="{% url 'login' %}" class="btn btn-sm btn-outline-light rounded-pill px-4 fw-bold" style="font-size: 0.78rem;">Sign In to Account</a>
+                        </div>
+                    {% endif %}
                 {% else %}
                     <div class="text-center rounded-3 p-4 mb-4" style="background: rgba(255,255,255,0.015); border: 1px dashed rgba(255,255,255,0.12);">
-                        <p class="text-secondary mb-2" style="font-size: 0.88rem;">Want to write a review and rate this movie?</p>
-                        <a href="{% url 'login' %}" class="btn btn-sm btn-outline-light rounded-pill px-4 fw-bold" style="font-size: 0.78rem;">Sign In to Account</a>
+                        <i class="fa-solid fa-calendar-xmark text-secondary mb-2 fs-3"></i>
+                        <h5 class="fw-bold text-secondary mb-1" style="font-size: 0.92rem;">Reviews Unavailable</h5>
+                        <p class="text-secondary small mb-0">Reviews are not available for unreleased movies.</p>
                     </div>
                 {% endif %}
             {% endif %}

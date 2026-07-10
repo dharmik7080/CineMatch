@@ -1071,6 +1071,7 @@ def movie_detail_view(request, movie_id):
     from datetime import datetime
     release_date_str = movie.get('release_date', '')
     is_now_showing = False
+    is_released = True
 
     if release_date_str:
         try:
@@ -1080,6 +1081,7 @@ def movie_detail_view(request, movie_id):
                 is_now_showing = True
             elif release_date > current_date:
                 is_now_showing = True
+                is_released = False
         except ValueError:
             pass
 
@@ -1159,6 +1161,7 @@ def movie_detail_view(request, movie_id):
         'recommendations': similar_movies, # mapped to recommendations
         'is_in_watchlist': is_in_watchlist,
         'is_now_showing':  is_now_showing,
+        'is_released':     is_released,
         # 💎 INJECTED REVIEWS DATA CONTEXTS
         'reviews':         reviews_list,
         'user_review':     user_review,
