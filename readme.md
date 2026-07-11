@@ -54,3 +54,13 @@ venv\Scripts\activate
 source venv/bin/activate
 
 pip install -r requirements.txt
+
+# Run database migrations
+python manage.py makemigrations
+python manage.py migrate
+
+# Create an admin account
+python manage.py createsuperuser
+
+# Start the development server
+python manage.py runserver
