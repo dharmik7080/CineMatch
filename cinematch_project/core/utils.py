@@ -8,7 +8,10 @@ TMDB_GENRE_MAP = {
     28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime",
     99: "Documentary", 18: "Drama", 10751: "Family", 14: "Fantasy", 36: "History",
     27: "Horror", 10402: "Music", 9648: "Mystery", 10749: "Romance", 878: "Sci-Fi",
-    10770: "TV Movie", 53: "Thriller", 10752: "War", 37: "Western"
+    10770: "TV Movie", 53: "Thriller", 10752: "War", 37: "Western",
+    # TV-Specific Genres
+    10759: "Action & Adventure", 10762: "Kids", 10763: "News", 10764: "Reality",
+    10765: "Sci-Fi & Fantasy", 10766: "Soap", 10767: "Talk", 10768: "War & Politics"
 }
 
 def fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", query=None, page=1):
@@ -350,3 +353,84 @@ def fetch_omdb_data(imdb_id):
         print(f"[OMDB] Exception in fetch_omdb_data for {imdb_id}: {e}")
         
     return None
+
+
+def fetch_media_by_genre(genre_name, media_type="movie", page=1):
+    """
+    Syllabus Topic: Service separation and REST API discovery integration (Unit 7)
+    Fetches movies or TV shows categorized under the specified genre from the TMDB discover API.
+    """
+    from django.conf import settings
+    import requests
+    
+    # Normalize genre name synonyms based on media type
+    genre_name_lower = genre_name.strip().lower()
+    if media_type == "tv":
+        if "sci-fi" in genre_name_lower or "fantasy" in genre_name_lower or "science fiction" in genre_name_lower or "scifi" in genre_name_lower or "sci_fi" in genre_name_lower:
+            genre_name_lower = "sci-fi & fantasy"
+        elif "action" in genre_name_lower or "adventure" in genre_name_lower:
+            genre_name_lower = "action & adventure"
+        elif "war" in genre_name_lower or "politics" in genre_name_lower:
+            genre_name_lower = "war & politics"
+    else: # movie
+        if "science fiction" in genre_name_lower or "scifi" in genre_name_lower or "sci-fi" in genre_name_lower or "sci_fi" in genre_name_lower:
+            genre_name_lower = "sci-fi"
+        elif "tv" in genre_name_lower or "television" in genre_name_lower:
+            genre_name_lower = "tv movie"
+
+    genre_id = None
+    target_genre_name = genre_name
+    
+    for gid, gname in TMDB_GENRE_MAP.items():
+        if gname.lower() == genre_name_lower:
+            genre_id = gid
+            target_genre_name = gname
+            break
+
+    if not genre_id:
+        return [], target_genre_name, 1
+
+    api_key = getattr(settings, 'TMDB_API_KEY', '')
+    url = f"https://api.themoviedb.org/3/discover/{media_type}"
+    params = {
+        'api_key': api_key,
+        'language': 'en-US',
+        'sort_by': 'popularity.desc',
+        'include_adult': 'false',
+        'page': page,
+        'with_genres': int(genre_id)
+    }
+
+    records = []
+    total_pages = 1
+    
+    try:
+        response = requests.get(url, params=params, timeout=10.0)
+        if response.status_code == 200:
+            data = response.json()
+            raw_results = data.get('results', [])
+            for item in raw_results:
+                item_id = item.get('id')
+                if item_id:
+                    poster_path = item.get('poster_path')
+                    poster_url = f"https://image.tmdb.org/t/p/w300{poster_path}" if poster_path else "https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop"
+                    
+                    title = item.get('title') if media_type == 'movie' else item.get('name')
+                    release_date = item.get('release_date') if media_type == 'movie' else item.get('first_air_date')
+                    
+                    records.append({
+                        'id': int(item_id),
+                        'media_id': int(item_id),
+                        'movie_id': int(item_id),  # Template compatibility
+                        'title': title or 'Unknown Title',
+                        'name': title or 'Unknown Title',
+                        'poster_url': poster_url,
+                        'vote_average': round(item.get('vote_average', 0.0), 1),
+                        'release_date': release_date or '',
+                        'first_air_date': release_date or ''
+                    })
+            total_pages = min(data.get('total_pages', 1), 500)
+    except Exception as e:
+        print(f"[FETCH GENRE ERROR] Failed discover query for genre={genre_name}: {e}")
+        
+    return records, target_genre_name, total_pages

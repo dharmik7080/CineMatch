@@ -84,4 +84,21 @@ class NormalizerTests(TestCase):
         self.assertEqual(normalize_name(""), "")
 
 
+class GenreViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser_genre', password='password')
+        self.client.login(username='testuser_genre', password='password')
+
+    def test_movies_by_genre_view(self):
+        response = self.client.get(reverse('movies_by_genre', kwargs={'genre_name': 'Sci-Fi'}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Genre: Sci-Fi")
+
+    def test_tv_shows_by_genre_view(self):
+        # Should normalize Sci-Fi -> Sci-Fi & Fantasy for TV shows
+        response = self.client.get(reverse('tv_shows_by_genre', kwargs={'genre_name': 'Sci-Fi'}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Genre: Sci-Fi &amp; Fantasy")
+
+
 

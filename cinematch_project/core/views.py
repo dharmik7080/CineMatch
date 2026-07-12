@@ -1984,31 +1984,10 @@ def movies_by_genre_view(request, genre_name):
     """
     Renders the catalog list filtered by the chosen genre name.
     """
-    from core.tmdb_api import TMDBClient
+    from core.utils import fetch_media_by_genre
     from core.models import MovieWatchlist
     from django.shortcuts import render, redirect
     from django.contrib import messages
-    import requests
-
-    # Map name to ID using TMDB_GENRE_MAP with synonym normalizations
-    genre_name_lower = genre_name.strip().lower()
-    if "science fiction" in genre_name_lower or "scifi" in genre_name_lower or "sci-fi" in genre_name_lower:
-        genre_name_lower = "sci-fi"
-    elif "tv" in genre_name_lower or "television" in genre_name_lower:
-        genre_name_lower = "tv movie"
-
-    genre_id = None
-    target_genre_name = genre_name
-    
-    for gid, gname in TMDB_GENRE_MAP.items():
-        if gname.lower() == genre_name_lower:
-            genre_id = gid
-            target_genre_name = gname
-            break
-
-    if not genre_id:
-        messages.error(request, f"Genre '{genre_name}' not found.")
-        return redirect('explore_movies')
 
     page_number = request.GET.get('page', 1)
     try:
@@ -2016,48 +1995,11 @@ def movies_by_genre_view(request, genre_name):
     except ValueError:
         page_number = 1
 
-    client = TMDBClient()
-    url = f"{client.base_url}/discover/movie"
-    
-    # Ensure parameter holds ONLY the selected single genre ID (preventing stale/OR logic)
-    params = {
-        'api_key': getattr(settings, 'TMDB_API_KEY', ''),
-        'language': 'en-US',
-        'sort_by': 'popularity.desc',
-        'include_adult': 'false',
-        'page': page_number,
-        'with_genres': int(genre_id)
-    }
+    movies_records, target_genre_name, total_pages = fetch_media_by_genre(genre_name, media_type="movie", page=page_number)
 
-    # Print Debugging: Log the exact URL and params sent to the TMDB API
-    print(f"[DEBUG] TMDB discover query: URL={url}, params={params}")
-
-    # Fresh local variable instantiation to ensure no stale data carries over between requests
-    movies_records = []
-    total_pages = 1
-    try:
-        response = requests.get(url, params=params, timeout=10.0)
-        if response.status_code == 200:
-            data = response.json()
-            raw_results = data.get('results', [])
-            for item in raw_results:
-                m_id = item.get('id')
-                # Backend Data Validation: Only add if ID is valid
-                if m_id:
-                    # Print Debugging: Log the title and id of every movie processed
-                    print(f"[DEBUG] Processing genre movie: Title={item.get('title')}, ID={m_id}")
-                    poster_path = item.get('poster_path')
-                    movies_records.append({
-                        'id': int(m_id),
-                        'movie_id': int(m_id),  # Explicitly map movie_id for template compatibility
-                        'title': item.get('title', 'Unknown Title'),
-                        'poster_url': f"https://image.tmdb.org/t/p/w300{poster_path}" if poster_path else client.movie_fallback,
-                        'vote_average': round(item.get('vote_average', 0.0), 1),
-                        'release_date': item.get('release_date', '')
-                    })
-            total_pages = min(data.get('total_pages', 1), 500)
-    except Exception as e:
-        print(f"[GENRE VIEW ERROR] Failed to fetch movies for genre={genre_name}: {e}")
+    if not movies_records and page_number == 1:
+        messages.error(request, f"Genre '{genre_name}' not found or has no matching records.")
+        return redirect('explore_movies')
 
     class MockPage:
         def __init__(self, number, object_list, max_pages):
@@ -2104,32 +2046,10 @@ def tv_shows_by_genre_view(request, genre_name):
     """
     Renders the catalog list of TV shows filtered by the chosen genre name.
     """
-    from core.tmdb_api import TMDBClient
+    from core.utils import fetch_media_by_genre
     from core.models import MovieWatchlist
     from django.shortcuts import render, redirect
     from django.contrib import messages
-    import requests
-    from django.conf import settings
-
-    # Map name to ID using TMDB_GENRE_MAP with synonym normalizations
-    genre_name_lower = genre_name.strip().lower()
-    if "science fiction" in genre_name_lower or "scifi" in genre_name_lower or "sci-fi" in genre_name_lower:
-        genre_name_lower = "sci-fi"
-    elif "tv" in genre_name_lower or "television" in genre_name_lower:
-        genre_name_lower = "tv movie"
-
-    genre_id = None
-    target_genre_name = genre_name
-    
-    for gid, gname in TMDB_GENRE_MAP.items():
-        if gname.lower() == genre_name_lower:
-            genre_id = gid
-            target_genre_name = gname
-            break
-
-    if not genre_id:
-        messages.error(request, f"Genre '{genre_name}' not found.")
-        return redirect('explore_tv')
 
     page_number = request.GET.get('page', 1)
     try:
@@ -2137,44 +2057,11 @@ def tv_shows_by_genre_view(request, genre_name):
     except ValueError:
         page_number = 1
 
-    client = TMDBClient()
-    url = f"{client.base_url}/discover/tv"
-    
-    params = {
-        'api_key': getattr(settings, 'TMDB_API_KEY', ''),
-        'language': 'en-US',
-        'sort_by': 'popularity.desc',
-        'include_adult': 'false',
-        'page': page_number,
-        'with_genres': int(genre_id)
-    }
+    tv_records, target_genre_name, total_pages = fetch_media_by_genre(genre_name, media_type="tv", page=page_number)
 
-    # Print Debugging: Log the exact URL and params sent to the TMDB API
-    print(f"[DEBUG] TMDB discover TV query: URL={url}, params={params}")
-
-    tv_records = []
-    total_pages = 1
-    try:
-        response = requests.get(url, params=params, timeout=10.0)
-        if response.status_code == 200:
-            data = response.json()
-            raw_results = data.get('results', [])
-            for item in raw_results:
-                t_id = item.get('id')
-                if t_id:
-                    poster_path = item.get('poster_path')
-                    tv_records.append({
-                        'id': int(t_id),
-                        'media_id': int(t_id),
-                        'title': item.get('name', 'Unknown Title'),
-                        'name': item.get('name', 'Unknown Title'),
-                        'poster_url': f"https://image.tmdb.org/t/p/w300{poster_path}" if poster_path else client.movie_fallback,
-                        'vote_average': round(item.get('vote_average', 0.0), 1),
-                        'first_air_date': item.get('first_air_date', '')
-                    })
-            total_pages = min(data.get('total_pages', 1), 500)
-    except Exception as e:
-        print(f"[GENRE TV VIEW ERROR] Failed to fetch TV shows for genre={genre_name}: {e}")
+    if not tv_records and page_number == 1:
+        messages.error(request, f"Genre '{genre_name}' not found or has no matching records.")
+        return redirect('explore_tv')
 
     class MockPage:
         def __init__(self, number, object_list, max_pages):
