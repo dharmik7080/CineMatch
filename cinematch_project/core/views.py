@@ -339,6 +339,15 @@ def logout_view(request):
     messages.info(request, "You have been logged out successfully.")
     return redirect('login')
 
+def home_redirect(request):
+    """
+    Intelligent Root Redirection gatekeeper (Unit 8 Routing)
+    Redirects authenticated users to the personalized feed, and guests to the login page.
+    """
+    if request.user.is_authenticated:
+        return redirect('for_you_feed')
+    return redirect('login')
+
 @csrf_protect
 @never_cache
 def home_view(request):
@@ -381,6 +390,14 @@ def watchlist_add(request):
             media_id=media_id,
             media_type=media_type
         )
+        
+        # Invalidate recommendation cache
+        from django.core.cache import cache
+        try:
+            cache.delete(f'user_feed_{request.user.id}')
+        except Exception as ce:
+            print(f"[CACHE ERROR] Invalidation failed in watchlist_add: {ce}")
+
         if created:
             return JsonResponse({'success': True, 'message': 'Title successfully added to watchlist.'})
         else:
@@ -410,6 +427,13 @@ def watchlist_delete(request):
             media_type=media_type
         ).delete()
 
+        # Invalidate recommendation cache
+        from django.core.cache import cache
+        try:
+            cache.delete(f'user_feed_{request.user.id}')
+        except Exception as ce:
+            print(f"[CACHE ERROR] Invalidation failed in watchlist_delete: {ce}")
+
         if deleted_count > 0:
             return JsonResponse({'success': True, 'message': 'Title successfully removed from watchlist.'})
         else:
@@ -418,6 +442,23 @@ def watchlist_delete(request):
         return JsonResponse({'success': False, 'error': 'media_id must be a valid integer.'}, status=400)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+def get_personalized_recommendations(user):
+    """
+    Syllabus Topic: Recommendation logic encapsulation (Unit 8)
+    Fetches personalized movie and TV show recommendations based on user's watchlist.
+    """
+    watchlist_items = MovieWatchlist.objects.filter(user=user)
+    saved_movies = list(watchlist_items.filter(media_type='movie').values_list('media_id', flat=True))
+    saved_tv_shows = list(watchlist_items.filter(media_type='tv').values_list('media_id', flat=True))
+    
+    recommended_movies = get_recommendations(saved_movies, 'movie')
+    recommended_tv_shows = get_recommendations(saved_tv_shows, 'tv')
+    
+    return {
+        'recommended_movies': recommended_movies,
+        'recommended_tv_shows': recommended_tv_shows
+    }
 
 # ======================================================================
 # Home / "For You" Feed Loader (Read & Recommend)
@@ -493,8 +534,28 @@ def for_you_feed(request):
             item['trailer_url'] = f"https://www.youtube.com/results?search_query={encoded_title}+official+trailer"
             now_showing.append(item)
     
-    recommended_movies = get_recommendations(saved_movies, 'movie')
-    recommended_tv_shows = get_recommendations(saved_tv_shows, 'tv')
+    # ── CACHE-ASIDE PATTERN FOR PERSONALIZED RECOMMENDATIONS ──
+    from django.core.cache import cache
+    cache_key = f"user_feed_{user.id}"
+    recs = None
+    try:
+        recs = cache.get(cache_key)
+    except Exception as ce:
+        print(f"[CACHE ERROR] Failed to fetch feed cache: {ce}")
+        
+    if recs is None:
+        try:
+            recs = get_personalized_recommendations(user)
+            cache.set(cache_key, recs, 1800)
+        except Exception as re_err:
+            print(f"[RECOMMENDATION ENGINE ERROR] Failed to get recommendations: {re_err}")
+            recs = {
+                'recommended_movies': [],
+                'recommended_tv_shows': []
+            }
+            
+    recommended_movies = recs.get('recommended_movies', [])
+    recommended_tv_shows = recs.get('recommended_tv_shows', [])
 
     # ── FETCH DAILY TRENDING MOVIES FROM TMDB WITH CACHE-ASIDE ──
     from core.utils import get_daily_trending_movies

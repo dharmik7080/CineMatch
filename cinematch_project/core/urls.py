@@ -9,7 +9,7 @@ from . import views
 
 urlpatterns = [
     # Intelligent Root Routing
-    path('', views.home_view, name='home'),
+    path('', views.home_redirect, name='home'),
 
     # User Registration / Signup
     path('register/', views.signup_view, name='register'),
