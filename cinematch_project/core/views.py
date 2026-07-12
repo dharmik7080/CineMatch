@@ -27,6 +27,7 @@ from django.utils.html import escape
 
 from .models import UserProfile, MovieWatchlist, MediaReview, Review, WatchedHistory
 from .tmdb_api import TMDBClient
+from core.utils import TMDB_GENRE_MAP
 
 # ======================================================================
 # Global Memory Cache System (Unit 9.2 & 7 Optimization)
@@ -97,14 +98,6 @@ MOVIE_DICT = None
 MOVIE_SIMILARITY = None
 TV_DICT = None
 TV_SIMILARITY = None
-
-# TMDB Genre ID to Name Mapping dictionary
-TMDB_GENRE_MAP = {
-    28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime",
-    99: "Documentary", 18: "Drama", 10751: "Family", 14: "Fantasy", 36: "History",
-    27: "Horror", 10402: "Music", 9648: "Mystery", 10749: "Romance", 878: "Sci-Fi",
-    10770: "TV Movie", 53: "Thriller", 10752: "War", 37: "Western"
-}
 
 def get_cached_poster(client, media_id, media_type):
     """
@@ -2105,3 +2098,120 @@ def movies_by_genre_view(request, genre_name):
     if is_ajax:
         return render(request, 'core/includes/movie_grid_partial.html', context)
     return render(request, 'core/explore_movies.html', context)
+
+
+def tv_shows_by_genre_view(request, genre_name):
+    """
+    Renders the catalog list of TV shows filtered by the chosen genre name.
+    """
+    from core.tmdb_api import TMDBClient
+    from core.models import MovieWatchlist
+    from django.shortcuts import render, redirect
+    from django.contrib import messages
+    import requests
+    from django.conf import settings
+
+    # Map name to ID using TMDB_GENRE_MAP with synonym normalizations
+    genre_name_lower = genre_name.strip().lower()
+    if "science fiction" in genre_name_lower or "scifi" in genre_name_lower or "sci-fi" in genre_name_lower:
+        genre_name_lower = "sci-fi"
+    elif "tv" in genre_name_lower or "television" in genre_name_lower:
+        genre_name_lower = "tv movie"
+
+    genre_id = None
+    target_genre_name = genre_name
+    
+    for gid, gname in TMDB_GENRE_MAP.items():
+        if gname.lower() == genre_name_lower:
+            genre_id = gid
+            target_genre_name = gname
+            break
+
+    if not genre_id:
+        messages.error(request, f"Genre '{genre_name}' not found.")
+        return redirect('explore_tv')
+
+    page_number = request.GET.get('page', 1)
+    try:
+        page_number = int(page_number)
+    except ValueError:
+        page_number = 1
+
+    client = TMDBClient()
+    url = f"{client.base_url}/discover/tv"
+    
+    params = {
+        'api_key': getattr(settings, 'TMDB_API_KEY', ''),
+        'language': 'en-US',
+        'sort_by': 'popularity.desc',
+        'include_adult': 'false',
+        'page': page_number,
+        'with_genres': int(genre_id)
+    }
+
+    # Print Debugging: Log the exact URL and params sent to the TMDB API
+    print(f"[DEBUG] TMDB discover TV query: URL={url}, params={params}")
+
+    tv_records = []
+    total_pages = 1
+    try:
+        response = requests.get(url, params=params, timeout=10.0)
+        if response.status_code == 200:
+            data = response.json()
+            raw_results = data.get('results', [])
+            for item in raw_results:
+                t_id = item.get('id')
+                if t_id:
+                    poster_path = item.get('poster_path')
+                    tv_records.append({
+                        'id': int(t_id),
+                        'media_id': int(t_id),
+                        'title': item.get('name', 'Unknown Title'),
+                        'name': item.get('name', 'Unknown Title'),
+                        'poster_url': f"https://image.tmdb.org/t/p/w300{poster_path}" if poster_path else client.movie_fallback,
+                        'vote_average': round(item.get('vote_average', 0.0), 1),
+                        'first_air_date': item.get('first_air_date', '')
+                    })
+            total_pages = min(data.get('total_pages', 1), 500)
+    except Exception as e:
+        print(f"[GENRE TV VIEW ERROR] Failed to fetch TV shows for genre={genre_name}: {e}")
+
+    class MockPage:
+        def __init__(self, number, object_list, max_pages):
+            self.number = number
+            self.object_list = object_list
+            self.has_previous = number > 1
+            self.previous_page_number = number - 1
+            self.has_next = number < max_pages
+            self.next_page_number = number + 1
+            self.has_other_pages = max_pages > 1
+
+    class MockPaginator:
+        def __init__(self, max_pages):
+            self.max_pages = max_pages
+
+        @property
+        def num_pages(self):
+            return self.max_pages
+
+    page_obj = MockPage(page_number, tv_records, total_pages)
+    page_obj.paginator = MockPaginator(total_pages)
+
+    watchlist_ids = []
+    if request.user.is_authenticated:
+        watchlist_ids = list(MovieWatchlist.objects.filter(
+            user=request.user, media_type='tv'
+        ).values_list('media_id', flat=True))
+
+    context = {
+        'tv_shows':      tv_records,
+        'page_obj':      page_obj,
+        'watchlist_ids': watchlist_ids,
+        'query':         "",
+        'selected_genre': target_genre_name,
+    }
+
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == 'true'
+    if is_ajax:
+        return render(request, 'core/includes/tv_grid_partial.html', context)
+    return render(request, 'core/explore_tv.html', context)

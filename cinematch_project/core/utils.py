@@ -3,6 +3,14 @@ import hashlib
 from django.core.cache import cache
 from .tmdb_api import TMDBClient
 
+# TMDB Genre ID to Name Mapping dictionary
+TMDB_GENRE_MAP = {
+    28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime",
+    99: "Documentary", 18: "Drama", 10751: "Family", 14: "Fantasy", 36: "History",
+    27: "Horror", 10402: "Music", 9648: "Mystery", 10749: "Romance", 878: "Sci-Fi",
+    10770: "TV Movie", 53: "Thriller", 10752: "War", 37: "Western"
+}
+
 def fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", query=None, page=1):
     """
     Centralized utility to fetch catalog listings or search items from TMDB.

@@ -397,7 +397,11 @@
                 {% if tv_show.genres %}
                 <div class="d-flex flex-wrap gap-2 mb-4">
                     {% for genre in tv_show.genres %}
-                        {% if genre %}<span class="genre-badge">{{ genre }}</span>{% endif %}
+                        {% if genre %}
+                        <a href="{% url 'tv_shows_by_genre' genre_name=genre %}" class="text-decoration-none">
+                            <span class="genre-badge">{{ genre }}</span>
+                        </a>
+                        {% endif %}
                     {% endfor %}
                 </div>
                 {% endif %}

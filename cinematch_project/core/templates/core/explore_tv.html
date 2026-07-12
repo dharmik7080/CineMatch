@@ -166,8 +166,8 @@
 
     <!-- Header & Search Controls -->
     <div class="explore-header text-center">
-        <h1 class="fw-extrabold mb-2">Explore TV Series Library</h1>
-        <p class="text-secondary mb-4">Discover ongoing shows and multi-season dramas to compile your personal watchlist.</p>
+        <h1 class="fw-extrabold mb-2">{% if selected_genre %}Genre: {{ selected_genre }}{% else %}Explore TV Series Library{% endif %}</h1>
+        <p class="text-secondary mb-4">{% if selected_genre %}Discover popular TV shows categorized under the genre "{{ selected_genre }}".{% else %}Discover ongoing shows and multi-season dramas to compile your personal watchlist.{% endif %}</p>
         
         <form id="tv-search-form" method="GET" action="." class="search-input-group">
             <i class="fa-solid fa-magnifying-glass ms-3 text-secondary"></i>
