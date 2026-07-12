@@ -293,6 +293,12 @@ def fetch_omdb_data(imdb_id):
     if not imdb_id or not isinstance(imdb_id, str) or not imdb_id.startswith('tt'):
         return None
         
+    from django.core.cache import cache
+    cache_key = f"omdb_data_{imdb_id}"
+    cached_val = cache.get(cache_key)
+    if cached_val is not None:
+        return cached_val
+        
     from django.conf import settings
     import requests
     
@@ -322,12 +328,14 @@ def fetch_omdb_data(imdb_id):
                     rt_score = rating.get('Value')
                     break
                     
-            return {
+            result = {
                 'imdb_rating': data.get('imdbRating', 'N/A'),
                 'rotten_tomatoes': rt_score,
                 'awards': data.get('Awards', 'N/A'),
                 'age_rating': data.get('Rated', 'N/A')
             }
+            cache.set(cache_key, result, 3600)
+            return result
     except Exception as e:
         print(f"[OMDB] Exception in fetch_omdb_data for {imdb_id}: {e}")
         
