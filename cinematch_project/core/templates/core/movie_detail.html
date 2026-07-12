@@ -365,44 +365,48 @@
                         {{ movie.runtime }} min
                     </span>
                     {% endif %}
-                    {% if omdb_data and omdb_data.age_rating and omdb_data.age_rating != 'N/A' %}
-                        {% if omdb_data.age_rating == 'G' or omdb_data.age_rating == 'U' or omdb_data.age_rating == 'TV-G' or omdb_data.age_rating == 'TV-Y' %}
-                        <span class="badge bg-success text-white fw-bold px-2.5 py-1.5 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.75rem;">
-                            {{ omdb_data.age_rating }}
-                        </span>
-                        {% elif omdb_data.age_rating == 'PG' or omdb_data.age_rating == 'PG-13' or omdb_data.age_rating == 'U/A' or omdb_data.age_rating == 'TV-PG' or omdb_data.age_rating == 'TV-14' %}
-                        <span class="badge bg-warning text-dark fw-bold px-2.5 py-1.5 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.75rem;">
-                            {{ omdb_data.age_rating }}
-                        </span>
-                        {% elif omdb_data.age_rating == 'R' or omdb_data.age_rating == 'A' or omdb_data.age_rating == 'NC-17' or omdb_data.age_rating == 'TV-MA' %}
-                        <span class="badge bg-danger text-white fw-bold px-2.5 py-1.5 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.75rem;">
-                            {{ omdb_data.age_rating }}
-                        </span>
-                        {% else %}
-                        <span class="badge bg-secondary text-white fw-bold px-2.5 py-1.5 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.75rem;">
-                            {{ omdb_data.age_rating }}
-                        </span>
-                        {% endif %}
+                    {% if omdb_data %}
+                        <div class="d-inline-flex flex-wrap align-items-center gap-3 px-3 py-1.5 rounded-pill bg-dark bg-opacity-50" style="border: 1px solid rgba(255, 255, 255, 0.08);">
+                            {% if omdb_data.age_rating and omdb_data.age_rating != 'N/A' %}
+                                {% if omdb_data.age_rating == 'G' or omdb_data.age_rating == 'U' or omdb_data.age_rating == 'TV-G' or omdb_data.age_rating == 'TV-Y' %}
+                                <span class="badge bg-success text-white fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
+                                    {{ omdb_data.age_rating }}
+                                </span>
+                                {% elif omdb_data.age_rating == 'PG' or omdb_data.age_rating == 'PG-13' or omdb_data.age_rating == 'U/A' or omdb_data.age_rating == 'TV-PG' or omdb_data.age_rating == 'TV-14' %}
+                                <span class="badge bg-warning text-dark fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
+                                    {{ omdb_data.age_rating }}
+                                </span>
+                                {% elif omdb_data.age_rating == 'R' or omdb_data.age_rating == 'A' or omdb_data.age_rating == 'NC-17' or omdb_data.age_rating == 'TV-MA' %}
+                                <span class="badge bg-danger text-white fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
+                                    {{ omdb_data.age_rating }}
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary text-white fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
+                                    {{ omdb_data.age_rating }}
+                                </span>
+                                {% endif %}
+                            {% endif %}
+                            
+                            {% if omdb_data.imdb_rating and omdb_data.imdb_rating != 'N/A' %}
+                            <span class="d-inline-flex align-items-center gap-1 text-warning fw-bold" style="font-size: 0.85rem;">
+                                <i class="fa-brands fa-imdb fs-5"></i>
+                                {{ omdb_data.imdb_rating }}
+                            </span>
+                            {% endif %}
+                            
+                            {% if omdb_data.rotten_tomatoes and omdb_data.rotten_tomatoes != 'N/A' %}
+                            <span class="d-inline-flex align-items-center gap-1 text-danger fw-bold" style="font-size: 0.85rem;">
+                                <i class="fa-solid fa-apple-whole"></i>
+                                {{ omdb_data.rotten_tomatoes }}
+                            </span>
+                            {% endif %}
+                        </div>
                     {% endif %}
                     {% if movie.vote_average and movie.vote_average > 0 %}
                     <span class="rating-badge">
                         <i class="fa-solid fa-star"></i>
                         {{ movie.vote_average }} / 10
                     </span>
-                    {% endif %}
-                    {% if omdb_data %}
-                        {% if omdb_data.imdb_rating and omdb_data.imdb_rating != 'N/A' %}
-                        <span class="badge bg-warning text-dark fw-bold rounded-pill px-3 py-2 d-inline-flex align-items-center gap-1" style="font-size: 0.85rem; box-shadow: 0 4px 14px rgba(245,158,11,0.2);">
-                            <i class="fa-brands fa-imdb text-dark fs-5"></i>
-                            {{ omdb_data.imdb_rating }}
-                        </span>
-                        {% endif %}
-                        {% if omdb_data.rotten_tomatoes and omdb_data.rotten_tomatoes != 'N/A' %}
-                        <span class="badge bg-danger text-white fw-bold rounded-pill px-3 py-2 d-inline-flex align-items-center gap-1" style="font-size: 0.85rem; box-shadow: 0 4px 14px rgba(220,53,69,0.2);">
-                            <i class="fa-solid fa-apple-whole text-white"></i>
-                            {{ omdb_data.rotten_tomatoes }}
-                        </span>
-                        {% endif %}
                     {% endif %}
                 </div>
 
