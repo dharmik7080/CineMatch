@@ -8,6 +8,8 @@ Syllabus Reference:
 
 import requests
 from urllib.parse import quote_plus
+from urllib3.util import Retry
+from requests.adapters import HTTPAdapter
 
 # Bearer Authorization Token from app.py to authorize REST API calls
 TMDB_DEFAULT_BEARER_TOKEN = (
@@ -35,6 +37,18 @@ class TMDBClient:
         self.movie_fallback = "https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop"
         self.tv_fallback = "https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop"
 
+        # Initialize requests session with retry strategy and exponential backoff
+        self.session = requests.Session()
+        retries = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[500, 502, 503, 504],
+            raise_on_status=False
+        )
+        adapter = HTTPAdapter(max_retries=retries)
+        self.session.mount('http://', adapter)
+        self.session.mount('https://', adapter)
+
     def get_media_assets(self, media_id, media_type, timeout=5.0):
         """
         Syllabus Topic: REST API consumption and JSON data extraction (Unit 7)
@@ -45,11 +59,17 @@ class TMDBClient:
         if media_type not in ['movie', 'tv']:
             return self.movie_fallback
 
+        from django.core.cache import cache
+        cache_key = f"tmdb_media_assets_{media_type}_{media_id}"
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+
         url = f"{self.base_url}/{media_type}/{media_id}?language=en-US"
         
         try:
             # Send HTTP GET requests with custom timeout parameter
-            response = requests.get(url, headers=self.headers, timeout=timeout)
+            response = self.session.get(url, headers=self.headers, timeout=timeout)
             
             # Inspect HTTP status codes
             if response.status_code == 200:
@@ -59,10 +79,15 @@ class TMDBClient:
                 backdrop = data.get('backdrop_path')
                 
                 # Build complete secure URL to static resources
+                result = None
                 if poster:
-                    return f"{self.image_base_url}{poster}"
+                    result = f"{self.image_base_url}{poster}"
                 elif backdrop:
-                    return f"{self.image_base_url}{backdrop}"
+                    result = f"{self.image_base_url}{backdrop}"
+                
+                if result:
+                    cache.set(cache_key, result, 86400)
+                    return result
             
             print(f"[TMDB] Failed to load assets for {media_type} ID {media_id}. Status: {response.status_code}")
         except requests.RequestException as e:
@@ -80,11 +105,17 @@ class TMDBClient:
         if media_type not in ['movie', 'tv']:
             return []
 
+        from django.core.cache import cache
+        cache_key = f"tmdb_where_to_watch_{media_type}_{media_id}"
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+
         url = f"{self.base_url}/{media_type}/{media_id}/watch/providers"
         providers = []
         
         try:
-            response = requests.get(url, headers=self.headers, timeout=5)
+            response = self.session.get(url, headers=self.headers, timeout=5)
             if response.status_code == 200:
                 data = response.json()
                 results = data.get('results', {})
@@ -108,6 +139,8 @@ class TMDBClient:
                                 'logo': logo_url,
                                 'type': subtype.capitalize()
                             })
+                cache.set(cache_key, providers, 86400)
+                return providers
         except requests.RequestException as e:
             print(f"[TMDB] Network error in get_where_to_watch for {media_type} ID {media_id}: {e}")
             
@@ -136,6 +169,12 @@ class TMDBClient:
         Fetches similar movies, filters by popularity > 5.0 and vote_average > 6.0,
         and falls back to popular movies of the same genre if < 3 results are found.
         """
+        from django.core.cache import cache
+        cache_key = f"tmdb_similar_movies_{movie_id}"
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+
         from django.conf import settings
         api_key = getattr(settings, 'TMDB_API_KEY', '')
         if not api_key:
@@ -154,7 +193,7 @@ class TMDBClient:
         seen_ids = {int(movie_id)}  # Prevent including the current movie itself
 
         try:
-            response = requests.get(similar_url, params=params, timeout=10.0)
+            response = self.session.get(similar_url, params=params, timeout=10.0)
             if response.status_code == 200:
                 results = response.json().get('results', [])
                 for item in results:
@@ -183,7 +222,7 @@ class TMDBClient:
             try:
                 # 2a. Get movie details to extract the primary genre ID
                 details_url = f"{self.base_url}/movie/{movie_id}"
-                det_resp = requests.get(details_url, params={'api_key': api_key}, timeout=5.0)
+                det_resp = self.session.get(details_url, params={'api_key': api_key}, timeout=5.0)
                 if det_resp.status_code == 200:
                     genres = det_resp.json().get('genres', [])
                     if genres:
@@ -198,7 +237,7 @@ class TMDBClient:
                             'language': 'en-US',
                             'page': 1
                         }
-                        disc_resp = requests.get(discover_url, params=disc_params, timeout=5.0)
+                        disc_resp = self.session.get(discover_url, params=disc_params, timeout=5.0)
                         if disc_resp.status_code == 200:
                             disc_results = disc_resp.json().get('results', [])
                             for item in disc_results:
@@ -220,4 +259,5 @@ class TMDBClient:
             except Exception as ex:
                 print(f"[TMDB WARNING] Fallback genre discovery failed for movie_id={movie_id}: {ex}")
 
+        cache.set(cache_key, filtered_movies, 86400)
         return filtered_movies

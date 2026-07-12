@@ -238,3 +238,97 @@ def get_upcoming_movies():
         print(f"[TMDB UPCOMING ERROR] Failed to fetch upcoming movies: {e}")
 
     return []
+
+
+# ── STREAMING SERVICE PROVIDER NAME STANDARDIZATION & NORMALIZATION ──
+SERVICE_MAP = {
+    # Hotstar / Disney+ Hotstar / JioHotstar
+    'hotstar': 'disney+',
+    'disney+ hotstar': 'disney+',
+    'disney hotstar': 'disney+',
+    'disney plus hotstar': 'disney+',
+    'disneyplus hotstar': 'disney+',
+    'disney': 'disney+',
+    'disney plus': 'disney+',
+    'disneyplus': 'disney+',
+    'jiohotstar': 'disney+',
+    'jio hotstar': 'disney+',
+    
+    # Prime Video / Amazon Prime Video
+    'prime video': 'prime video',
+    'amazon prime video': 'prime video',
+    'amazon prime': 'prime video',
+    'amazon': 'prime video',
+    'prime': 'prime video',
+    
+    # Apple TV / Apple TV+
+    'apple tv': 'apple tv+',
+    'apple tv+': 'apple tv+',
+    'apple tv plus': 'apple tv+',
+    'appletv': 'apple tv+',
+    
+    # Netflix
+    'netflix': 'netflix',
+}
+
+def normalize_name(name):
+    """
+    Syllabus Reference: Unit 3.2 Feature Normalization & String Cleansing
+    Standardizes a streaming provider/service name for robust keys comparison matching.
+    """
+    if not name or not isinstance(name, str):
+        return ""
+    
+    # Lowercase & strip white spaces
+    cleaned = name.lower().strip()
+    
+    # Use SERVICE_MAP if matched, otherwise default to the original name (fallback mode)
+    return SERVICE_MAP.get(cleaned, name)
+
+def fetch_omdb_data(imdb_id):
+    """
+    Syllabus Topic: Service separation and REST API integration (Unit 7)
+    Fetches ratings and awards data from OMDb API using the movie/show IMDb ID.
+    """
+    if not imdb_id or not isinstance(imdb_id, str) or not imdb_id.startswith('tt'):
+        return None
+        
+    from django.conf import settings
+    import requests
+    
+    api_key = getattr(settings, 'OMDB_API_KEY', '')
+    if not api_key:
+        print("[OMDB] API Key is not configured in settings.")
+        return None
+        
+    url = "http://www.omdbapi.com/"
+    params = {
+        'i': imdb_id,
+        'apikey': api_key
+    }
+    
+    try:
+        response = requests.get(url, params=params, timeout=5.0)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('Response') == 'False':
+                print(f"[OMDB] API returned error: {data.get('Error')}")
+                return None
+                
+            # Extract Rotten Tomatoes score from Ratings array
+            rt_score = 'N/A'
+            for rating in data.get('Ratings', []):
+                if rating.get('Source') == 'Rotten Tomatoes':
+                    rt_score = rating.get('Value')
+                    break
+                    
+            return {
+                'imdb_rating': data.get('imdbRating', 'N/A'),
+                'rotten_tomatoes': rt_score,
+                'awards': data.get('Awards', 'N/A'),
+                'age_rating': data.get('Rated', 'N/A')
+            }
+    except Exception as e:
+        print(f"[OMDB] Exception in fetch_omdb_data for {imdb_id}: {e}")
+        
+    return None

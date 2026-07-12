@@ -923,11 +923,17 @@ def movie_detail_view(request, movie_id):
     belongs_to_collection = None
     collection_movies = []
     collection_name = ""
+    omdb_data = None
 
     try:
         resp = requests.get(endpoint, timeout=5.0)
         resp.raise_for_status()
         data = resp.json()
+
+        imdb_id = data.get('imdb_id')
+        if imdb_id:
+            from core.utils import fetch_omdb_data
+            omdb_data = fetch_omdb_data(imdb_id)
 
         poster_path = data.get('poster_path') or ''
         backdrop_path = data.get('backdrop_path') or ''
@@ -1121,24 +1127,18 @@ def movie_detail_view(request, movie_id):
         cache.set(cache_key, streaming_links, 86400)
 
     # Map streaming links directly to the watch_providers items with TMDB fallback
+    from core.utils import normalize_name
     if watch_providers:
         for provider in watch_providers:
             provider_name = provider.get('name', '')
-            norm_name = provider_name
-            if "Prime" in provider_name or "Amazon" in provider_name:
-                norm_name = "Prime Video"
-            elif "Disney" in provider_name:
-                norm_name = "Disney+"
-            elif "Apple" in provider_name:
-                norm_name = "Apple TV+"
+            norm_provider = normalize_name(provider_name)
 
             # Find matching link from Watchmode
             matched_url = None
             if streaming_links:
                 for service_name, url in streaming_links.items():
-                    if (service_name.lower() in provider_name.lower() or 
-                        provider_name.lower() in service_name.lower() or
-                        norm_name.lower() in service_name.lower()):
+                    norm_service = normalize_name(service_name)
+                    if norm_provider == norm_service or norm_provider in norm_service or norm_service in norm_provider:
                         matched_url = url
                         break
             
@@ -1171,6 +1171,7 @@ def movie_detail_view(request, movie_id):
         'collection_movies':     collection_movies,
         'collection_name':       collection_name,
         'watchlist_ids':         watchlist_ids,
+        'omdb_data':             omdb_data,
     }
 
     return render(request, 'core/movie_detail.html', context)
@@ -1197,7 +1198,7 @@ def tv_detail_view(request, series_id):
         f"https://api.themoviedb.org/3/tv/{series_id}"
         f"?api_key={api_key}"
         f"&language=en-US"
-        f"&append_to_response=credits,videos,watch/providers,similar"
+        f"&append_to_response=credits,videos,watch/providers,similar,external_ids"
     )
 
     tv_show = {}
@@ -1205,11 +1206,17 @@ def tv_detail_view(request, series_id):
     trailer_key = None
     watch_providers = []
     similar_shows = []
+    omdb_data = None
 
     try:
         resp = requests.get(endpoint, timeout=5.0)
         resp.raise_for_status()
         data = resp.json()
+
+        imdb_id = data.get('external_ids', {}).get('imdb_id')
+        if imdb_id:
+            from core.utils import fetch_omdb_data
+            omdb_data = fetch_omdb_data(imdb_id)
 
         poster_path = data.get('poster_path') or ''
         backdrop_path = data.get('backdrop_path') or ''
@@ -1345,24 +1352,18 @@ def tv_detail_view(request, series_id):
         cache.set(cache_key, streaming_links, 86400)
 
     # Map streaming links directly to the watch_providers items with TMDB fallback
+    from core.utils import normalize_name
     if watch_providers:
         for provider in watch_providers:
             provider_name = provider.get('name', '')
-            norm_name = provider_name
-            if "Prime" in provider_name or "Amazon" in provider_name:
-                norm_name = "Prime Video"
-            elif "Disney" in provider_name:
-                norm_name = "Disney+"
-            elif "Apple" in provider_name:
-                norm_name = "Apple TV+"
+            norm_provider = normalize_name(provider_name)
 
             # Find matching link from Watchmode
             matched_url = None
             if streaming_links:
                 for service_name, url in streaming_links.items():
-                    if (service_name.lower() in provider_name.lower() or 
-                        provider_name.lower() in service_name.lower() or
-                        norm_name.lower() in service_name.lower()):
+                    norm_service = normalize_name(service_name)
+                    if norm_provider == norm_service or norm_provider in norm_service or norm_service in norm_provider:
                         matched_url = url
                         break
             
@@ -1385,6 +1386,7 @@ def tv_detail_view(request, series_id):
         # 💎 INJECTED REVIEWS DATA CONTEXTS
         'reviews':         reviews_list,
         'user_review':     user_review,
+        'omdb_data':       omdb_data,
     }
 
     return render(request, 'core/tv_detail.html', context)

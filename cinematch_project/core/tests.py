@@ -67,4 +67,21 @@ class AnalyticsDashboardTests(TestCase):
         self.assertTrue(len(response.context['network_img']) > 0)
 
 
+class NormalizerTests(TestCase):
+    def test_normalize_name(self):
+        from core.utils import normalize_name
+        
+        # Test standard known services
+        self.assertEqual(normalize_name("hotstar"), "disney+")
+        self.assertEqual(normalize_name("JioHotstar"), "disney+")
+        self.assertEqual(normalize_name("jio hotstar"), "disney+")
+        self.assertEqual(normalize_name("Disney+ Hotstar"), "disney+")
+        self.assertEqual(normalize_name("Prime Video"), "prime video")
+        self.assertEqual(normalize_name("netflix"), "netflix")
+        
+        # Test unknown/missing service (defaults to original name)
+        self.assertEqual(normalize_name("SomeUnknownService"), "SomeUnknownService")
+        self.assertEqual(normalize_name(""), "")
+
+
 
