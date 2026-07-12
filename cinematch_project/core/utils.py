@@ -310,7 +310,8 @@ def fetch_omdb_data(imdb_id):
     url = "http://www.omdbapi.com/"
     params = {
         'i': imdb_id,
-        'apikey': api_key
+        'apikey': api_key,
+        'plot': 'full'
     }
     
     try:
@@ -332,7 +333,8 @@ def fetch_omdb_data(imdb_id):
                 'imdb_rating': data.get('imdbRating', 'N/A'),
                 'rotten_tomatoes': rt_score,
                 'awards': data.get('Awards', 'N/A'),
-                'age_rating': data.get('Rated', 'N/A')
+                'age_rating': data.get('Rated', 'N/A'),
+                'full_plot': data.get('Plot', '')
             }
             cache.set(cache_key, result, 3600)
             return result

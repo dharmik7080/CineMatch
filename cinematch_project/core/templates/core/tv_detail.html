@@ -432,10 +432,25 @@
 
         <div class="col-lg-8">
 
-            {% if tv_show.overview %}
+            {% if tv_show.overview or omdb_data.full_plot %}
             <div class="mb-5">
                 <h2 class="section-heading">Storyline</h2>
-                <p class="storyline-text">{{ tv_show.overview }}</p>
+                {% if tv_show.overview %}
+                    <p class="storyline-text mb-0">{{ tv_show.overview }}</p>
+                {% endif %}
+                
+                {% if omdb_data and omdb_data.full_plot and omdb_data.full_plot != 'N/A' and omdb_data.full_plot != tv_show.overview %}
+                    <div class="collapse" id="fullPlotCollapse">
+                        <p class="storyline-text {% if tv_show.overview %}mt-3 pt-3 border-top border-secondary border-opacity-10{% endif %}">{{ omdb_data.full_plot }}</p>
+                    </div>
+                    <button class="btn btn-link text-accent fw-bold text-decoration-none p-0 mt-2 d-flex align-items-center gap-1" 
+                            type="button" 
+                            data-bs-toggle="collapse" 
+                            data-bs-target="#fullPlotCollapse" 
+                            aria-expanded="false" 
+                            aria-controls="fullPlotCollapse"
+                            onclick="this.innerText = this.innerText === 'Read More' ? 'Read Less' : 'Read More'">Read More</button>
+                {% endif %}
             </div>
             {% endif %}
 
