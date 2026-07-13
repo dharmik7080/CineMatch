@@ -1205,8 +1205,19 @@ def movie_detail_view(request, movie_id):
     # Data Debugging: Log the raw where_to_watch data to the terminal
     print(f"[DEBUG] movie_detail_view where_to_watch: {watch_providers}")
 
+    # ── SOURCE FALLBACK STORYLINE RECONCILIATION ──
+    tmdb_overview = movie.get('overview', '') if movie else ''
+    omdb_plot = omdb_data.get('full_plot', '') if omdb_data else ''
+
+    if omdb_plot and omdb_plot != 'N/A':
+        storyline = omdb_plot
+    else:
+        storyline = tmdb_overview
+
     context = {
         'movie':           movie,
+        'tagline':         movie.get('tagline', ''),
+        'storyline':       storyline,
         'cast':            cast,
         'trailer_key':     trailer_key,
         'watch_providers': watch_providers,
@@ -1430,8 +1441,19 @@ def tv_detail_view(request, series_id):
     # Data Debugging: Log the raw where_to_watch data to the terminal
     print(f"[DEBUG] tv_detail_view where_to_watch: {watch_providers}")
 
+    # ── SOURCE FALLBACK STORYLINE RECONCILIATION ──
+    tmdb_overview = tv_show.get('overview', '') if tv_show else ''
+    omdb_plot = omdb_data.get('full_plot', '') if omdb_data else ''
+
+    if omdb_plot and omdb_plot != 'N/A':
+        storyline = omdb_plot
+    else:
+        storyline = tmdb_overview
+
     context = {
         'tv_show':         tv_show,
+        'tagline':         tv_show.get('tagline', ''),
+        'storyline':       storyline,
         'cast':            cast,
         'trailer_key':     trailer_key,
         'watch_providers': watch_providers,

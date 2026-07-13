@@ -422,13 +422,9 @@
                 </div>
                 {% endif %}
 
-                {% if movie.tagline and movie.tagline != "" %}
+                {% if tagline and tagline != "" %}
                 <p class="text-muted fst-italic mb-4" style="font-size: 1.15rem; color: #a1a1aa !important; letter-spacing: 0.3px; max-width:620px; line-height:1.6;">
-                    "{{ movie.tagline }}"
-                </p>
-                {% elif movie.tagline_text and movie.tagline_text != "" %}
-                <p class="text-muted fst-italic mb-4" style="font-size: 1.15rem; color: #a1a1aa !important; letter-spacing: 0.3px; max-width:620px; line-height:1.6;">
-                    "{{ movie.tagline_text }}"
+                    "{{ tagline }}"
                 </p>
                 {% else %}
                 <div class="mb-3"></div>
@@ -457,24 +453,19 @@
 
         <div class="col-lg-8">
 
-            {% if movie.overview or omdb_data.full_plot %}
+            {% if storyline %}
             <div class="mb-5">
                 <h2 class="section-heading">Storyline</h2>
-                {% if movie.overview %}
-                    <p class="storyline-text mb-0">{{ movie.overview }}</p>
-                {% endif %}
-                
-                {% if omdb_data and omdb_data.full_plot and omdb_data.full_plot != 'N/A' and omdb_data.full_plot != movie.overview %}
-                    <div class="collapse" id="fullPlotCollapse">
-                        <p class="storyline-text {% if movie.overview %}mt-3 pt-3 border-top border-secondary border-opacity-10{% endif %}">{{ omdb_data.full_plot }}</p>
-                    </div>
-                    <button class="btn btn-link text-accent fw-bold text-decoration-none p-0 mt-2 d-flex align-items-center gap-1" 
+                {% if storyline|length > 300 %}
+                    <p class="storyline-text mb-0">
+                        <span id="storyline-collapsed">{{ storyline|slice:":300" }}...</span>
+                        <span id="storyline-expanded" class="d-none">{{ storyline }}</span>
+                    </p>
+                    <button id="storyline-toggle-btn" class="btn btn-link text-accent fw-bold text-decoration-none p-0 mt-2 d-flex align-items-center gap-1" 
                             type="button" 
-                            data-bs-toggle="collapse" 
-                            data-bs-target="#fullPlotCollapse" 
-                            aria-expanded="false" 
-                            aria-controls="fullPlotCollapse"
-                            onclick="this.innerText = this.innerText === 'Read More' ? 'Read Less' : 'Read More'">Read More</button>
+                            onclick="toggleStoryline()">Read More</button>
+                {% else %}
+                    <p class="storyline-text mb-0">{{ storyline }}</p>
                 {% endif %}
             </div>
             {% endif %}
@@ -898,7 +889,22 @@
 
 {% block extra_js %}
 <script>
-// ── INLINE REVIEW CONTROL ARCHITECTURE ──
+function toggleStoryline() {
+    const collapsedSpan = document.getElementById('storyline-collapsed');
+    const expandedSpan = document.getElementById('storyline-expanded');
+    const toggleBtn = document.getElementById('storyline-toggle-btn');
+    
+    if (expandedSpan.classList.contains('d-none')) {
+        expandedSpan.classList.remove('d-none');
+        collapsedSpan.classList.add('d-none');
+        toggleBtn.innerText = 'Read Less';
+    } else {
+        expandedSpan.classList.add('d-none');
+        collapsedSpan.classList.remove('d-none');
+        toggleBtn.innerText = 'Read More';
+    }
+}
+
 function enableEditMode(reviewId) {
     document.getElementById(`review-text-${reviewId}`).classList.add('d-none');
     document.getElementById(`edit-box-${reviewId}`).classList.remove('d-none');
