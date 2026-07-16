@@ -230,48 +230,7 @@ class TMDBClient:
         except Exception as e:
             print(f"[TMDB WARNING] Error fetching similar movies for movie_id={movie_id}: {e}")
 
-        # Step 2: Hybrid Fallback if filtered list contains fewer than 3 movies
-        if len(filtered_movies) < 3:
-            print(f"[TMDB INFO] Similar results count ({len(filtered_movies)}) is less than 3. Triggering genre fallback...")
-            try:
-                # 2a. Get movie details to extract the primary genre ID
-                details_url = f"{self.base_url}/movie/{movie_id}"
-                det_resp = self.session.get(details_url, params={'api_key': api_key}, timeout=5.0)
-                if det_resp.status_code == 200:
-                    genres = det_resp.json().get('genres', [])
-                    if genres:
-                        primary_genre_id = genres[0].get('id')
-                        
-                        # 2b. Query discover/movie for popular movies in this genre
-                        discover_url = f"{self.base_url}/discover/movie"
-                        disc_params = {
-                            'api_key': api_key,
-                            'with_genres': primary_genre_id,
-                            'sort_by': 'popularity.desc',
-                            'language': 'en-US',
-                            'page': 1
-                        }
-                        disc_resp = self.session.get(discover_url, params=disc_params, timeout=5.0)
-                        if disc_resp.status_code == 200:
-                            disc_results = disc_resp.json().get('results', [])
-                            for item in disc_results:
-                                m_id = item.get('id')
-                                if m_id not in seen_ids:
-                                    seen_ids.add(m_id)
-                                    poster_path = item.get('poster_path')
-                                    poster_url = f"{self.image_base_url}{poster_path}" if poster_path else self.movie_fallback
-                                    filtered_movies.append({
-                                        'id': m_id,
-                                        'title': item.get('title'),
-                                        'poster_url': poster_url,
-                                        'release_date': item.get('release_date', ''),
-                                        'vote_average': round(item.get('vote_average', 0.0), 1),
-                                    })
-                                    # Limit the list to 5 or 6 recommendations total
-                                    if len(filtered_movies) >= 6:
-                                        break
-            except Exception as ex:
-                print(f"[TMDB WARNING] Fallback genre discovery failed for movie_id={movie_id}: {ex}")
+        # Removed genre fallback to prevent recursive network request storm.
 
         cache.set(cache_key, filtered_movies, 86400)
         return filtered_movies

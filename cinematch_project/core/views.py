@@ -1106,9 +1106,21 @@ def movie_detail_view(request, movie_id):
                     ),
                 })
 
-            # Fetch similar movies via the official TMDB similar API
-            client = TMDBClient()
-            similar_movies = client.get_similar_movies(movie_id)
+            # Extract similar movies from the batch/atomic TMDB detail payload (append_to_response includes similar)
+            similar_payload = data.get('similar', {})
+            raw_similar = similar_payload.get('results', [])
+            for s in raw_similar[:5]:
+                s_poster = s.get('poster_path') or ''
+                similar_movies.append({
+                    'id':           s.get('id'),
+                    'title':        s.get('title', 'Unknown'),
+                    'vote_average': round(s.get('vote_average', 0.0), 1),
+                    'poster_url': (
+                        f"https://image.tmdb.org/t/p/w300{s_poster}"
+                        if s_poster else
+                        '/static/images/placeholder-poster.png'
+                    ),
+                })
 
             # Franchise / Collection Fetching
             belongs_to_collection = data.get('belongs_to_collection')
@@ -1214,17 +1226,19 @@ def movie_detail_view(request, movie_id):
             user=request.user, media_type='movie'
         ).values_list('media_id', flat=True))
 
-    # Fetch streaming links from Watchmode API via Cache (24 hour retention)
-    from django.core.cache import cache
-    from core.utils import get_streaming_links
-
-    movie_title = movie.get('title', '')
-    cache_key = f"watchmode_links_{movie_id}"
-    streaming_links = cache.get(cache_key)
+    # Fetch streaming links from Local DB / Cache (Write-Through batch retrieval)
+    streaming_links = None
+    if data:
+        streaming_links = data.get('streaming_links')
 
     if streaming_links is None:
+        from core.utils import get_streaming_links
+        movie_title = movie.get('title', '')
         streaming_links = get_streaming_links(movie_title)
-        cache.set(cache_key, streaming_links, 86400)
+        if data:
+            data['streaming_links'] = streaming_links
+            from core.models import CachedMedia
+            CachedMedia.objects.filter(media_id=movie_id_val, media_type='movie').update(data=data)
 
     # Map streaming links directly to the watch_providers items with TMDB fallback
     from core.utils import normalize_name
@@ -1498,17 +1512,19 @@ def tv_detail_view(request, series_id):
                 user_review = r
                 break
 
-    # Fetch streaming links from Watchmode API via Cache (24 hour retention)
-    from django.core.cache import cache
-    from core.utils import get_streaming_links
-
-    tv_title = tv_show.get('title', '')
-    cache_key = f"watchmode_links_tv_{series_id}"
-    streaming_links = cache.get(cache_key)
+    # Fetch streaming links from Local DB / Cache (Write-Through batch retrieval)
+    streaming_links = None
+    if data:
+        streaming_links = data.get('streaming_links')
 
     if streaming_links is None:
+        from core.utils import get_streaming_links
+        tv_title = tv_show.get('title', '')
         streaming_links = get_streaming_links(tv_title)
-        cache.set(cache_key, streaming_links, 86400)
+        if data:
+            data['streaming_links'] = streaming_links
+            from core.models import CachedMedia
+            CachedMedia.objects.filter(media_id=series_id_val, media_type='tv').update(data=data)
 
     # Map streaming links directly to the watch_providers items with TMDB fallback
     from core.utils import normalize_name
