@@ -119,7 +119,7 @@ def get_cached_poster(client, media_id, media_type):
     
     try:
         # Enforce strict timeout block to avoid blocking Django server threads
-        poster_url = client.get_media_assets(media_id, media_type, timeout=1.5)
+        poster_url = client.get_media_assets(media_id, media_type, timeout=3.0)
         if poster_url:
             POSTER_CACHE[cache_key] = poster_url
             return poster_url

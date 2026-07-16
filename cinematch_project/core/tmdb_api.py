@@ -47,7 +47,7 @@ class TMDBClient:
         self.asset_session.mount('http://', HTTPAdapter(max_retries=0))
         self.asset_session.mount('https://', HTTPAdapter(max_retries=0))
 
-    def get_media_assets(self, media_id, media_type, timeout=1.5):
+    def get_media_assets(self, media_id, media_type, timeout=3.0):
         """
         Syllabus Topic: REST API consumption and JSON data extraction (Unit 7)
         Fetches the primary poster path or backdrop path for a movie or TV show.
