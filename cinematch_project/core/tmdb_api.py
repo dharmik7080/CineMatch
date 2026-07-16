@@ -41,7 +41,13 @@ class TMDBClient:
         from core.utils import get_resilient_session
         self.session = get_resilient_session()
 
-    def get_media_assets(self, media_id, media_type, timeout=5.0):
+        # Dedicated fast, non-retrying session specifically for non-critical assets (posters)
+        # to prevent thread starvation and page hanging when TMDB is offline.
+        self.asset_session = requests.Session()
+        self.asset_session.mount('http://', HTTPAdapter(max_retries=0))
+        self.asset_session.mount('https://', HTTPAdapter(max_retries=0))
+
+    def get_media_assets(self, media_id, media_type, timeout=1.5):
         """
         Syllabus Topic: REST API consumption and JSON data extraction (Unit 7)
         Fetches the primary poster path or backdrop path for a movie or TV show.
@@ -60,8 +66,8 @@ class TMDBClient:
         url = f"{self.base_url}/{media_type}/{media_id}?language=en-US"
         
         try:
-            # Send HTTP GET requests with custom timeout parameter
-            response = self.session.get(url, headers=self.headers, timeout=timeout)
+            # Send HTTP GET requests with custom timeout parameter using non-retrying asset session
+            response = self.asset_session.get(url, headers=self.headers, timeout=timeout)
             
             # Inspect HTTP status codes
             if response.status_code == 200:

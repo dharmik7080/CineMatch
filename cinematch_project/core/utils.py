@@ -74,7 +74,7 @@ def fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", query=None, p
         }
         
     try:
-        response = get_resilient_session().get(url, headers=client.headers, params=params, timeout=5.0)
+        response = get_resilient_session().get(url, headers=client.headers, params=params, timeout=10.0)
         response.raise_for_status()
         data = response.json()
         results = data.get('results', [])
@@ -352,7 +352,7 @@ def fetch_omdb_data(imdb_id):
     }
     
     try:
-        response = get_resilient_session().get(url, params=params, timeout=5.0)
+        response = get_resilient_session().get(url, params=params, timeout=10.0)
         if response.status_code == 200:
             data = response.json()
             if data.get('Response') == 'False':
