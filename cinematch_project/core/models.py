@@ -246,6 +246,16 @@ class CachedMedia(models.Model):
     )
     data = models.JSONField(help_text="Stores the raw TMDb API detail response JSON payload.")
     updated_at = models.DateTimeField(auto_now=True, help_text="Timestamp of when the cache record was synced.")
+    is_manual_override = models.BooleanField(
+        default=False,
+        help_text="Enables overriding the provider data manually with verified streaming networks."
+    )
+    manual_providers = models.JSONField(
+        default=list,
+        blank=True,
+        null=True,
+        help_text="Custom list of providers: [{'name': 'Netflix', 'logo_url': '...', 'web_url': '...'}]"
+    )
 
     class Meta:
         verbose_name = "Cached Media Item"

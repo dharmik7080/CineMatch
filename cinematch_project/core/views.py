@@ -983,9 +983,13 @@ def movie_detail_view(request, movie_id):
     # By integrating Just-in-Time (JIT) fetching, the system dynamically populates its cache upon the
     # first request for any media item, ensuring data availability while maintaining high performance for all subsequent hits.
     from core.models import CachedMedia
+    is_manual_override = False
+    manual_providers = []
     try:
         cached_record = CachedMedia.objects.get(media_id=movie_id_val, media_type='movie')
         data = cached_record.data
+        is_manual_override = cached_record.is_manual_override
+        manual_providers = cached_record.manual_providers or []
     except CachedMedia.DoesNotExist:
         data = None
 
@@ -1012,6 +1016,25 @@ def movie_detail_view(request, movie_id):
             data = None
 
     if data:
+        # Data Enrichment Logic: explicitly query watch/providers if missing or incomplete in cached data
+        if not is_manual_override:
+            providers_payload = data.get('watch/providers', {}).get('results', {})
+            if not providers_payload or (not providers_payload.get('IN') and not providers_payload.get('US')):
+                try:
+                    prov_url = f"https://api.themoviedb.org/3/movie/{movie_id}/watch/providers?api_key={api_key}"
+                    prov_resp = get_resilient_session().get(prov_url, timeout=3.0)
+                    if prov_resp.status_code == 200:
+                        prov_data = prov_resp.json()
+                        data['watch/providers'] = prov_data
+                        # Write-through/enrich the cached payload in db
+                        CachedMedia.objects.update_or_create(
+                            media_id=movie_id_val,
+                            media_type='movie',
+                            defaults={'data': data}
+                        )
+                except Exception as pe:
+                    print(f"[DATA ENRICHMENT WARNING] Failed to enrich watch/providers for movie ID {movie_id}: {pe}")
+
         try:
             imdb_id = data.get('imdb_id')
             if imdb_id:
@@ -1093,18 +1116,21 @@ def movie_detail_view(request, movie_id):
                         trailer_key = video.get('key')
                         break
 
-            providers_payload = data.get('watch/providers', {}).get('results', {})
-            region_data = providers_payload.get('IN') or providers_payload.get('US') or {}
-            raw_providers = region_data.get('flatrate', [])
-            for p in raw_providers:
-                logo_path = p.get('logo_path') or ''
-                watch_providers.append({
-                    'name':     p.get('provider_name', ''),
-                    'logo_url': (
-                        f"https://image.tmdb.org/t/p/w92{logo_path}"
-                        if logo_path else ''
-                    ),
-                })
+            if is_manual_override:
+                watch_providers = manual_providers
+            else:
+                providers_payload = data.get('watch/providers', {}).get('results', {})
+                region_data = providers_payload.get('IN') or providers_payload.get('US') or {}
+                raw_providers = region_data.get('flatrate', [])
+                for p in raw_providers:
+                    logo_path = p.get('logo_path') or ''
+                    watch_providers.append({
+                        'name':     p.get('provider_name', ''),
+                        'logo_url': (
+                            f"https://image.tmdb.org/t/p/w92{logo_path}"
+                            if logo_path else ''
+                        ),
+                    })
 
             # Extract similar movies from the batch/atomic TMDB detail payload (append_to_response includes similar)
             similar_payload = data.get('similar', {})
@@ -1281,6 +1307,7 @@ def movie_detail_view(request, movie_id):
         'cast':            cast,
         'trailer_key':     trailer_key,
         'watch_providers': watch_providers,
+        'manual_providers': manual_providers,
         'streaming_links': streaming_links, # passed directly to context
         'similar_movies':  similar_movies,
         'recommendations': similar_movies, # mapped to recommendations

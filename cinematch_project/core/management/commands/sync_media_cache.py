@@ -76,10 +76,23 @@ class Command(BaseCommand):
                 )
 
             try:
-                # Synchronous pre-fetching in background with robust 10s timeout
-                response = session.get(url, timeout=10.0)
-                if response.status_code == 200:
-                    payload = response.json()
+                # 1. Fetch main detail payload if not already cached
+                cached_obj = CachedMedia.objects.filter(media_id=media_id, media_type=media_type).first()
+                if cached_obj:
+                    payload = cached_obj.data or {}
+                else:
+                    response = session.get(url, timeout=10.0)
+                    if response.status_code == 200:
+                        payload = response.json()
+                    else:
+                        payload = None
+
+                if payload:
+                    # 2. Explicitly query the watch/providers endpoint to bypass TMDb API sync lag
+                    prov_url = f"https://api.themoviedb.org/3/{media_type}/{media_id}/watch/providers?api_key={api_key}"
+                    prov_resp = session.get(prov_url, timeout=5.0)
+                    if prov_resp.status_code == 200:
+                        payload['watch/providers'] = prov_resp.json()
                     
                     # Update local database cache
                     CachedMedia.objects.update_or_create(
@@ -89,10 +102,10 @@ class Command(BaseCommand):
                     )
                     success_count += 1
                 else:
-                    self.stderr.write(self.style.WARNING(f"API returned status {response.status_code} for {media_type} ID {media_id}"))
+                    self.stderr.write(self.style.WARNING(f"Failed to fetch payload for {media_type} ID {media_id}"))
                     fail_count += 1
             except Exception as e:
-                self.stderr.write(self.style.ERROR(f"Error fetching {media_type} ID {media_id}: {e}"))
+                self.stderr.write(self.style.ERROR(f"Error syncing/enriching {media_type} ID {media_id}: {e}"))
                 fail_count += 1
 
             # Throttle slightly to respect TMDb rate limit guidelines

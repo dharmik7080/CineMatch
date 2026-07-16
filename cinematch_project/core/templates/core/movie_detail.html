@@ -584,7 +584,33 @@
 
                 <div class="sidebar-card mb-4">
                     <h2 class="section-heading">Where to Watch</h2>
-                    {% if watch_providers %}
+                    {% if manual_providers %}
+                        {% for provider in manual_providers %}
+                            {% if provider.web_url %}
+                            <a href="{{ provider.web_url }}" target="_blank" class="text-decoration-none" style="color: inherit;">
+                            {% endif %}
+                            <div class="provider-row" style="{% if provider.web_url %}cursor: pointer;{% endif %}">
+                                {% if provider.logo_url %}
+                                <img class="provider-logo"
+                                     src="{{ provider.logo_url }}"
+                                     alt="{{ provider.name }} logo"
+                                     loading="lazy">
+                                {% else %}
+                                <div class="provider-logo d-flex align-items-center justify-content-center"
+                                     style="background:rgba(168,85,247,0.1);">
+                                    <i class="fa-solid fa-tv" style="color:#a855f7;"></i>
+                                </div>
+                                {% endif %}
+                                <span class="provider-name">{{ provider.name }}</span>
+                            </div>
+                            {% if provider.web_url %}
+                            </a>
+                            {% endif %}
+                        {% endfor %}
+                        <p class="mt-3 mb-0" style="font-size:0.72rem; color:#6b7280; text-align:right;">
+                            Streaming data via Verified Manual Override &bull; Region: Local
+                        </p>
+                    {% elif watch_providers %}
                         {% for provider in watch_providers %}
                             {% if provider.web_url %}
                             <a href="{{ provider.web_url }}" target="_blank" class="text-decoration-none" style="color: inherit;">
