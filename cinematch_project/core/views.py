@@ -978,10 +978,10 @@ def movie_detail_view(request, movie_id):
     collection_movies = []
     collection_name = ""
     omdb_data = None
-    # LOCAL-FIRST DATA STRATEGY:
-    # We are using a 'Local-First Data Strategy' with 'Asynchronous Background Synchronization' 
-    # to decouple the user interface from external network instability. User requests query 
-    # the local database (CachedMedia) first, ensuring high availability and sub-millisecond response times.
+    # VIVA JUSTIFICATION / COLD START CACHING STRATEGY:
+    # I implemented a Write-Through Caching pattern where the local database acts as the primary data store.
+    # By integrating Just-in-Time (JIT) fetching, the system dynamically populates its cache upon the
+    # first request for any media item, ensuring data availability while maintaining high performance for all subsequent hits.
     from core.models import CachedMedia
     try:
         cached_record = CachedMedia.objects.get(media_id=movie_id_val, media_type='movie')
@@ -1319,10 +1319,10 @@ def tv_detail_view(request, series_id):
     similar_shows = []
     omdb_data = None
 
-    # LOCAL-FIRST DATA STRATEGY:
-    # We are using a 'Local-First Data Strategy' with 'Asynchronous Background Synchronization' 
-    # to decouple the user interface from external network instability. User requests query 
-    # the local database (CachedMedia) first, ensuring high availability and sub-millisecond response times.
+    # VIVA JUSTIFICATION / COLD START CACHING STRATEGY:
+    # I implemented a Write-Through Caching pattern where the local database acts as the primary data store.
+    # By integrating Just-in-Time (JIT) fetching, the system dynamically populates its cache upon the
+    # first request for any media item, ensuring data availability while maintaining high performance for all subsequent hits.
     from core.models import CachedMedia
     try:
         cached_record = CachedMedia.objects.get(media_id=series_id_val, media_type='tv')

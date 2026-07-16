@@ -67,6 +67,17 @@ class TMDBClient:
         if media_type not in ['movie', 'tv']:
             return "/static/images/placeholder-poster.png"
 
+        # JIT cache check: query CachedMedia model first
+        from core.models import CachedMedia
+        try:
+            cached_record = CachedMedia.objects.get(media_id=media_id, media_type=media_type)
+            data = cached_record.data
+            if data:
+                poster_path = data.get('poster_path')
+                return self.get_poster_url(poster_path)
+        except CachedMedia.DoesNotExist:
+            pass
+
         from django.core.cache import cache
         cache_key = f"tmdb_media_assets_{media_type}_{media_id}"
         cached_result = cache.get(cache_key)
@@ -84,6 +95,13 @@ class TMDBClient:
                 poster_path = data.get('poster_path')
                 result = self.get_poster_url(poster_path)
                 cache.set(cache_key, result, 86400)
+                
+                # Write-through to database cache
+                CachedMedia.objects.get_or_create(
+                    media_id=media_id,
+                    media_type=media_type,
+                    defaults={'data': data}
+                )
                 return result
             
             print(f"[TMDB] Failed to load assets for {media_type} ID {media_id}. Status: {response.status_code}")
