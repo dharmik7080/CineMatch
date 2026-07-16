@@ -978,23 +978,37 @@ def movie_detail_view(request, movie_id):
     collection_movies = []
     collection_name = ""
     omdb_data = None
-    from django.core.cache import cache
-    cache_key = f"movie_detail_data_{movie_id}"
-    data = cache.get(cache_key)
+    # LOCAL-FIRST DATA STRATEGY:
+    # We are using a 'Local-First Data Strategy' with 'Asynchronous Background Synchronization' 
+    # to decouple the user interface from external network instability. User requests query 
+    # the local database (CachedMedia) first, ensuring high availability and sub-millisecond response times.
+    from core.models import CachedMedia
+    try:
+        cached_record = CachedMedia.objects.get(media_id=movie_id_val, media_type='movie')
+        data = cached_record.data
+    except CachedMedia.DoesNotExist:
+        data = None
 
-    # ASYNCHRONOUS DECOUPLING ARCHITECTURE:
-    # We are decoupling user requests from live API calls to ensure high availability and sub-millisecond response times.
-    # A Local-First Caching Strategy serves cached content during network interruptions, bypassing API instability.
+    if not data:
+        from django.core.cache import cache
+        cache_key = f"movie_detail_data_{movie_id}"
+        data = cache.get(cache_key)
 
     if not data:
         try:
             resp = get_resilient_session().get(endpoint, timeout=10.0)
             resp.raise_for_status()
             data = resp.json()
-            cache.set(cache_key, data, 86400)
+            # Write-through cache: save to both Django cache and local database cache
+            from django.core.cache import cache
+            cache.set(f"movie_detail_data_{movie_id}", data, 86400)
+            CachedMedia.objects.update_or_create(
+                media_id=movie_id_val,
+                media_type='movie',
+                defaults={'data': data}
+            )
         except (requests.exceptions.RequestException, Exception) as e:
-            print(f"[MOVIE DETAIL] TMDB API request failed for movie_id={movie_id}, attempting local DB fallback: {e}")
-            # Try to get from local database/caching systems (like watchlist item or similar as a lookup key fallback)
+            print(f"[MOVIE DETAIL] TMDB API request failed for movie_id={movie_id}, fallback failed: {e}")
             data = None
 
     if data:
@@ -1305,23 +1319,37 @@ def tv_detail_view(request, series_id):
     similar_shows = []
     omdb_data = None
 
-    from django.core.cache import cache
-    cache_key = f"tv_detail_data_{series_id}"
-    data = cache.get(cache_key)
+    # LOCAL-FIRST DATA STRATEGY:
+    # We are using a 'Local-First Data Strategy' with 'Asynchronous Background Synchronization' 
+    # to decouple the user interface from external network instability. User requests query 
+    # the local database (CachedMedia) first, ensuring high availability and sub-millisecond response times.
+    from core.models import CachedMedia
+    try:
+        cached_record = CachedMedia.objects.get(media_id=series_id_val, media_type='tv')
+        data = cached_record.data
+    except CachedMedia.DoesNotExist:
+        data = None
 
-    # ASYNCHRONOUS DECOUPLING ARCHITECTURE:
-    # We are decoupling user requests from live API calls to ensure high availability and sub-millisecond response times.
-    # A Local-First Caching Strategy serves cached content during network interruptions, bypassing API instability.
+    if not data:
+        from django.core.cache import cache
+        cache_key = f"tv_detail_data_{series_id}"
+        data = cache.get(cache_key)
 
     if not data:
         try:
             resp = get_resilient_session().get(endpoint, timeout=10.0)
             resp.raise_for_status()
             data = resp.json()
-            cache.set(cache_key, data, 86400)
+            # Write-through cache: save to both Django cache and local database cache
+            from django.core.cache import cache
+            cache.set(f"tv_detail_data_{series_id}", data, 86400)
+            CachedMedia.objects.update_or_create(
+                media_id=series_id_val,
+                media_type='tv',
+                defaults={'data': data}
+            )
         except (requests.exceptions.RequestException, Exception) as e:
-            print(f"[TV DETAIL] TMDB API request failed for series_id={series_id}, attempting local DB fallback: {e}")
-            # Try to get from local database/caching systems (like watchlist item or similar as a lookup key fallback)
+            print(f"[TV DETAIL] TMDB API request failed for series_id={series_id}, fallback failed: {e}")
             data = None
 
     if data:

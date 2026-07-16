@@ -225,3 +225,32 @@ class WatchedHistory(models.Model):
 
     def __str__(self):
         return f"{self.user.username} watched {self.movie_title}"
+
+
+class CachedMedia(models.Model):
+    """
+    Syllabus Reference: Unit 9 (Database Schema Design)
+    Acts as a local database cache for movie and TV show detail payloads.
+    Decouples user requests from live network API calls for high availability.
+    """
+    MEDIA_TYPE_CHOICES = [
+        ('movie', 'Movie'),
+        ('tv', 'TV Show'),
+    ]
+    media_id = models.IntegerField(help_text="The unique database tracking ID from TMDB.")
+    media_type = models.CharField(
+        max_length=10,
+        choices=MEDIA_TYPE_CHOICES,
+        default='movie',
+        help_text="Discriminator column ('movie' or 'tv')."
+    )
+    data = models.JSONField(help_text="Stores the raw TMDb API detail response JSON payload.")
+    updated_at = models.DateTimeField(auto_now=True, help_text="Timestamp of when the cache record was synced.")
+
+    class Meta:
+        verbose_name = "Cached Media Item"
+        verbose_name_plural = "Cached Media Items"
+        unique_together = ('media_id', 'media_type')
+
+    def __str__(self):
+        return f"Cached {self.media_type.upper()} ID {self.media_id}"

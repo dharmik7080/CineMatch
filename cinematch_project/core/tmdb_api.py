@@ -47,6 +47,16 @@ class TMDBClient:
         self.asset_session.mount('http://', HTTPAdapter(max_retries=0))
         self.asset_session.mount('https://', HTTPAdapter(max_retries=0))
 
+    def get_poster_url(self, poster_path):
+        """
+        Helper to prefix TMDB base URL to a poster path.
+        Implements a 'Graceful Degradation' check: if the poster_path exists, use it;
+        if None/empty, uses /static/images/placeholder-poster.png.
+        """
+        if poster_path:
+            return f"https://image.tmdb.org/t/p/w500{poster_path}"
+        return "/static/images/placeholder-poster.png"
+
     def get_media_assets(self, media_id, media_type, timeout=3.0):
         """
         Syllabus Topic: REST API consumption and JSON data extraction (Unit 7)
@@ -55,7 +65,7 @@ class TMDBClient:
         - media_type: 'movie' or 'tv'
         """
         if media_type not in ['movie', 'tv']:
-            return self.movie_fallback
+            return "/static/images/placeholder-poster.png"
 
         from django.core.cache import cache
         cache_key = f"tmdb_media_assets_{media_type}_{media_id}"
@@ -69,30 +79,18 @@ class TMDBClient:
             # Send HTTP GET requests with custom timeout parameter using non-retrying asset session
             response = self.asset_session.get(url, headers=self.headers, timeout=timeout)
             
-            # Inspect HTTP status codes
             if response.status_code == 200:
-                # Ingest JSON payload
                 data = response.json()
-                poster = data.get('poster_path')
-                backdrop = data.get('backdrop_path')
-                
-                # Build complete secure URL to static resources
-                result = None
-                if poster:
-                    result = f"{self.image_base_url}{poster}"
-                elif backdrop:
-                    result = f"{self.image_base_url}{backdrop}"
-                
-                if result:
-                    cache.set(cache_key, result, 86400)
-                    return result
+                poster_path = data.get('poster_path')
+                result = self.get_poster_url(poster_path)
+                cache.set(cache_key, result, 86400)
+                return result
             
             print(f"[TMDB] Failed to load assets for {media_type} ID {media_id}. Status: {response.status_code}")
         except requests.RequestException as e:
             print(f"[TMDB] Network error in get_media_assets for {media_type} ID {media_id}: {e}")
             
-        # Return fallback cover on error
-        return self.tv_fallback if media_type == 'tv' else self.movie_fallback
+        return "/static/images/placeholder-poster.png"
 
     def get_where_to_watch(self, media_id, media_type):
         """
