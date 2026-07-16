@@ -974,6 +974,10 @@ def movie_detail_view(request, movie_id):
     trailer_key = None
     watch_providers = []
     similar_movies = []
+    belongs_to_collection = None
+    collection_movies = []
+    collection_name = ""
+    omdb_data = None
     from django.core.cache import cache
     cache_key = f"movie_detail_data_{movie_id}"
     data = cache.get(cache_key)
