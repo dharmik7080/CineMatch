@@ -2152,11 +2152,34 @@ def movies_by_genre_view(request, genre_name):
     except ValueError:
         page_number = 1
 
-    movies_records, target_genre_name, total_pages = fetch_media_by_genre(genre_name, media_type="movie", page=page_number)
-
-    if not movies_records and page_number == 1:
-        messages.error(request, f"Genre '{genre_name}' not found or has no matching records.")
-        return redirect('explore_movies')
+    # Genre-Level Result Caching: Query GenreCache first
+    from core.models import GenreCache
+    cache_name = f"movie_{genre_name.strip().lower()}_page_{page_number}"
+    cached = GenreCache.objects.filter(genre_name=cache_name).first()
+    
+    if cached:
+        data_payload = cached.data or {}
+        movies_records = data_payload.get('records', [])
+        target_genre_name = data_payload.get('target_genre_name', genre_name)
+        total_pages = data_payload.get('total_pages', 1)
+    else:
+        try:
+            movies_records, target_genre_name, total_pages = fetch_media_by_genre(genre_name, media_type="movie", page=page_number)
+            if movies_records:
+                payload = {
+                    'records': movies_records,
+                    'target_genre_name': target_genre_name,
+                    'total_pages': total_pages
+                }
+                GenreCache.objects.update_or_create(
+                    genre_name=cache_name,
+                    defaults={'data': payload}
+                )
+        except Exception as e:
+            print(f"[GENRE VIEW ERROR] Silent fallback triggered for movie: {e}")
+            movies_records = []
+            target_genre_name = genre_name
+            total_pages = 1
 
     class MockPage:
         def __init__(self, number, object_list, max_pages):
@@ -2214,11 +2237,34 @@ def tv_shows_by_genre_view(request, genre_name):
     except ValueError:
         page_number = 1
 
-    tv_records, target_genre_name, total_pages = fetch_media_by_genre(genre_name, media_type="tv", page=page_number)
-
-    if not tv_records and page_number == 1:
-        messages.error(request, f"Genre '{genre_name}' not found or has no matching records.")
-        return redirect('explore_tv')
+    # Genre-Level Result Caching: Query GenreCache first
+    from core.models import GenreCache
+    cache_name = f"tv_{genre_name.strip().lower()}_page_{page_number}"
+    cached = GenreCache.objects.filter(genre_name=cache_name).first()
+    
+    if cached:
+        data_payload = cached.data or {}
+        tv_records = data_payload.get('records', [])
+        target_genre_name = data_payload.get('target_genre_name', genre_name)
+        total_pages = data_payload.get('total_pages', 1)
+    else:
+        try:
+            tv_records, target_genre_name, total_pages = fetch_media_by_genre(genre_name, media_type="tv", page=page_number)
+            if tv_records:
+                payload = {
+                    'records': tv_records,
+                    'target_genre_name': target_genre_name,
+                    'total_pages': total_pages
+                }
+                GenreCache.objects.update_or_create(
+                    genre_name=cache_name,
+                    defaults={'data': payload}
+                )
+        except Exception as e:
+            print(f"[GENRE VIEW ERROR] Silent fallback triggered for tv: {e}")
+            tv_records = []
+            target_genre_name = genre_name
+            total_pages = 1
 
     class MockPage:
         def __init__(self, number, object_list, max_pages):

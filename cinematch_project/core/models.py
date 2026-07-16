@@ -264,3 +264,21 @@ class CachedMedia(models.Model):
 
     def __str__(self):
         return f"Cached {self.media_type.upper()} ID {self.media_id}"
+
+
+class GenreCache(models.Model):
+    """
+    Syllabus Reference: Unit 9 (Database Schema Design)
+    Stores TMDB discovery results by genre locally in database.
+    Bypasses API timeouts during category browsing.
+    """
+    genre_name = models.CharField(max_length=100, unique=True, help_text="Name of the genre (e.g. Crime, Action).")
+    data = models.JSONField(help_text="Stores the JSON list of discovered media items.")
+    updated_at = models.DateTimeField(auto_now=True, help_text="Timestamp of when this genre cache was synced.")
+
+    class Meta:
+        verbose_name = "Genre Cache"
+        verbose_name_plural = "Genre Caches"
+
+    def __str__(self):
+        return f"Genre Cache: {self.genre_name}"

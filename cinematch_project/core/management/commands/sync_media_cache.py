@@ -114,3 +114,37 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"Cache synchronization completed. Success: {success_count}, Failed: {fail_count}."
         ))
+
+        # 3. Proactive Genre Cache Seeding for main genres ('Crime', 'Action', 'Drama')
+        self.stdout.write(self.style.NOTICE("Starting Genre Cache proactive seeding..."))
+        from core.models import GenreCache
+        from core.utils import fetch_media_by_genre
+        
+        main_genres = ['Crime', 'Action', 'Drama']
+        media_types = ['movie', 'tv']
+        genre_success = 0
+        
+        for g_name in main_genres:
+            for m_type in media_types:
+                self.stdout.write(f"Pre-caching genre '{g_name}' ({m_type}) discovery payload...")
+                cache_name = f"{m_type}_{g_name.lower()}_page_1"
+                try:
+                    records, target_genre_name, total_pages = fetch_media_by_genre(g_name, media_type=m_type, page=1)
+                    if records:
+                        payload = {
+                            'records': records,
+                            'target_genre_name': target_genre_name,
+                            'total_pages': total_pages
+                        }
+                        GenreCache.objects.update_or_create(
+                            genre_name=cache_name,
+                            defaults={'data': payload}
+                        )
+                        genre_success += 1
+                except Exception as ge:
+                    self.stderr.write(self.style.ERROR(f"Failed to pre-cache genre '{g_name}' ({m_type}): {ge}"))
+                time.sleep(0.2)
+
+        self.stdout.write(self.style.SUCCESS(
+            f"Genre Cache seeding completed successfully. Populated {genre_success} categories."
+        ))
