@@ -27,7 +27,7 @@ from django.utils.html import escape
 
 from .models import UserProfile, MovieWatchlist, MediaReview, Review, WatchedHistory
 from .tmdb_api import TMDBClient
-from core.utils import TMDB_GENRE_MAP
+from core.utils import TMDB_GENRE_MAP, get_resilient_session
 
 # ======================================================================
 # Global Memory Cache System (Unit 9.2 & 7 Optimization)
@@ -477,7 +477,7 @@ def for_you_feed(request):
     url = f"{client.base_url}/movie/now_playing?language=en-US&region=IN&page=1"
     
     try:
-        response = requests.get(url, headers=client.headers, timeout=5.0)
+        response = get_resilient_session().get(url, headers=client.headers, timeout=5.0)
         if response.status_code == 200:
             data = response.json()
             results = data.get('results', [])
@@ -980,7 +980,7 @@ def movie_detail_view(request, movie_id):
     omdb_data = None
 
     try:
-        resp = requests.get(endpoint, timeout=5.0)
+        resp = get_resilient_session().get(endpoint, timeout=5.0)
         resp.raise_for_status()
         data = resp.json()
 
@@ -1088,7 +1088,7 @@ def movie_detail_view(request, movie_id):
             collection_name = belongs_to_collection.get('name', '')
             collection_endpoint = f"https://api.themoviedb.org/3/collection/{collection_id}?api_key={api_key}&language=en-US"
             try:
-                col_resp = requests.get(collection_endpoint, timeout=3.0)
+                col_resp = get_resilient_session().get(collection_endpoint, timeout=3.0)
                 if col_resp.status_code == 200:
                     col_data = col_resp.json()
                     parts = col_data.get('parts', [])
@@ -1274,7 +1274,7 @@ def tv_detail_view(request, series_id):
     omdb_data = None
 
     try:
-        resp = requests.get(endpoint, timeout=5.0)
+        resp = get_resilient_session().get(endpoint, timeout=5.0)
         resp.raise_for_status()
         data = resp.json()
 
@@ -1611,7 +1611,7 @@ def get_provider_recommendations(provider_id, media_type='movie'):
     
     for attempt in range(max_retries):
         try:
-            response = requests.get(url, params=params, timeout=5.0)
+            response = get_resilient_session().get(url, params=params, timeout=5.0)
             if response.status_code == 200:
                 data = response.json()
                 results = data.get('results', [])
@@ -1658,7 +1658,7 @@ def person_profile(request, person_id):
     place_of_birth = None
     
     try:
-        response = requests.get(person_url, headers=client.headers, timeout=5.0)
+        response = get_resilient_session().get(person_url, headers=client.headers, timeout=5.0)
         if response.status_code == 200:
             data = response.json()
             name = data.get('name', 'Unknown Person')
@@ -1674,7 +1674,7 @@ def person_profile(request, person_id):
     movies_map = {}
     
     try:
-        response = requests.get(credits_url, headers=client.headers, timeout=5.0)
+        response = get_resilient_session().get(credits_url, headers=client.headers, timeout=5.0)
         if response.status_code == 200:
             data = response.json()
             
@@ -1800,7 +1800,6 @@ def universal_search(request):
     Groups results into 'Movies', 'TV Shows', and 'People'.
     """
     from django.http import JsonResponse
-    import requests
     import urllib.parse
     from .tmdb_api import TMDBClient
     
@@ -1818,7 +1817,7 @@ def universal_search(request):
     }
     
     try:
-        response = requests.get(url, headers=client.headers, params=params, timeout=5.0)
+        response = get_resilient_session().get(url, headers=client.headers, params=params, timeout=5.0)
         response.raise_for_status()
         data = response.json()
         results = data.get('results', [])
@@ -1872,7 +1871,6 @@ def search_results_view(request):
     Renders the dedicated search results page using TMDB search/multi query.
     """
     from .tmdb_api import TMDBClient
-    import requests
     import urllib.parse
     
     query = request.GET.get('q', '').strip()
@@ -1890,7 +1888,7 @@ def search_results_view(request):
             'include_adult': 'false'
         }
         try:
-            response = requests.get(url, headers=client.headers, params=params, timeout=5.0)
+            response = get_resilient_session().get(url, headers=client.headers, params=params, timeout=5.0)
             if response.status_code == 200:
                 results = response.json().get('results', [])
                 for item in results:
@@ -1976,7 +1974,7 @@ def random_movie_view(request):
     }
     
     try:
-        response = requests.get(url, params=params, timeout=10.0)
+        response = get_resilient_session().get(url, params=params, timeout=10.0)
         if response.status_code == 200:
             results = response.json().get('results', [])
             if results:
@@ -1987,7 +1985,7 @@ def random_movie_view(request):
         
         # Fallback to page 1 if the randomly generated page fails
         params['page'] = 1
-        response = requests.get(url, params=params, timeout=10.0)
+        response = get_resilient_session().get(url, params=params, timeout=10.0)
         if response.status_code == 200:
             results = response.json().get('results', [])
             if results:

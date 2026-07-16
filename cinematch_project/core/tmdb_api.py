@@ -38,16 +38,8 @@ class TMDBClient:
         self.tv_fallback = "https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop"
 
         # Initialize requests session with retry strategy and exponential backoff
-        self.session = requests.Session()
-        retries = Retry(
-            total=3,
-            backoff_factor=0.5,
-            status_forcelist=[500, 502, 503, 504],
-            raise_on_status=False
-        )
-        adapter = HTTPAdapter(max_retries=retries)
-        self.session.mount('http://', adapter)
-        self.session.mount('https://', adapter)
+        from core.utils import get_resilient_session
+        self.session = get_resilient_session()
 
     def get_media_assets(self, media_id, media_type, timeout=5.0):
         """

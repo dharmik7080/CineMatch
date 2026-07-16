@@ -2,6 +2,32 @@ import requests
 import hashlib
 from django.core.cache import cache
 from .tmdb_api import TMDBClient
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
+
+_RESILIENT_SESSION = None
+
+def get_resilient_session():
+    """
+    Syllabus Reference: Unit 7 (REST API Integration) & DevOps Best Practices
+    Provides a requests.Session configured with exponential backoff retries.
+    Handles 'Transient Faults' through 'Exponential Backoff' to ensure 'Resilient API Integration.'
+    """
+    global _RESILIENT_SESSION
+    if _RESILIENT_SESSION is None:
+        session = requests.Session()
+        # Retries on 429 (Rate Limit) and standard transient server errors
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+            raise_on_status=False
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        _RESILIENT_SESSION = session
+    return _RESILIENT_SESSION
 
 # TMDB Genre ID to Name Mapping dictionary
 TMDB_GENRE_MAP = {
@@ -48,7 +74,7 @@ def fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", query=None, p
         }
         
     try:
-        response = requests.get(url, headers=client.headers, params=params, timeout=5.0)
+        response = get_resilient_session().get(url, headers=client.headers, params=params, timeout=5.0)
         response.raise_for_status()
         data = response.json()
         results = data.get('results', [])
@@ -104,7 +130,7 @@ def get_streaming_links(movie_title):
         'search_value': movie_title
     }
     try:
-        response = requests.get(search_url, params=params, timeout=15.0)
+        response = get_resilient_session().get(search_url, params=params, timeout=15.0)
         response.raise_for_status()
         search_data = response.json()
         results = search_data.get('title_results', [])
@@ -122,7 +148,7 @@ def get_streaming_links(movie_title):
         sources_params = {
             'apiKey': api_key
         }
-        sources_response = requests.get(sources_url, params=sources_params, timeout=15.0)
+        sources_response = get_resilient_session().get(sources_url, params=sources_params, timeout=15.0)
         sources_response.raise_for_status()
         sources_data = sources_response.json()
         
@@ -171,7 +197,7 @@ def get_daily_trending_movies():
     }
     
     try:
-        response = requests.get(url, params=params, timeout=10.0)
+        response = get_resilient_session().get(url, params=params, timeout=10.0)
         if response.status_code == 200:
             data = response.json()
             results = data.get('results', [])
@@ -228,7 +254,7 @@ def get_upcoming_movies():
         'region': 'IN'
     }
     try:
-        response = requests.get(url, params=params, timeout=10.0)
+        response = get_resilient_session().get(url, params=params, timeout=10.0)
         if response.status_code == 200:
             results = response.json().get('results', [])
             upcoming_movies = []
@@ -326,7 +352,7 @@ def fetch_omdb_data(imdb_id):
     }
     
     try:
-        response = requests.get(url, params=params, timeout=5.0)
+        response = get_resilient_session().get(url, params=params, timeout=5.0)
         if response.status_code == 200:
             data = response.json()
             if data.get('Response') == 'False':
@@ -405,7 +431,7 @@ def fetch_media_by_genre(genre_name, media_type="movie", page=1):
     total_pages = 1
     
     try:
-        response = requests.get(url, params=params, timeout=10.0)
+        response = get_resilient_session().get(url, params=params, timeout=10.0)
         if response.status_code == 200:
             data = response.json()
             raw_results = data.get('results', [])
