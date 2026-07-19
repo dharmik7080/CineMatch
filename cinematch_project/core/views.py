@@ -925,7 +925,7 @@ def analytics_dashboard(request):
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         font={'color': "#ffffff", 'family': "Inter"},
-        margin=dict(l=30, r=30, t=50, b=20)
+         margin=dict(l=30, r=30, t=50, b=20)
     )
     gauge_json = pio.to_json(fig_gauge)
     
@@ -2135,6 +2135,56 @@ def random_movie_view(request):
 
     messages.error(request, 'Could not find a surprise, please try again!')
     return redirect('explore_movies')
+
+
+def random_tv_show_view(request):
+    """
+    Selects a random TV show from TMDB discover/tv (random page 1-500)
+    and redirects the user directly to its detail view.
+    """
+    from django.conf import settings
+    api_key = getattr(settings, 'TMDB_API_KEY', '')
+    if not api_key:
+        messages.error(request, 'Could not find a surprise, please try again!')
+        return redirect('explore_tv')
+
+    # Generate a random page number (TMDB allows up to 500 pages for discover)
+    random_page = random.randint(1, 500)
+    
+    url = "https://api.themoviedb.org/3/discover/tv"
+    params = {
+        'api_key': api_key,
+        'language': 'en-US',
+        'sort_by': 'popularity.desc',
+        'include_adult': 'false',
+        'page': random_page
+    }
+    
+    try:
+        response = get_resilient_session().get(url, params=params, timeout=10.0)
+        if response.status_code == 200:
+            results = response.json().get('results', [])
+            if results:
+                random_show = random.choice(results)
+                series_id = random_show.get('id')
+                if series_id:
+                    return redirect('tv_show_detail', series_id=series_id)
+        
+        # Fallback to page 1 if the randomly generated page fails
+        params['page'] = 1
+        response = get_resilient_session().get(url, params=params, timeout=10.0)
+        if response.status_code == 200:
+            results = response.json().get('results', [])
+            if results:
+                random_show = random.choice(results)
+                series_id = random_show.get('id')
+                if series_id:
+                    return redirect('tv_show_detail', series_id=series_id)
+    except Exception as e:
+        print(f"[RANDOM TV ERROR] Failed to fetch random TV show: {e}")
+
+    messages.error(request, 'Could not find a surprise, please try again!')
+    return redirect('explore_tv')
 
 
 def movies_by_genre_view(request, genre_name):
