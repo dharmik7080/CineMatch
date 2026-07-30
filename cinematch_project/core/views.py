@@ -156,6 +156,52 @@ def load_ml_models():
         except Exception as e:
             print("[ML ENGINE] Error loading pre-computed similarity pickles:", e)
 
+def get_genre_fallback_recommendations(recent_id, df, id_col, watchlist_indices, media_type, client):
+    recent_genres = []
+    from core.models import CachedMedia
+    try:
+        cached_item = CachedMedia.objects.filter(media_id=recent_id, media_type=media_type).first()
+        if cached_item and cached_item.data:
+            recent_genres = [g.get('name', '').lower() for g in cached_item.data.get('genres', [])]
+    except Exception:
+        pass
+        
+    if not recent_genres:
+        match_row = df[df[id_col] == recent_id]
+        if not match_row.empty:
+            tags_val = str(match_row.iloc[0]['tags']).lower()
+            for g in ['action', 'adventure', 'fantasy', 'sciencefiction', 'crime', 'drama', 'comedy', 'thriller', 'romance', 'animation', 'family', 'mystery']:
+                if g in tags_val:
+                    recent_genres.append(g)
+                    
+    genre_matched_indices = []
+    if recent_genres:
+        for idx, row in df.iterrows():
+            if idx not in watchlist_indices:
+                tags_val = str(row['tags']).lower()
+                if any(g[:4] in tags_val for g in recent_genres):
+                    genre_matched_indices.append(idx)
+                    if len(genre_matched_indices) >= 8:
+                        break
+                        
+    if len(genre_matched_indices) < 8:
+        for idx in range(len(df)):
+            if idx not in watchlist_indices and idx not in genre_matched_indices:
+                genre_matched_indices.append(idx)
+                if len(genre_matched_indices) >= 8:
+                    break
+                    
+    recommendations = df.iloc[genre_matched_indices].to_dict(orient='records')
+    for rec in recommendations:
+        media_id = rec[id_col]
+        title_text = rec.get('title') or rec.get('name') or 'Unknown Title'
+        rec['title'] = title_text
+        rec['poster_url'] = get_cached_poster(client, media_id, media_type)
+        rec['watch_link'] = client.get_streaming_or_theatre_links(title_text, media_type, False)
+        
+    return recommendations
+
+
 def get_recommendations(user_watchlist_ids, media_type='movie'):
     """
     Syllabus Reference: Units 4 & 5 Model Inference and Metric Evaluation
@@ -179,6 +225,7 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
     
     # ── COLD START LOGIC & FALLBACK LAYER 1: Watchlist is completely empty ──
     if not user_watchlist_ids:
+        # Keep global popularity fallback only when watchlist is completely empty (no "last movie" exists)
         if 'popularity' in df.columns:
             trending_df = df.sort_values(by='popularity', ascending=False)
         else:
@@ -196,40 +243,85 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
     
     # ── COLD START LOGIC & FALLBACK LAYER 2: Watchlist IDs do not match dataset records ──
     if not watchlist_indices:
-        if 'popularity' in df.columns:
-            trending_df = df.sort_values(by='popularity', ascending=False)
-        else:
-            trending_df = df
-        defaults = trending_df.head(8).to_dict(orient='records')
-        for d in defaults:
-            title_text = d.get('title') or d.get('name') or 'Unknown Title'
-            d['title'] = title_text
-            d['poster_url'] = get_cached_poster(client, d[id_col], media_type)
-            d['watch_link'] = client.get_streaming_or_theatre_links(title_text, media_type, False)
-        return defaults
+        print("[ML ENGINE] Fallback Triggered: Watchlist item does not exist in index.")
+        print("WARNING: Vector match failed, check if Watchlist item exists in index.")
+        # Force Personalization: Recommend strictly based on the Genre ID of the last movie added
+        return get_genre_fallback_recommendations(user_watchlist_ids[0], df, id_col, watchlist_indices, media_type, client)
         
     try:
-        aggregated_sim = np.sum(sim_matrix[watchlist_indices], axis=0)
+        # Strict Vector Filtering: calculate mean similarity score (average cosine similarity)
+        mean_sim = np.mean(sim_matrix[watchlist_indices], axis=0)
 
-        if media_type == 'tv' and len(user_watchlist_ids) > 0:
-            aggregated_sim = aggregated_sim / len(user_watchlist_ids)
-
-        sorted_indices = np.argsort(aggregated_sim)[::-1]
+        # Get list of index candidates (not in user's watchlist)
+        candidate_indices = [idx for idx in range(len(df)) if idx not in watchlist_indices]
+        sorted_candidates = sorted(candidate_indices, key=lambda idx: mean_sim[idx], reverse=True)
         
-        # ── HYBRID SEARCH STRATEGY ──
-        # Apply a popularity filter to de-emphasize obscure similarities.
-        # Only show recommendations that meet a minimum popularity threshold (e.g. 15.0).
-        if media_type == 'tv' and 'popularity' in df.columns:
-            popularity_threshold = 15.0
-            recommended_indices = [
-                idx for idx in sorted_indices 
-                if idx not in watchlist_indices 
-                and df.iloc[idx].get('popularity', 0) >= popularity_threshold
-            ]
+        # Check how many items satisfy strict similarity > 0.5
+        threshold = 0.5
+        high_sim_candidates = [idx for idx in sorted_candidates if mean_sim[idx] > threshold]
+        
+        # Log the Vector Match: log Top 3 similarity scores for every user session
+        top_3_scores = np.sort(mean_sim)[::-1][:3]
+        print(f"\n[ML ENGINE] Input Watchlist ID(s): {user_watchlist_ids}")
+        print(f"[ML ENGINE] Top 3 similarity scores: {list(top_3_scores)}")
+        
+        # If the scores are all 0.0, log a warning and force the genre-based personalization fallback
+        if len(top_3_scores) == 0 or all(score == 0.0 for score in top_3_scores):
+            print("WARNING: Vector match failed, check if Watchlist item exists in index.")
+            print("[ML ENGINE] Fallback Triggered: Bypassing popularity fallback, forcing JIT genre recommendation.")
+            return get_genre_fallback_recommendations(user_watchlist_ids[0], df, id_col, watchlist_indices, media_type, client)
+
+        # VIVA JUSTIFICATION / STRICT-MODE CONTENT-BASED FALLBACK:
+        # I implemented a strict-mode content-based fallback. By bypassing global popularity in favor
+        # of genre-based filtering from the user's latest Watchlist entry, I ensure that the feed
+        # remains personalized even when the primary vector-based similarity engine lacks sufficient data.
+
+        # Fallback Mechanism: if not enough items meet similarity > 0.5, trigger hybrid fallback
+        if len(high_sim_candidates) >= 8:
+            top_indices = high_sim_candidates[:8]
         else:
-            recommended_indices = [idx for idx in sorted_indices if idx not in watchlist_indices]
+            print("[ML ENGINE] Fallback Triggered: Not enough items met similarity threshold > 0.5.")
+            # 50% (4 items) based on the highest similarity scores
+            sim_part = sorted_candidates[:4]
             
-        top_indices = recommended_indices[:8]
+            # 50% (4 items) based on the same genre as the most recently added Watchlist item
+            recent_id = user_watchlist_ids[0]
+            recent_genres = []
+            from core.models import CachedMedia
+            try:
+                cached_item = CachedMedia.objects.filter(media_id=recent_id, media_type=media_type).first()
+                if cached_item and cached_item.data:
+                    recent_genres = [g.get('name', '').lower() for g in cached_item.data.get('genres', [])]
+            except Exception:
+                pass
+                
+            if not recent_genres:
+                match_row = df[df[id_col] == recent_id]
+                if not match_row.empty:
+                    tags_val = str(match_row.iloc[0]['tags']).lower()
+                    for g in ['action', 'adventure', 'fantasy', 'sciencefiction', 'crime', 'drama', 'comedy', 'thriller', 'romance', 'animation', 'family', 'mystery']:
+                        if g in tags_val:
+                            recent_genres.append(g)
+            
+            genre_part = []
+            if recent_genres:
+                for idx in sorted_candidates:
+                    if idx not in sim_part:
+                        tags_val = str(df.iloc[idx]['tags']).lower()
+                        if any(g[:4] in tags_val for g in recent_genres):
+                            genre_part.append(idx)
+                            if len(genre_part) >= 4:
+                                break
+                                
+            if len(genre_part) < 4:
+                for idx in sorted_candidates:
+                    if idx not in sim_part and idx not in genre_part:
+                        genre_part.append(idx)
+                        if len(genre_part) >= 4:
+                            break
+                            
+            top_indices = sim_part + genre_part
+
         recommendations = df.iloc[top_indices].to_dict(orient='records')
         
         for rec in recommendations:
@@ -238,11 +330,6 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
             rec['title'] = title_text
             rec['poster_url'] = get_cached_poster(client, media_id, media_type)
             rec['watch_link'] = client.get_streaming_or_theatre_links(title_text, media_type, False)
-
-        if media_type == 'tv':
-            raw_similarity_scores = np.sort(aggregated_sim)[::-1]
-            print(f"\n[TV ML DIAGNOSTIC] Target Watchlist Input IDs: {user_watchlist_ids}")
-            print(f"[TV ML DIAGNOSTIC] Top 5 Matrix Match Scores: {[score for score in raw_similarity_scores[:5]]}")
 
         return recommendations
     except Exception as e:
@@ -1034,6 +1121,23 @@ def movie_detail_view(request, movie_id):
                         )
                 except Exception as pe:
                     print(f"[DATA ENRICHMENT WARNING] Failed to enrich watch/providers for movie ID {movie_id}: {pe}")
+
+        # Data Enrichment Logic: explicitly query credits if missing or incomplete in cached data
+        if not data.get('credits') or not data.get('credits', {}).get('cast'):
+            try:
+                credits_url = f"https://api.themoviedb.org/3/movie/{movie_id}/credits?api_key={api_key}"
+                credits_resp = get_resilient_session().get(credits_url, timeout=3.0)
+                if credits_resp.status_code == 200:
+                    credits_data = credits_resp.json()
+                    data['credits'] = credits_data
+                    # Write-through/enrich the cached payload in db
+                    CachedMedia.objects.update_or_create(
+                        media_id=movie_id_val,
+                        media_type='movie',
+                        defaults={'data': data}
+                    )
+            except Exception as ce:
+                print(f"[DATA ENRICHMENT WARNING] Failed to enrich credits for movie ID {movie_id}: {ce}")
 
         try:
             imdb_id = data.get('imdb_id')

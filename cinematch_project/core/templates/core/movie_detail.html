@@ -530,22 +530,27 @@
             {% if cast %}
             <div class="mb-5">
                 <h2 class="section-heading">Top Cast</h2>
-                <div class="cast-grid">
+                <div class="cast-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1.25rem;">
                     {% for member in cast %}
-                    {% if member.id %}
-                    <a href="{% url 'person_profile' member.id %}" class="text-decoration-none" style="display: block;">
-                        <div class="cast-card h-100" style="transition: all 0.3s ease;">
-                            <img src="{{ member.profile_url }}"
-                                 alt="{{ member.name }}"
-                                 loading="lazy"
-                                 onerror="this.src='https://ui-avatars.com/api/?name={{ member.name|urlencode }}&background=2d1b4e&color=c084fc&size=72'">
-                            <div class="cast-name text-accent" title="{{ member.name }}" style="font-weight: 600;">{{ member.name }}</div>
-                            {% if member.character %}
-                                <div class="cast-char" title="{{ member.character }}">{{ member.character }}</div>
-                            {% endif %}
-                        </div>
-                    </a>
-                    {% endif %}
+                    <div class="cast-card h-100" style="transition: all 0.3s ease; position: relative; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 1.25rem 0.75rem;">
+                        {% if member.id %}
+                        <a href="{% url 'person_profile' member.id %}" class="text-decoration-none stretch-link" style="display: block; color: inherit;">
+                        {% endif %}
+                            <div class="text-center">
+                                <img src="{{ member.profile_url }}"
+                                     alt="{{ member.name }}"
+                                     loading="lazy"
+                                     onerror="this.src='https://ui-avatars.com/api/?name={{ member.name|urlencode }}&background=2d1b4e&color=c084fc&size=80'"
+                                     style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(168,85,247,0.35); margin-bottom: 0.75rem;">
+                                <div class="cast-name text-accent" title="{{ member.name }}" style="font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ member.name }}</div>
+                                {% if member.character %}
+                                    <div class="cast-char" title="{{ member.character }}" style="font-size: 0.75rem; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.15rem;">{{ member.character }}</div>
+                                {% endif %}
+                            </div>
+                        {% if member.id %}
+                        </a>
+                        {% endif %}
+                    </div>
                     {% endfor %}
                 </div>
             </div>
