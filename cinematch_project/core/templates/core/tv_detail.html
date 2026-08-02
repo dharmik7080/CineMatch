@@ -297,9 +297,93 @@
     transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
 }
 .episode-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-2px);
     border-color: rgba(168,85,247,0.3) !important;
-    box-shadow: 0 10px 25px -5px rgba(168,85,247,0.12);
+    box-shadow: 0 8px 20px -5px rgba(168,85,247,0.12);
+}
+@media (min-width: 768px) {
+    .episode-img-wrapper {
+        width: 256px !important;
+    }
+}
+
+/* ── Episode Detail Modal Overlay ── */
+.ep-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background-color: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.ep-modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Frosted glass close button */
+.ep-modal-close {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    z-index: 10000;
+}
+
+.ep-modal-close:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.24);
+    transform: rotate(90deg) scale(1.05);
+}
+
+/* Modal Content Container */
+.ep-modal-container {
+    position: relative;
+    width: 100%;
+    max-width: 720px;
+    background: #0d0d14;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
+    transform: scale(0.95);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ep-modal-overlay.active .ep-modal-container {
+    transform: scale(1);
+}
+
+.ep-modal-glow {
+    position: absolute;
+    width: 60%;
+    height: 60%;
+    background: linear-gradient(135deg, #9333ea, #4f46e5);
+    filter: blur(80px);
+    opacity: 0.25;
+    z-index: -1;
+    pointer-events: none;
 }
 {% endblock %}
 
@@ -544,32 +628,45 @@
                     {% endif %}
                 </div>
                 
-                <!-- Episode Grid -->
-                <div id="episodes-container" class="row g-4" style="transition: opacity 0.3s ease;">
+                <!-- Episode Grid -> Vertical Rows -->
+                <div id="episodes-container" class="d-flex flex-column gap-3" style="transition: opacity 0.3s ease;">
                     {% if episodes %}
                         {% for ep in episodes %}
-                        <div class="col-12 col-md-6 col-lg-6">
-                            <div class="episode-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; height: 100%;">
-                                <div style="position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #000;">
+                        <div class="episode-card p-3" 
+                             style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; display: flex; flex-direction: column; align-items: stretch; gap: 1rem; transition: all 0.3s ease; cursor: pointer;"
+                             data-title="{{ ep.name }}"
+                             data-number="{{ ep.episode_number }}"
+                             data-overview="{{ ep.overview|default:"No episode overview logged in dataset timeline." }}"
+                             data-runtime="{{ ep.runtime|default:"" }}"
+                             data-rating="{{ ep.vote_average|default:"" }}"
+                             data-still="{{ ep.still_url }}"
+                             onclick="openEpisodeModal(this)">
+                            <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center gap-3 w-100">
+                                <!-- Thumbnail on the Left -->
+                                <div class="episode-img-wrapper w-100 flex-shrink-0" style="position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; background: #000;">
                                     <img src="{{ ep.still_url }}" alt="{{ ep.name }}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">
-                                    <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.75); border-radius: 20px; padding: 0.2rem 0.6rem; font-size: 0.76rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); color: #fff;">
+                                    <div style="position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.75); border-radius: 20px; padding: 0.15rem 0.5rem; font-size: 0.72rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); color: #fff;">
                                         Ep {{ ep.episode_number }}
                                     </div>
-                                    {% if ep.vote_average > 0 %}
-                                    <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.75); border-radius: 20px; padding: 0.2rem 0.6rem; font-size: 0.76rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); color: #facc15;">
-                                        <i class="fa-solid fa-star me-1"></i>{{ ep.vote_average }}
-                                    </div>
-                                    {% endif %}
                                 </div>
-                                <div style="padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1;">
+                                
+                                <!-- Details on the Right -->
+                                <div class="d-flex flex-column justify-content-between flex-grow-1" style="min-width: 0;">
                                     <div>
-                                        <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem;">{{ ep.name }}</h3>
-                                        <p style="font-size: 0.84rem; color: #a1a1aa; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0;">
+                                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                                            <h3 style="font-size: 1.08rem; font-weight: 700; color: #fff; margin-bottom: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%;">{{ ep.name }}</h3>
+                                            {% if ep.vote_average > 0 %}
+                                            <span class="d-inline-flex align-items-center gap-1 text-warning fw-bold small" style="background: rgba(250,204,21,0.08); border: 1px solid rgba(250,204,21,0.2); border-radius: 20px; padding: 0.2rem 0.6rem;">
+                                                <i class="fa-solid fa-star" style="font-size: 0.72rem;"></i> {{ ep.vote_average }}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                        <p style="font-size: 0.84rem; color: #a1a1aa; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0;">
                                             {{ ep.overview|default:"No episode overview logged in dataset timeline." }}
                                         </p>
                                     </div>
                                     {% if ep.runtime %}
-                                    <div style="margin-top: 1rem; font-size: 0.78rem; color: #71717a; font-weight: 600;">
+                                    <div style="margin-top: 0.75rem; font-size: 0.78rem; color: #71717a; font-weight: 600;">
                                         <i class="fa-regular fa-clock me-1"></i>{{ ep.runtime }} min
                                     </div>
                                     {% endif %}
@@ -578,7 +675,7 @@
                         </div>
                         {% endfor %}
                     {% else %}
-                        <div class="col-12 text-center py-4">
+                        <div class="text-center py-4">
                             <span class="text-secondary small">No episode logs found for this season.</span>
                         </div>
                     {% endif %}
@@ -853,6 +950,38 @@
     </div>
 </section>
 
+<!-- INTERACTIVE EPISODE DETAIL POPUP MODAL -->
+<div id="ep-modal" class="ep-modal-overlay" onclick="closeEpModalOnOverlay(event)">
+    <button class="ep-modal-close" onclick="closeEpisodeModal()" aria-label="Close modal">
+        <i class="fa-solid fa-xmark"></i>
+    </button>
+    <div class="ep-modal-glow"></div>
+    <div class="ep-modal-container">
+        <div style="width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #000; position: relative;">
+            <img id="ep-modal-still" src="" alt="Episode Still" style="width: 100%; height: 100%; object-fit: cover;">
+            <div id="ep-modal-badge" style="position: absolute; bottom: 15px; left: 15px; background: rgba(0,0,0,0.8); border-radius: 20px; padding: 0.25rem 0.75rem; font-size: 0.82rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.15); color: #fff;">
+                Episode 1
+            </div>
+        </div>
+        <div style="padding: 2rem;">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                <h2 id="ep-modal-title" style="font-size: 1.45rem; font-weight: 800; color: #fff; margin-bottom: 0; line-height: 1.25;">Episode Title</h2>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="ep-modal-rating-badge" class="d-inline-flex align-items-center gap-1 text-warning fw-bold small" style="background: rgba(250,204,21,0.08); border: 1px solid rgba(250,204,21,0.2); border-radius: 20px; padding: 0.25rem 0.75rem;">
+                        <i class="fa-solid fa-star" style="font-size: 0.76rem;"></i> <span id="ep-modal-rating"></span>
+                    </span>
+                    <span id="ep-modal-runtime-badge" class="text-secondary small fw-bold" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 0.25rem 0.75rem;">
+                        <i class="fa-regular fa-clock me-1"></i><span id="ep-modal-runtime"></span> min
+                    </span>
+                </div>
+            </div>
+            <p id="ep-modal-overview" style="font-size: 0.94rem; color: #c0c0cb; line-height: 1.7; margin-bottom: 0;">
+                Episode overview text details will be dynamically injected here...
+            </p>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -1002,24 +1131,43 @@ function loadSeasonEpisodes(seasonNumber) {
             let html = '';
             data.episodes.forEach(ep => {
                 const overview = ep.overview || "No episode overview logged in dataset timeline.";
-                const runtimeHtml = ep.runtime ? `<div style="margin-top: 1rem; font-size: 0.78rem; color: #71717a; font-weight: 600;"><i class="fa-regular fa-clock me-1"></i>${ep.runtime} min</div>` : '';
-                const starHtml = ep.vote_average > 0 ? `<div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.75); border-radius: 20px; padding: 0.2rem 0.6rem; font-size: 0.76rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); color: #facc15;"><i class="fa-solid fa-star me-1"></i>${ep.vote_average}</div>` : '';
+                const runtimeHtml = ep.runtime ? `<div style="margin-top: 0.75rem; font-size: 0.78rem; color: #71717a; font-weight: 600;"><i class="fa-regular fa-clock me-1"></i>${ep.runtime} min</div>` : '';
+                const starHtml = ep.vote_average > 0 ? `
+                <span class="d-inline-flex align-items-center gap-1 text-warning fw-bold small" style="background: rgba(250,204,21,0.08); border: 1px solid rgba(250,204,21,0.2); border-radius: 20px; padding: 0.2rem 0.6rem;">
+                    <i class="fa-solid fa-star" style="font-size: 0.72rem;"></i> ${ep.vote_average}
+                </span>` : '';
+                
+                const titleEscaped = ep.name.replace(/"/g, '&quot;');
+                const overviewEscaped = overview.replace(/"/g, '&quot;');
                 
                 html += `
-                <div class="col-12 col-md-6 col-lg-6">
-                    <div class="episode-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; height: 100%;">
-                        <div style="position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #000;">
-                            <img src="${ep.still_url}" alt="${ep.name}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">
-                            <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.75); border-radius: 20px; padding: 0.2rem 0.6rem; font-size: 0.76rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); color: #fff;">
+                <div class="episode-card p-3" 
+                     style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; display: flex; flex-direction: column; align-items: stretch; gap: 1rem; transition: all 0.3s ease; cursor: pointer;"
+                     data-title="${titleEscaped}"
+                     data-number="${ep.episode_number}"
+                     data-overview="${overviewEscaped}"
+                     data-runtime="${ep.runtime || ''}"
+                     data-rating="${ep.vote_average || ''}"
+                     data-still="${ep.still_url}"
+                     onclick="openEpisodeModal(this)">
+                    <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center gap-3 w-100">
+                        <!-- Thumbnail on the Left -->
+                        <div class="episode-img-wrapper w-100 flex-shrink-0" style="position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; background: #000;">
+                            <img src="${ep.still_url}" alt="${titleEscaped}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">
+                            <div style="position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.75); border-radius: 20px; padding: 0.15rem 0.5rem; font-size: 0.72rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); color: #fff;">
                                 Ep ${ep.episode_number}
                             </div>
-                            ${starHtml}
                         </div>
-                        <div style="padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1;">
+                        
+                        <!-- Details on the Right -->
+                        <div class="d-flex flex-column justify-content-between flex-grow-1" style="min-width: 0;">
                             <div>
-                                <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem;">${ep.name}</h3>
-                                <p style="font-size: 0.84rem; color: #a1a1aa; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0;">
-                                    ${overview}
+                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                                    <h3 style="font-size: 1.08rem; font-weight: 700; color: #fff; margin-bottom: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%;">${titleEscaped}</h3>
+                                    ${starHtml}
+                                </div>
+                                <p style="font-size: 0.84rem; color: #a1a1aa; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0;">
+                                    ${overviewEscaped}
                                 </p>
                             </div>
                             ${runtimeHtml}
@@ -1031,7 +1179,7 @@ function loadSeasonEpisodes(seasonNumber) {
             container.innerHTML = html;
         } else {
             container.innerHTML = `
-                <div class="col-12 text-center py-4">
+                <div class="text-center py-4">
                     <span class="text-secondary small">No episode logs found for this season.</span>
                 </div>
             `;
@@ -1041,6 +1189,55 @@ function loadSeasonEpisodes(seasonNumber) {
         container.style.opacity = '1';
         console.error("[TV SEASON AJAX ERROR]:", err);
     });
+}
+
+// ── EPISODE DETAIL POPUP MODAL HANDLERS ──
+function openEpisodeModal(card) {
+    const title = card.getAttribute('data-title');
+    const number = card.getAttribute('data-number');
+    const overview = card.getAttribute('data-overview');
+    const runtime = card.getAttribute('data-runtime');
+    const rating = card.getAttribute('data-rating');
+    const still = card.getAttribute('data-still');
+    
+    const modal = document.getElementById('ep-modal');
+    document.getElementById('ep-modal-title').textContent = title;
+    document.getElementById('ep-modal-badge').textContent = `Episode ${number}`;
+    document.getElementById('ep-modal-overview').textContent = overview;
+    document.getElementById('ep-modal-still').src = still;
+    
+    // Handle rating badge display
+    const ratingBadge = document.getElementById('ep-modal-rating-badge');
+    if (rating && parseFloat(rating) > 0) {
+        document.getElementById('ep-modal-rating').textContent = rating;
+        ratingBadge.style.display = 'inline-flex';
+    } else {
+        ratingBadge.style.display = 'none';
+    }
+    
+    // Handle runtime badge display
+    const runtimeBadge = document.getElementById('ep-modal-runtime-badge');
+    if (runtime && parseInt(runtime) > 0) {
+        document.getElementById('ep-modal-runtime').textContent = runtime;
+        runtimeBadge.style.display = 'inline-flex';
+    } else {
+        runtimeBadge.style.display = 'none';
+    }
+    
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeEpisodeModal() {
+    const modal = document.getElementById('ep-modal');
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+function closeEpModalOnOverlay(event) {
+    if (event.target.id === 'ep-modal') {
+        closeEpisodeModal();
+    }
 }
 </script>
 {% endblock %}

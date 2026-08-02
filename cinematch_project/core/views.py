@@ -1314,6 +1314,18 @@ def movie_detail_view(request, movie_id):
             # Extract similar movies from the batch/atomic TMDB detail payload (append_to_response includes similar)
             similar_payload = data.get('similar', {})
             raw_similar = similar_payload.get('results', [])
+            
+            # If not in the cached payload, fetch directly from the TMDB similar endpoint
+            if not raw_similar:
+                try:
+                    similar_endpoint = f"https://api.themoviedb.org/3/movie/{movie_id_val}/similar?api_key={api_key}&language=en-US"
+                    sim_resp = get_resilient_session().get(similar_endpoint, timeout=3.0)
+                    if sim_resp.status_code == 200:
+                        similar_payload = sim_resp.json()
+                        raw_similar = similar_payload.get('results', [])
+                except Exception as e:
+                    print(f"[MOVIE DETAIL] Similar endpoint query failed: {e}")
+
             for s in raw_similar[:5]:
                 s_poster = s.get('poster_path') or ''
                 similar_movies.append({
@@ -1830,7 +1842,7 @@ def tv_detail_view(request, series_id):
                 'overview': ep.get('overview', ''),
                 'runtime': ep.get('runtime', 0) or 0,
                 'vote_average': round(ep.get('vote_average', 0.0), 1),
-                'still_url': f"https://image.tmdb.org/t/p/w300{still_path}" if still_path else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
+                'still_url': f"https://image.tmdb.org/t/p/original{still_path}" if still_path else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
             })
 
     context = {
@@ -1887,7 +1899,7 @@ def tv_season_ajax(request, series_id, season_number):
             'overview': ep.get('overview', ''),
             'runtime': ep.get('runtime', 0) or 0,
             'vote_average': round(ep.get('vote_average', 0.0), 1),
-            'still_url': f"https://image.tmdb.org/t/p/w300{still_path}" if still_path else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
+            'still_url': f"https://image.tmdb.org/t/p/original{still_path}" if still_path else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
         })
         
     return JsonResponse({'success': True, 'episodes': episodes})
