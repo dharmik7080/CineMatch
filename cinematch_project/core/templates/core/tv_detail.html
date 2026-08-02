@@ -292,9 +292,14 @@
     border-color: #a855f7 !important;
     box-shadow: 0 0 0 0.25rem rgba(168, 85, 247, 0.25) !important;
 }
-.btn-xs {
-    padding: 0.25rem 0.6rem;
-    font-size: 0.75rem;
+/* ── Episode Cards Styling ── */
+.episode-card {
+    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
+}
+.episode-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(168,85,247,0.3) !important;
+    box-shadow: 0 10px 25px -5px rgba(168,85,247,0.12);
 }
 {% endblock %}
 
@@ -523,6 +528,62 @@
                 </div>
             </div>
             {% endif %}
+
+            <div class="mb-5">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                    <h2 class="section-heading mb-0">Episodes</h2>
+                    {% if seasons %}
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="season-select" class="text-muted small fw-bold text-uppercase mb-0" style="letter-spacing: 0.5px;">Season:</label>
+                        <select id="season-select" class="form-select bg-dark text-white border-secondary rounded-pill px-3" style="width: auto; font-size: 0.9rem; min-width: 140px; background-color: #0b0b14; border-color: rgba(255,255,255,0.15) !important;" onchange="loadSeasonEpisodes(this.value)">
+                            {% for season in seasons %}
+                                <option value="{{ season.season_number }}">{{ season.name }} ({{ season.episode_count }} Ep)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Episode Grid -->
+                <div id="episodes-container" class="row g-4" style="transition: opacity 0.3s ease;">
+                    {% if episodes %}
+                        {% for ep in episodes %}
+                        <div class="col-12 col-md-6 col-lg-6">
+                            <div class="episode-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; height: 100%;">
+                                <div style="position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #000;">
+                                    <img src="{{ ep.still_url }}" alt="{{ ep.name }}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">
+                                    <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.75); border-radius: 20px; padding: 0.2rem 0.6rem; font-size: 0.76rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); color: #fff;">
+                                        Ep {{ ep.episode_number }}
+                                    </div>
+                                    {% if ep.vote_average > 0 %}
+                                    <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.75); border-radius: 20px; padding: 0.2rem 0.6rem; font-size: 0.76rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); color: #facc15;">
+                                        <i class="fa-solid fa-star me-1"></i>{{ ep.vote_average }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div style="padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1;">
+                                    <div>
+                                        <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem;">{{ ep.name }}</h3>
+                                        <p style="font-size: 0.84rem; color: #a1a1aa; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0;">
+                                            {{ ep.overview|default:"No episode overview logged in dataset timeline." }}
+                                        </p>
+                                    </div>
+                                    {% if ep.runtime %}
+                                    <div style="margin-top: 1rem; font-size: 0.78rem; color: #71717a; font-weight: 600;">
+                                        <i class="fa-regular fa-clock me-1"></i>{{ ep.runtime }} min
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-12 text-center py-4">
+                            <span class="text-secondary small">No episode logs found for this season.</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
 
             <div class="mb-5">
                 <h2 class="section-heading">Official Trailer</h2>
@@ -920,6 +981,66 @@ function toggleDetailWatchlist(btn) {
             showNotification('Network error. Please try again.');
     })
     .finally(() => { btn.disabled = false; });
+}
+
+// ── DYNAMIC SEASONS & EPISODES AJAX LOADER ──
+function loadSeasonEpisodes(seasonNumber) {
+    const container = document.getElementById('episodes-container');
+    if (!container) return;
+    
+    container.style.opacity = '0.4';
+    
+    fetch(`/tv/{{ tv_show.id }}/season/${seasonNumber}/`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        container.style.opacity = '1';
+        if (data.success && data.episodes && data.episodes.length > 0) {
+            let html = '';
+            data.episodes.forEach(ep => {
+                const overview = ep.overview || "No episode overview logged in dataset timeline.";
+                const runtimeHtml = ep.runtime ? `<div style="margin-top: 1rem; font-size: 0.78rem; color: #71717a; font-weight: 600;"><i class="fa-regular fa-clock me-1"></i>${ep.runtime} min</div>` : '';
+                const starHtml = ep.vote_average > 0 ? `<div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.75); border-radius: 20px; padding: 0.2rem 0.6rem; font-size: 0.76rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); color: #facc15;"><i class="fa-solid fa-star me-1"></i>${ep.vote_average}</div>` : '';
+                
+                html += `
+                <div class="col-12 col-md-6 col-lg-6">
+                    <div class="episode-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; height: 100%;">
+                        <div style="position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #000;">
+                            <img src="${ep.still_url}" alt="${ep.name}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">
+                            <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.75); border-radius: 20px; padding: 0.2rem 0.6rem; font-size: 0.76rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); color: #fff;">
+                                Ep ${ep.episode_number}
+                            </div>
+                            ${starHtml}
+                        </div>
+                        <div style="padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1;">
+                            <div>
+                                <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem;">${ep.name}</h3>
+                                <p style="font-size: 0.84rem; color: #a1a1aa; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0;">
+                                    ${overview}
+                                </p>
+                            </div>
+                            ${runtimeHtml}
+                        </div>
+                    </div>
+                </div>
+                `;
+            });
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = `
+                <div class="col-12 text-center py-4">
+                    <span class="text-secondary small">No episode logs found for this season.</span>
+                </div>
+            `;
+        }
+    })
+    .catch(err => {
+        container.style.opacity = '1';
+        console.error("[TV SEASON AJAX ERROR]:", err);
+    });
 }
 </script>
 {% endblock %}

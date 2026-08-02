@@ -1274,6 +1274,9 @@ def movie_detail_view(request, movie_id):
 
             videos_payload = data.get('videos', {})
             raw_videos = videos_payload.get('results', [])
+            print(f"[DEBUG] movie_detail_view raw videos response count: {len(raw_videos)}")
+            for idx, video in enumerate(raw_videos):
+                print(f"[DEBUG] Video #{idx}: name={video.get('name')}, site={video.get('site')}, type={video.get('type')}, key={video.get('key')}, official={video.get('official')}")
             for video in raw_videos:
                 if (
                     video.get('site') == 'YouTube'
@@ -1287,6 +1290,7 @@ def movie_detail_view(request, movie_id):
                     if video.get('site') == 'YouTube' and video.get('type') == 'Trailer':
                         trailer_key = video.get('key')
                         break
+            print(f"[DEBUG] movie_detail_view extracted trailer_key: {trailer_key}")
 
             if trailer_key:
                 trailer_url = f"https://www.youtube.com/embed/{trailer_key}"
@@ -1639,6 +1643,9 @@ def tv_detail_view(request, series_id):
 
             videos_payload = data.get('videos', {})
             raw_videos = videos_payload.get('results', [])
+            print(f"[DEBUG] tv_detail_view raw videos response count: {len(raw_videos)}")
+            for idx, video in enumerate(raw_videos):
+                print(f"[DEBUG] Video #{idx}: name={video.get('name')}, site={video.get('site')}, type={video.get('type')}, key={video.get('key')}, official={video.get('official')}")
             for video in raw_videos:
                 if (
                     video.get('site') == 'YouTube'
@@ -1652,6 +1659,7 @@ def tv_detail_view(request, series_id):
                     if video.get('site') == 'YouTube' and video.get('type') == 'Trailer':
                         trailer_key = video.get('key')
                         break
+            print(f"[DEBUG] tv_detail_view extracted trailer_key: {trailer_key}")
 
             providers_payload = data.get('watch/providers', {}).get('results', {})
             region_data = providers_payload.get('IN') or providers_payload.get('US') or {}
@@ -1777,6 +1785,54 @@ def tv_detail_view(request, series_id):
     else:
         storyline = tmdb_overview
 
+    # ── SEASONS & EPISODES DATA ──
+    seasons_list = data.get('seasons', []) if data else []
+    seasons = [
+        {
+            'season_number': s.get('season_number'),
+            'name': s.get('name', f"Season {s.get('season_number')}"),
+            'episode_count': s.get('episode_count', 0)
+        }
+        for s in seasons_list if s.get('season_number') is not None and s.get('season_number') > 0
+    ]
+    
+    # Sort seasons by season_number ascending
+    seasons.sort(key=lambda x: x['season_number'])
+    
+    # Default to first season in the list, or Season 1
+    active_season_number = 1
+    if seasons:
+        active_season_number = seasons[0]['season_number']
+        
+    episodes = []
+    from django.core.cache import cache
+    season_cache_key = f"tv_season_data_{series_id_val}_{active_season_number}"
+    season_data = cache.get(season_cache_key)
+    
+    if not season_data:
+        try:
+            season_url = f"https://api.themoviedb.org/3/tv/{series_id_val}/season/{active_season_number}?api_key={api_key}&language=en-US"
+            season_resp = get_resilient_session().get(season_url, timeout=5.0)
+            if season_resp.status_code == 200:
+                season_data = season_resp.json()
+                cache.set(season_cache_key, season_data, 86400)
+        except Exception as e:
+            print(f"[TV DETAIL] Pre-fetching Season {active_season_number} episodes failed: {e}")
+            season_data = None
+            
+    if season_data:
+        raw_episodes = season_data.get('episodes', [])
+        for ep in raw_episodes:
+            still_path = ep.get('still_path') or ''
+            episodes.append({
+                'episode_number': ep.get('episode_number'),
+                'name': ep.get('name', ''),
+                'overview': ep.get('overview', ''),
+                'runtime': ep.get('runtime', 0) or 0,
+                'vote_average': round(ep.get('vote_average', 0.0), 1),
+                'still_url': f"https://image.tmdb.org/t/p/w300{still_path}" if still_path else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
+            })
+
     context = {
         'tv_show':         tv_show,
         'tagline':         tv_show.get('tagline', ''),
@@ -1786,6 +1842,8 @@ def tv_detail_view(request, series_id):
         'watch_providers': watch_providers,
         'similar_shows':   similar_shows,
         'is_in_watchlist': is_in_watchlist,
+        'seasons':         seasons,
+        'episodes':        episodes,
         # 💎 INJECTED REVIEWS DATA CONTEXTS
         'reviews':         reviews_list,
         'user_review':     user_review,
@@ -1793,6 +1851,47 @@ def tv_detail_view(request, series_id):
     }
 
     return render(request, 'core/tv_detail.html', context)
+
+
+@login_required
+def tv_season_ajax(request, series_id, season_number):
+    api_key = settings.TMDB_API_KEY
+    from django.core.cache import cache
+    from django.http import JsonResponse
+    
+    series_id_val = int(series_id)
+    season_number_val = int(season_number)
+    
+    cache_key = f"tv_season_data_{series_id_val}_{season_number_val}"
+    season_data = cache.get(cache_key)
+    
+    if not season_data:
+        try:
+            url = f"https://api.themoviedb.org/3/tv/{series_id_val}/season/{season_number_val}?api_key={api_key}&language=en-US"
+            resp = get_resilient_session().get(url, timeout=5.0)
+            if resp.status_code == 200:
+                season_data = resp.json()
+                cache.set(cache_key, season_data, 86400)
+            else:
+                return JsonResponse({'success': False, 'error': f"TMDB status code: {resp.status_code}"})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+            
+    raw_episodes = season_data.get('episodes', []) if season_data else []
+    episodes = []
+    for ep in raw_episodes:
+        still_path = ep.get('still_path') or ''
+        episodes.append({
+            'episode_number': ep.get('episode_number'),
+            'name': ep.get('name', ''),
+            'overview': ep.get('overview', ''),
+            'runtime': ep.get('runtime', 0) or 0,
+            'vote_average': round(ep.get('vote_average', 0.0), 1),
+            'still_url': f"https://image.tmdb.org/t/p/w300{still_path}" if still_path else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
+        })
+        
+    return JsonResponse({'success': True, 'episodes': episodes})
+
 
 # ======================================================================
 # Watchlist Hub Dashboard View
