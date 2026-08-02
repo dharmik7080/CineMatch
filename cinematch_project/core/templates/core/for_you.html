@@ -160,6 +160,38 @@
         overflow: hidden;
     }
 
+    .hero-spotlight::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: inherit;
+        background-position: center;
+        background-size: cover;
+        background-repeat: no-repeat;
+        z-index: 1;
+        animation: kenBurns 35s ease-in-out infinite alternate;
+        transition: background-image 1s ease-in-out;
+    }
+
+    .hero-spotlight > * {
+        position: relative;
+        z-index: 2;
+    }
+
+    @keyframes kenBurns {
+        0% { transform: scale(1); }
+        100% { transform: scale(1.12); }
+    }
+
+    .transition-opacity {
+        transition-property: opacity;
+        transition-duration: 1000ms;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
     .hero-badge {
         background: var(--primary-glow);
         padding: 0.35rem 1rem;
@@ -514,16 +546,17 @@
     <!-- ══════════════════════════════════════════════════════════════════ -->
    {% load static %}
 
-<div class="hero-spotlight"
+<div class="hero-spotlight transition-opacity" id="spotlight-container"
      style="background: linear-gradient(to right, rgba(7, 7, 11, 0.90) 0%, rgba(7, 7, 11, 0.82) 30%, rgba(7, 7, 11, 0.35) 65%, rgba(7, 7, 11, 0.05) 100%),
-            url('{% static 'images/image_4721ff.jpg' %}')
-            center/cover no-repeat;">
-    <div>
+            url('{{ spotlight_movie.backdrop_path }}')
+            center/cover no-repeat; opacity: 1;">
+    <div id="spotlight-content" class="transition-opacity" style="opacity: 1; width: 100%;">
             <span class="hero-badge"><i class="fa-solid fa-fire me-1"></i> Today's Spotlight</span>
-            <h1 class="hero-title">{{ spotlight_movie.title }}</h1>
-            <p class="hero-overview">{{ spotlight_movie.overview }}</p>
+            <h1 class="hero-title" id="spotlight-title">{{ spotlight_movie.title }}</h1>
+            <p class="hero-overview" id="spotlight-overview">{{ spotlight_movie.overview }}</p>
             <div class="d-flex gap-3 flex-wrap">
                 <button onclick="toggleWatchlist(this, {{ spotlight_movie.movie_id }}, 'movie')"
+                        id="spotlight-bookmark-btn"
                         class="btn btn-glow"
                         data-saved="{% if spotlight_movie.movie_id in saved_ids %}true{% else %}false{% endif %}">
                     {% if spotlight_movie.movie_id in saved_ids %}
@@ -532,17 +565,18 @@
                         <i class="fa-regular fa-bookmark me-1"></i> Add to Watchlist
                     {% endif %}
                 </button>
-                {% if spotlight_movie.movie_id %}
-                <a href="{% url 'movie_detail' spotlight_movie.movie_id %}" class="platform-details-float">
-                    <i class="fa-solid fa-circle-info me-1"></i> View Details
-                </a>
-                {% endif %}
                 <a href="https://www.youtube.com/results?search_query={{ spotlight_movie.title }}+official+trailer"
+                   id="spotlight-trailer-link"
                    target="_blank" class="btn btn-outline-custom">
                     <i class="fa-solid fa-play me-1 text-accent"></i> Watch Trailer
                 </a>
             </div>
         </div>
+        {% if spotlight_movie.movie_id %}
+        <a href="{% if spotlight_movie.media_type == 'tv' %}{% url 'tv_show_detail' spotlight_movie.movie_id %}{% else %}{% url 'movie_detail' spotlight_movie.movie_id %}{% endif %}" id="spotlight-details-link" class="platform-details-float" style="position: absolute; bottom: 1.5rem; right: 1.5rem; margin-top: 0;">
+            <i class="fa-solid fa-circle-info me-1"></i> View Details
+        </a>
+        {% endif %}
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════════ -->
@@ -1090,6 +1124,8 @@
 <script>
 // Sync single-argument calls to toggleWatchlist('123') with the backend MVT handler
 const parentToggleWatchlist = window.toggleWatchlist;
+let savedIds = {{ saved_ids|safe }};
+
 window.toggleWatchlist = function(elementOrId, mediaId, mediaType) {
     if (typeof elementOrId === 'string' || typeof elementOrId === 'number') {
         const id = elementOrId;
@@ -1124,12 +1160,15 @@ window.toggleWatchlist = function(elementOrId, mediaId, mediaType) {
                     if (icon) {
                         icon.className = 'fa-bookmark fa-regular text-white';
                     }
+                    const idx = savedIds.indexOf(parseInt(id));
+                    if (idx > -1) savedIds.splice(idx, 1);
                 } else {
                     btn.setAttribute('data-saved', 'true');
                     btn.className = 'btn btn-circle border-0 btn-danger';
                     if (icon) {
                         icon.className = 'fa-bookmark fa-solid text-warning';
                     }
+                    if (!savedIds.includes(parseInt(id))) savedIds.push(parseInt(id));
                 }
             } else {
                 showNotification("Error: " + data.error);
@@ -1139,8 +1178,130 @@ window.toggleWatchlist = function(elementOrId, mediaId, mediaType) {
             console.error("Watchlist AJAX error:", error);
         });
     } else {
-        parentToggleWatchlist(elementOrId, mediaId, mediaType);
+        if (elementOrId && elementOrId.id === 'spotlight-bookmark-btn') {
+            const btn = elementOrId;
+            const isSaved = btn.getAttribute('data-saved') === 'true';
+            const url = isSaved ? "{% url 'watchlist_delete' %}" : "{% url 'watchlist_add' %}";
+            
+            const formData = new FormData();
+            formData.append('media_id', mediaId);
+            formData.append('media_type', mediaType);
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message);
+                    if (isSaved) {
+                        btn.setAttribute('data-saved', 'false');
+                        btn.innerHTML = `<i class="fa-regular fa-bookmark me-1"></i> Add to Watchlist`;
+                        const idx = savedIds.indexOf(parseInt(mediaId));
+                        if (idx > -1) savedIds.splice(idx, 1);
+                    } else {
+                        btn.setAttribute('data-saved', 'true');
+                        btn.innerHTML = `<i class="fa-solid fa-bookmark text-warning me-1"></i> Saved to Watchlist`;
+                        if (!savedIds.includes(parseInt(mediaId))) savedIds.push(parseInt(mediaId));
+                    }
+                } else {
+                    showNotification("Error: " + data.error);
+                }
+            })
+            .catch(error => {
+                console.error("AJAX Error:", error);
+                showNotification("Network error occurred.");
+            });
+        } else {
+            parentToggleWatchlist(elementOrId, mediaId, mediaType);
+        }
     }
 };
+
+// Curved/Curated array of spotlight movies
+const spotlightMovies = [
+    {% for movie in spotlight_movies %}
+    {
+        id: {{ movie.movie_id }},
+        title: "{{ movie.title|escapejs }}",
+        overview: "{{ movie.overview|escapejs }}",
+        backdrop_path: "{{ movie.backdrop_path|escapejs }}",
+        media_type: "{{ movie.media_type|escapejs }}"
+    },
+    {% endfor %}
+];
+
+let currentSpotlightIndex = 0;
+
+function rotateSpotlight() {
+    if (spotlightMovies.length <= 1) return;
+    
+    const container = document.getElementById('spotlight-container');
+    const content = document.getElementById('spotlight-content');
+    
+    if (container) container.style.opacity = '0';
+    if (content) content.style.opacity = '0';
+    
+    setTimeout(() => {
+        currentSpotlightIndex = (currentSpotlightIndex + 1) % spotlightMovies.length;
+        const nextMovie = spotlightMovies[currentSpotlightIndex];
+        
+        const titleEl = document.getElementById('spotlight-title');
+        const overviewEl = document.getElementById('spotlight-overview');
+        const bookmarkBtn = document.getElementById('spotlight-bookmark-btn');
+        const detailsLink = document.getElementById('spotlight-details-link');
+        const trailerLink = document.getElementById('spotlight-trailer-link');
+
+        if (container) {
+            container.style.backgroundImage = 'linear-gradient(to right, rgba(7, 7, 11, 0.90) 0%, rgba(7, 7, 11, 0.82) 30%, rgba(7, 7, 11, 0.35) 65%, rgba(7, 7, 11, 0.05) 100%), url(' + nextMovie.backdrop_path + ')';
+        }
+        
+        if (titleEl) {
+            titleEl.textContent = nextMovie.title;
+        }
+        
+        if (overviewEl) {
+            overviewEl.textContent = nextMovie.overview;
+        }
+        
+        if (bookmarkBtn) {
+            const type = nextMovie.media_type || 'movie';
+            const isSaved = savedIds.includes(parseInt(nextMovie.id));
+            bookmarkBtn.setAttribute('onclick', `toggleWatchlist(this, ${nextMovie.id}, '${type}')`);
+            bookmarkBtn.setAttribute('data-saved', isSaved ? 'true' : 'false');
+            
+            if (isSaved) {
+                bookmarkBtn.innerHTML = `<i class="fa-solid fa-bookmark text-warning me-1"></i> Saved to Watchlist`;
+            } else {
+                bookmarkBtn.innerHTML = `<i class="fa-regular fa-bookmark me-1"></i> Add to Watchlist`;
+            }
+        }
+        
+        if (detailsLink) {
+            const type = nextMovie.media_type || 'movie';
+            if (type === 'tv') {
+                detailsLink.setAttribute('href', `/tv/${nextMovie.id}/`);
+            } else {
+                detailsLink.setAttribute('href', `/movies/${nextMovie.id}/`);
+            }
+        }
+        
+        if (trailerLink) {
+            const query = encodeURIComponent(nextMovie.title);
+            trailerLink.setAttribute('href', `https://www.youtube.com/results?search_query=${query}+official+trailer`);
+        }
+        
+        if (container) container.style.opacity = '1';
+        if (content) content.style.opacity = '1';
+    }, 1000);
+}
+
+// Auto-rotate every 10 seconds (10000ms)
+setInterval(rotateSpotlight, 10000);
 </script>
 {% endblock %}

@@ -553,12 +553,49 @@ def for_you_feed(request):
     saved_tv_shows = list(watchlist_items.filter(media_type='tv').values_list('media_id', flat=True))
     saved_ids = list(watchlist_items.values_list('media_id', flat=True))
     
-    spotlight_movie = {
-        'movie_id': 157336,
-        'title': 'Interstellar',
-        'overview': 'The adventures of a group of explorers who make use of a newly discovered wormhole to surpass the limitations on human space travel and conquer the vast distances involved in an interstellar voyage.',
-        'backdrop_url': 'https://image.tmdb.org/t/p/original/rAiYw1jKe6vS8v36ZasYwB66G6B.jpg'
-    }
+    spotlight_movies = [
+        {
+            'movie_id': 157336,
+            'title': 'Interstellar',
+            'overview': 'The adventures of a group of explorers who make use of a newly discovered wormhole to surpass the limitations on human space travel and conquer the vast distances involved in an interstellar voyage.',
+            'backdrop_path': '/static/images/image_4721ff.jpg',
+            'backdrop_url': '/static/images/image_4721ff.jpg',
+            'media_type': 'movie'
+        },
+        {
+            'movie_id': 27205,
+            'title': 'Inception',
+            'overview': 'Cobb, a skilled thief who is absolute best in the dangerous art of extraction, steals valuable secrets from deep within the subconscious during the dream state.',
+            'backdrop_path': '/static/images/inception_bg.jpg',
+            'backdrop_url': '/static/images/inception_bg.jpg',
+            'media_type': 'movie'
+        },
+        {
+            'movie_id': 66732,
+            'title': 'Stranger Things',
+            'overview': 'When a young boy vanishes, a small town uncovers a mystery involving secret experiments, terrifying supernatural forces and one strange little girl.',
+            'backdrop_path': '/static/images/stranger_things_bg.jpg',
+            'backdrop_url': '/static/images/stranger_things_bg.jpg',
+            'media_type': 'tv'
+        },
+        {
+            'movie_id': 1396,
+            'title': 'Breaking Bad',
+            'overview': "A high school chemistry teacher diagnosed with inoperable lung cancer turns to manufacturing and selling methamphetamine with a former student in order to secure his family's future.",
+            'backdrop_path': '/static/images/breaking_bad_bg.jpg',
+            'backdrop_url': '/static/images/breaking_bad_bg.jpg',
+            'media_type': 'tv'
+        },
+        {
+            'movie_id': 60059,
+            'title': 'Better Call Saul',
+            'overview': 'Six years before Saul Goodman meets Walter White, we meet him when the man who will become Saul Goodman is known as Jimmy McGill, a small-time lawyer searching for his destiny, and, more immediately, hustling to make ends meet.',
+            'backdrop_path': '/static/images/better_call_saul_bg.jpg',
+            'backdrop_url': '/static/images/better_call_saul_bg.jpg',
+            'media_type': 'tv'
+        }
+    ]
+    spotlight_movie = spotlight_movies[0]
     
     now_showing = []
     url = f"{client.base_url}/movie/now_playing?language=en-US&region=IN&page=1"
@@ -712,6 +749,7 @@ def for_you_feed(request):
         'recommended_movies': recommended_movies,
         'recommended_tv_shows': recommended_tv_shows,
         'spotlight_movie': spotlight_movie,
+        'spotlight_movies': spotlight_movies,
         'talk_of_town': talk_of_town,
         'most_interested': most_interested,
         'trending_last_updated': trending_last_updated,
@@ -1038,10 +1076,19 @@ def analytics_dashboard(request):
 # ======================================================================
 @login_required
 def movie_detail_view(request, movie_id):
+    # ── ROUTE/TYPE DETECTION ──
+    from django.shortcuts import redirect
+    from core.models import CachedMedia
+    try:
+        movie_id_val = int(movie_id)
+    except ValueError:
+        movie_id_val = 0
+    if request.GET.get('type') == 'tv' or CachedMedia.objects.filter(media_id=movie_id_val, media_type='tv').exists():
+        return redirect('tv_show_detail', series_id=movie_id_val)
+
     # ── SESSION BASED RECENTLY VIEWED LOGIC ──
     recently_viewed = request.session.get('recently_viewed', [])
     try:
-        movie_id_val = int(movie_id)
         recently_viewed = [item for item in recently_viewed if not (isinstance(item, dict) and item.get('id') == movie_id_val and item.get('type') == 'movie')]
         recently_viewed.insert(0, {'id': movie_id_val, 'type': 'movie'})
         request.session['recently_viewed'] = recently_viewed[:6]
@@ -1059,6 +1106,7 @@ def movie_detail_view(request, movie_id):
     movie = {}
     cast = []
     trailer_key = None
+    trailer_url = None
     watch_providers = []
     similar_movies = []
     belongs_to_collection = None
@@ -1088,6 +1136,11 @@ def movie_detail_view(request, movie_id):
     if not data:
         try:
             resp = get_resilient_session().get(endpoint, timeout=10.0)
+            if resp.status_code == 404:
+                tv_url = f"https://api.themoviedb.org/3/tv/{movie_id}?api_key={api_key}"
+                tv_resp = get_resilient_session().get(tv_url, timeout=5.0)
+                if tv_resp.status_code == 200:
+                    return redirect('tv_show_detail', series_id=movie_id_val)
             resp.raise_for_status()
             data = resp.json()
             # Write-through cache: save to both Django cache and local database cache
@@ -1138,7 +1191,22 @@ def movie_detail_view(request, movie_id):
                     )
             except Exception as ce:
                 print(f"[DATA ENRICHMENT WARNING] Failed to enrich credits for movie ID {movie_id}: {ce}")
-
+        # Data Enrichment Logic: explicitly query videos if missing or incomplete in cached data
+        if not data.get('videos') or not data.get('videos', {}).get('results'):
+            try:
+                videos_url = f"https://api.themoviedb.org/3/movie/{movie_id}/videos?api_key={api_key}"
+                videos_resp = get_resilient_session().get(videos_url, timeout=3.0)
+                if videos_resp.status_code == 200:
+                    videos_data = videos_resp.json()
+                    data['videos'] = videos_data
+                    # Write-through/enrich the cached payload in db
+                    CachedMedia.objects.update_or_create(
+                        media_id=movie_id_val,
+                        media_type='movie',
+                        defaults={'data': data}
+                    )
+            except Exception as ve:
+                print(f"[DATA ENRICHMENT WARNING] Failed to enrich videos for movie ID {movie_id}: {ve}")
         try:
             imdb_id = data.get('imdb_id')
             if imdb_id:
@@ -1219,6 +1287,9 @@ def movie_detail_view(request, movie_id):
                     if video.get('site') == 'YouTube' and video.get('type') == 'Trailer':
                         trailer_key = video.get('key')
                         break
+
+            if trailer_key:
+                trailer_url = f"https://www.youtube.com/embed/{trailer_key}"
 
             if is_manual_override:
                 watch_providers = manual_providers
@@ -1410,6 +1481,7 @@ def movie_detail_view(request, movie_id):
         'storyline':       storyline,
         'cast':            cast,
         'trailer_key':     trailer_key,
+        'trailer_url':     trailer_url,
         'watch_providers': watch_providers,
         'manual_providers': manual_providers,
         'streaming_links': streaming_links, # passed directly to context
@@ -1438,10 +1510,19 @@ def movie_detail_view(request, movie_id):
 # ======================================================================
 @login_required
 def tv_detail_view(request, series_id):
+    # ── ROUTE/TYPE DETECTION ──
+    from django.shortcuts import redirect
+    from core.models import CachedMedia
+    try:
+        series_id_val = int(series_id)
+    except ValueError:
+        series_id_val = 0
+    if request.GET.get('type') == 'movie' or CachedMedia.objects.filter(media_id=series_id_val, media_type='movie').exists():
+        return redirect('movie_detail', movie_id=series_id_val)
+
     # ── SESSION BASED RECENTLY VIEWED LOGIC ──
     recently_viewed = request.session.get('recently_viewed', [])
     try:
-        series_id_val = int(series_id)
         recently_viewed = [item for item in recently_viewed if not (isinstance(item, dict) and item.get('id') == series_id_val and item.get('type') == 'tv')]
         recently_viewed.insert(0, {'id': series_id_val, 'type': 'tv'})
         request.session['recently_viewed'] = recently_viewed[:6]
@@ -1483,6 +1564,11 @@ def tv_detail_view(request, series_id):
     if not data:
         try:
             resp = get_resilient_session().get(endpoint, timeout=10.0)
+            if resp.status_code == 404:
+                movie_url = f"https://api.themoviedb.org/3/movie/{series_id}?api_key={api_key}"
+                movie_resp = get_resilient_session().get(movie_url, timeout=5.0)
+                if movie_resp.status_code == 200:
+                    return redirect('movie_detail', movie_id=series_id_val)
             resp.raise_for_status()
             data = resp.json()
             # Write-through cache: save to both Django cache and local database cache

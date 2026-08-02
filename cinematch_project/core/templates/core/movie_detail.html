@@ -530,26 +530,33 @@
             {% if cast %}
             <div class="mb-5">
                 <h2 class="section-heading">Top Cast</h2>
-                <div class="cast-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1.25rem;">
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4" style="max-width: 896px; margin: 0;">
                     {% for member in cast %}
-                    <div class="cast-card h-100" style="transition: all 0.3s ease; position: relative; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 1.25rem 0.75rem;">
-                        {% if member.id %}
-                        <a href="{% url 'person_profile' member.id %}" class="text-decoration-none stretch-link" style="display: block; color: inherit;">
-                        {% endif %}
-                            <div class="text-center">
+                    <div class="col" style="padding: 0.5rem;">
+                        <div class="cast-card h-100 position-relative p-3 rounded-3" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; align-items: center; text-align: center; transition: all 0.3s ease;">
+                            {% if member.id %}
+                            <a href="{% url 'person_profile' member.id %}" class="text-decoration-none stretch-link w-100 d-flex flex-column align-items-center" style="color: inherit;">
+                            {% endif %}
+                                {% if member.profile_url %}
                                 <img src="{{ member.profile_url }}"
                                      alt="{{ member.name }}"
                                      loading="lazy"
                                      onerror="this.src='https://ui-avatars.com/api/?name={{ member.name|urlencode }}&background=2d1b4e&color=c084fc&size=80'"
-                                     style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(168,85,247,0.35); margin-bottom: 0.75rem;">
-                                <div class="cast-name text-accent" title="{{ member.name }}" style="font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ member.name }}</div>
-                                {% if member.character %}
-                                    <div class="cast-char" title="{{ member.character }}" style="font-size: 0.75rem; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.15rem;">{{ member.character }}</div>
+                                     class="rounded-circle object-fit-cover mb-3" style="width: 80px; height: 80px; border: 2px solid rgba(168,85,247,0.35);">
+                                {% else %}
+                                <img src="https://ui-avatars.com/api/?name={{ member.name|urlencode }}&background=2d1b4e&color=c084fc&size=80"
+                                     alt="{{ member.name }}"
+                                     class="rounded-circle object-fit-cover mb-3" style="width: 80px; height: 80px; border: 2px solid rgba(168,85,247,0.35);">
                                 {% endif %}
-                            </div>
-                        {% if member.id %}
-                        </a>
-                        {% endif %}
+                                
+                                <div class="cast-name text-accent w-100 text-truncate" title="{{ member.name }}" style="font-weight: 600;">{{ member.name }}</div>
+                                {% if member.character %}
+                                    <div class="cast-char w-100 text-truncate" title="{{ member.character }}">{{ member.character }}</div>
+                                {% endif %}
+                            {% if member.id %}
+                            </a>
+                            {% endif %}
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
@@ -558,9 +565,9 @@
 
             <div class="mb-5">
                 <h2 class="section-heading">Official Trailer</h2>
-                {% if trailer_key %}
+                {% if trailer_url %}
                 <div class="trailer-wrapper">
-                    <iframe src="https://www.youtube.com/embed/{{ trailer_key }}"
+                    <iframe src="{{ trailer_url }}"
                             title="{{ movie.title }} Official Trailer"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                             allowfullscreen
