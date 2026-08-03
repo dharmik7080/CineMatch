@@ -428,25 +428,7 @@ def home_redirect(request):
         return redirect('for_you_feed')
     return redirect('login')
 
-@csrf_protect
-@never_cache
-def home_view(request):
-    if request.user.is_authenticated:
-        return redirect('for_you_feed')
-    
-    from core.utils import fetch_tmdb_catalog
-    catalog_p1 = fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", page=1)
-    catalog_p2 = fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", page=2)
-    movies_list = catalog_p1.get('results', []) + catalog_p2.get('results', [])
-    movies_list = movies_list[:24]
-    random_posters = [m['poster_url'] for m in movies_list if m.get('poster_url')]
 
-    if request.method == 'POST':
-        return signup_view(request)
-    return render(request, 'core/signup.html', {
-        'form': UserCreationForm(),
-        'random_posters': random_posters,
-    })
 
 # ======================================================================
 # Watchlist CRUD: Add Item View (Create)
