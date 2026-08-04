@@ -218,36 +218,56 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
         sim_matrix = TV_SIMILARITY
         id_col = 'id'
 
-    # ── PATH A: Relational Database Lookup (Primary Production Route) ──
-    from core.models import CachedRecommendation, CachedMedia
-    if user_watchlist_ids:
-        recent_id = user_watchlist_ids[0]
-        db_recs = CachedRecommendation.objects.filter(
-            source_id=recent_id,
-            media_type=media_type
-        ).order_by('-score')[:8]
 
-        if db_recs.exists():
+    # ── PATH A: Multi-Source Weighted Aggregation (Primary Production Route) ──
+    # Uses SUM(score) across ALL watchlist sources (not just the first item)
+    # and a multi-source bonus multiplier to rank candidates that appear across
+    # multiple user-saved titles higher. Excludes already watched/saved items.
+    # Full design rationale: core/recommendations.py
+    from django.db.models import Sum, Count
+    from core.models import CachedRecommendation, CachedMedia, WatchedHistory
+    if user_watchlist_ids:
+        watched_ids = set(
+            WatchedHistory.objects
+            .filter(media_type=media_type)
+            .values_list("media_id", flat=True)
+        )
+        excluded_ids = set(user_watchlist_ids) | watched_ids
+
+        qs = (
+            CachedRecommendation.objects
+            .filter(
+                source_id__in=user_watchlist_ids[:10],
+                media_type=media_type,
+            )
+            .exclude(target_id__in=excluded_ids)
+            .values("target_id")
+            .annotate(
+                total_score=Sum("score"),
+                source_count=Count("source_id"),
+            )
+            .order_by("-total_score")
+            [:8]
+        )
+
+        if qs.exists():
             recommendations = []
-            for r in db_recs:
-                rec = {
-                    id_col: r.target_id,
-                    'score': r.score
-                }
-                # Hydrate title from CachedMedia if available to minimize API hits
-                cached = CachedMedia.objects.filter(media_id=r.target_id, media_type=media_type).first()
+            for row in qs:
+                tid = row["target_id"]
+                rec = {id_col: tid, 'score': row["total_score"]}
+                cached = CachedMedia.objects.filter(media_id=tid, media_type=media_type).first()
                 if cached and cached.data:
                     title_text = cached.data.get('title') or cached.data.get('name') or 'Unknown Title'
                 else:
                     title_text = 'Unknown Title'
-                
                 rec['title'] = title_text
-                rec['poster_url'] = get_cached_poster(client, r.target_id, media_type)
+                rec['poster_url'] = get_cached_poster(client, tid, media_type)
                 rec['watch_link'] = client.get_streaming_or_theatre_links(title_text, media_type, False)
                 recommendations.append(rec)
             return recommendations
 
     # ── PATH B: Low-Resource API Fallback (Safeguard when DB is empty and Pickles are missing) ──
+
     if data_dict is None or sim_matrix is None:
         if user_watchlist_ids:
             recent_id = user_watchlist_ids[0]
