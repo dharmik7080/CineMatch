@@ -7,3 +7,8 @@ dj-database-url
 psycopg2-binary
 gunicorn
 whitenoise
+scikit-learn
+matplotlib
+seaborn
+plotly
+networkx
