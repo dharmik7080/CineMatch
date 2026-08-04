@@ -40,53 +40,62 @@ def generate_seaborn_heatmap():
     Generates a correlation matrix heatmap using sns.heatmap().
     Shows statistical relationships between movie attributes (popularity, rating, budget, etc.).
     """
-    df = get_credits_df()
-    if df is None:
+    try:
+        df = get_credits_df()
+        if df is None:
+            return ""
+
+        # Select numerical variables for statistical correlation (Unit 1.4)
+        num_cols = [c for c in ['budget', 'revenue', 'popularity', 'runtime', 'vote_average', 'vote_count'] if c in df.columns]
+        if not num_cols:
+            return ""
+        df_numeric = df[num_cols].apply(pd.to_numeric, errors='coerce').dropna()
+        if df_numeric.empty:
+            return ""
+
+        # Pearson Correlation Coefficient Calculation
+        corr_matrix = df_numeric.corr()
+
+        # Establish Seaborn figure
+        plt.figure(figsize=(8, 6))
+
+        # Dark mode theme styling (Wow Aesthetics)
+        sns.set_theme(style="dark", rc={
+            "axes.facecolor": "#07070b",
+            "figure.facecolor": "#07070b",
+            "text.color": "#ffffff",
+            "axes.labelcolor": "#ffffff",
+            "xtick.color": "#9ca3af",
+            "ytick.color": "#9ca3af",
+        })
+
+        # Create premium diverging purple-blue heatmap palette
+        cmap = sns.diverging_palette(275, 150, s=80, l=55, n=9, as_cmap=True)
+
+        sns.heatmap(
+            corr_matrix,
+            annot=True,
+            cmap=cmap,
+            fmt=".2f",
+            linewidths=0.5,
+            cbar=True,
+            annot_kws={"size": 10}
+        )
+
+        plt.title("Correlation Matrix Heatmap: Movie Performance Metas", fontsize=12, pad=15, color='#ffffff', weight='bold')
+        plt.tight_layout()
+
+        # Buffer serialization
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', facecolor='#07070b', dpi=120)
+        buf.seek(0)
+        encoded_png = base64.b64encode(buf.read()).decode('utf-8')
+        plt.close()
+        return encoded_png
+    except Exception as e:
+        print("[Analytics Engine] Seaborn heatmap error:", e)
+        plt.close('all')
         return ""
-        
-    # Select numerical variables for statistical correlation (Unit 1.4)
-    num_cols = ['budget', 'revenue', 'popularity', 'runtime', 'vote_average', 'vote_count']
-    df_numeric = df[num_cols].dropna()
-    
-    # Pearson Correlation Coefficient Calculation
-    corr_matrix = df_numeric.corr()
-    
-    # Establish Seaborn figure
-    plt.figure(figsize=(8, 6))
-    
-    # Dark mode theme styling (Wow Aesthetics)
-    sns.set_theme(style="dark", rc={
-        "axes.facecolor": "#07070b",
-        "figure.facecolor": "#07070b",
-        "text.color": "#ffffff",
-        "axes.labelcolor": "#ffffff",
-        "xtick.color": "#9ca3af",
-        "ytick.color": "#9ca3af",
-    })
-    
-    # Create premium diverging purple-blue heatmap palette
-    cmap = sns.diverging_palette(275, 150, s=80, l=55, n=9, as_cmap=True)
-    
-    sns.heatmap(
-        corr_matrix, 
-        annot=True, 
-        cmap=cmap, 
-        fmt=".2f", 
-        linewidths=0.5, 
-        cbar=True,
-        annot_kws={"size": 10}
-    )
-    
-    plt.title("Correlation Matrix Heatmap: Movie Performance Metas", fontsize=12, pad=15, color='#ffffff', weight='bold')
-    plt.tight_layout()
-    
-    # Buffer serialization
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', facecolor='#07070b', dpi=120)
-    buf.seek(0)
-    encoded_png = base64.b64encode(buf.read()).decode('utf-8')
-    plt.close()
-    return encoded_png
 
 def generate_plotly_scatter():
     """
@@ -94,40 +103,54 @@ def generate_plotly_scatter():
     Generates an interactive scatter chart mapping Budget vs Revenue,
     color-coded by ratings and sized by popularity, enabling zoom/hover inspect.
     """
-    df = get_credits_df()
-    if df is None:
+    try:
+        df = get_credits_df()
+        if df is None:
+            return ""
+
+        required = ['budget', 'revenue', 'popularity', 'vote_average', 'title']
+        if not all(c in df.columns for c in required):
+            return ""
+
+        for col in ['budget', 'revenue', 'popularity', 'vote_average']:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        df = df.dropna(subset=required)
+
+        # Clean records to remove zero inputs for logical plotting (Unit 1.4)
+        df_filtered = df[(df['budget'] > 1000000) & (df['revenue'] > 1000000)].head(150)
+        if df_filtered.empty:
+            return ""
+
+        # Build dynamic Plotly Scatter Chart
+        fig = px.scatter(
+            df_filtered,
+            x="budget",
+            y="revenue",
+            size="popularity",
+            color="vote_average",
+            hover_name="title",
+            title="Interactive Ingress: Movie Budget vs Revenue (Color: Rating, Size: Popularity)",
+            labels={'budget': 'Production Budget ($)', 'revenue': 'Global Revenue ($)', 'vote_average': 'Vote Average'},
+            template="plotly_dark",
+            color_continuous_scale=px.colors.sequential.Viridis
+        )
+
+        fig.update_layout(
+            template='plotly_dark',
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font_color='#ffffff',
+            margin=dict(l=20, r=20, t=50, b=20),
+            coloraxis_colorbar=dict(title="Rating")
+        )
+
+        # Render figure div directly
+        from plotly.offline import plot
+        chart_div = plot(fig, output_type='div', include_plotlyjs=False)
+        return chart_div
+    except Exception as e:
+        print("[Analytics Engine] Plotly scatter error:", e)
         return ""
-        
-    # Clean records to remove zero inputs for logical plotting (Unit 1.4)
-    df_filtered = df[(df['budget'] > 1000000) & (df['revenue'] > 1000000)].head(150)
-    
-    # Build dynamic Plotly Scatter Chart
-    fig = px.scatter(
-        df_filtered,
-        x="budget",
-        y="revenue",
-        size="popularity",
-        color="vote_average",
-        hover_name="title",
-        title="Interactive Ingress: Movie Budget vs Revenue (Color: Rating, Size: Popularity)",
-        labels={'budget': 'Production Budget ($)', 'revenue': 'Global Revenue ($)', 'vote_average': 'Vote Average'},
-        template="plotly_dark",
-        color_continuous_scale=px.colors.sequential.Viridis
-    )
-    
-    fig.update_layout(
-        template='plotly_dark',
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font_color='#ffffff',
-        margin=dict(l=20, r=20, t=50, b=20),
-        coloraxis_colorbar=dict(title="Rating")
-    )
-    
-    # Render figure div directly
-    from plotly.offline import plot
-    chart_div = plot(fig, output_type='div', include_plotlyjs=False)
-    return chart_div
 
 def generate_networkx_graph(watchlist_movie_ids):
     """
@@ -135,7 +158,6 @@ def generate_networkx_graph(watchlist_movie_ids):
     Draws a relational network mapping connections between user-saved titles
     and their categorized genres, visually plotting topology.
     """
-    G = nx.Graph()
     df = get_credits_df()
     
     if df is None or not watchlist_movie_ids:

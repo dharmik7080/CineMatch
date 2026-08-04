@@ -1089,9 +1089,18 @@ def analytics_dashboard(request):
     )
     gauge_json = pio.to_json(fig_gauge)
     
-    heatmap_base64 = generate_seaborn_heatmap()
-    plotly_div_html = generate_plotly_scatter()
-    network_base64 = generate_networkx_graph(watchlist_movies)
+    try:
+        heatmap_base64 = generate_seaborn_heatmap()
+    except Exception:
+        heatmap_base64 = ""
+    try:
+        plotly_div_html = generate_plotly_scatter()
+    except Exception:
+        plotly_div_html = ""
+    try:
+        network_base64 = generate_networkx_graph(watchlist_movies)
+    except Exception:
+        network_base64 = ""
     
     context = {
         'heatmap_img': heatmap_base64,
