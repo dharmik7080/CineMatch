@@ -39,7 +39,7 @@ POSTER_CACHE = {}
 # Sentiment Analysis Engine (ML Inference: Logistic Regression)
 # ======================================================================
 import re
-MODEL_DIR = os.path.join(settings.BASE_DIR.parent, 'models')
+MODEL_DIR = os.path.join(settings.BASE_DIR, 'models')
 SENTIMENT_MODEL_PATH = os.path.join(MODEL_DIR, 'sentiment_model.pkl')
 VECTORIZER_PATH = os.path.join(MODEL_DIR, 'vectorizer.pkl')
 

@@ -13,7 +13,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING("Starting recommendation database indexing..."))
         
         # 1. Resolve model directory paths
-        models_dir = os.path.join(settings.BASE_DIR.parent, 'models')
+        models_dir = os.path.join(settings.BASE_DIR, 'models')
         movie_dict_path = os.path.join(models_dir, 'movie_dict.pkl')
         movie_sim_path = os.path.join(models_dir, 'similarity.pkl')
         tv_dict_path = os.path.join(models_dir, 'tv_dict.pkl')

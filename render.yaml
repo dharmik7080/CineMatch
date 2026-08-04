@@ -3,7 +3,7 @@ services:
     name: cinematch-web
     env: python
     buildCommand: "./build.sh"
-    startCommand: "gunicorn --chdir cinematch_project cinematch_project.wsgi:application"
+    startCommand: "gunicorn cinematch_project.wsgi:application"
     plan: free
     envVars:
       - key: PYTHON_VERSION
