@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: cinematch-web
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn --chdir cinematch_project cinematch_project.wsgi:application"
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cinematch-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TMDB_API_KEY
+        value: "41fc74ce5602882786e1e9d4933fdcc6"
+      - key: OMDB_API_KEY
+        value: "62218dac"
+      - key: WATCHMODE_API_KEY
+        value: "PiTJpSFDkmR40M6cvWqBwyuJjrielWKSnL9ZQuaz"
+
+databases:
+  - name: cinematch-db
+    plan: free

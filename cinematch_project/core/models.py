@@ -282,3 +282,24 @@ class GenreCache(models.Model):
 
     def __str__(self):
         return f"Genre Cache: {self.genre_name}"
+
+
+class CachedRecommendation(models.Model):
+    """
+    Stores pre-computed top-15 cosine similarity matches for movies and TV shows.
+    Allows low-resource deployment by offloading similarity matrix slicing to standard indexed database queries.
+    """
+    source_id = models.IntegerField(db_index=True, help_text="ID of the movie/show being viewed.")
+    target_id = models.IntegerField(help_text="ID of the recommended movie/show.")
+    score = models.FloatField(help_text="Cosine similarity score.")
+    media_type = models.CharField(max_length=10, help_text="Discriminator column ('movie' or 'tv').")
+
+    class Meta:
+        verbose_name = "Cached Recommendation"
+        verbose_name_plural = "Cached Recommendations"
+        indexes = [
+            models.Index(fields=['source_id', 'media_type']),
+        ]
+
+    def __str__(self):
+        return f"{self.media_type.upper()} {self.source_id} -> {self.target_id} ({self.score:.2f})"

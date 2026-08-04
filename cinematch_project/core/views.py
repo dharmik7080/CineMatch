@@ -205,7 +205,7 @@ def get_genre_fallback_recommendations(recent_id, df, id_col, watchlist_indices,
 def get_recommendations(user_watchlist_ids, media_type='movie'):
     """
     Syllabus Reference: Units 4 & 5 Model Inference and Metric Evaluation
-    Mathematical Concept: Similarity Matrix Vector Aggregation
+    Mathematical Concept: Similarity Matrix Vector Aggregation with Database Caching
     """
     client = TMDBClient()
     
@@ -217,9 +217,62 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
         data_dict = TV_DICT
         sim_matrix = TV_SIMILARITY
         id_col = 'id'
-        
+
+    # ── PATH A: Relational Database Lookup (Primary Production Route) ──
+    from core.models import CachedRecommendation, CachedMedia
+    if user_watchlist_ids:
+        recent_id = user_watchlist_ids[0]
+        db_recs = CachedRecommendation.objects.filter(
+            source_id=recent_id,
+            media_type=media_type
+        ).order_by('-score')[:8]
+
+        if db_recs.exists():
+            recommendations = []
+            for r in db_recs:
+                rec = {
+                    id_col: r.target_id,
+                    'score': r.score
+                }
+                # Hydrate title from CachedMedia if available to minimize API hits
+                cached = CachedMedia.objects.filter(media_id=r.target_id, media_type=media_type).first()
+                if cached and cached.data:
+                    title_text = cached.data.get('title') or cached.data.get('name') or 'Unknown Title'
+                else:
+                    title_text = 'Unknown Title'
+                
+                rec['title'] = title_text
+                rec['poster_url'] = get_cached_poster(client, r.target_id, media_type)
+                rec['watch_link'] = client.get_streaming_or_theatre_links(title_text, media_type, False)
+                recommendations.append(rec)
+            return recommendations
+
+    # ── PATH B: Low-Resource API Fallback (Safeguard when DB is empty and Pickles are missing) ──
     if data_dict is None or sim_matrix is None:
-        return []
+        if user_watchlist_ids:
+            recent_id = user_watchlist_ids[0]
+            if media_type == 'movie':
+                results = client.get_similar_movies(recent_id)[:8]
+                for r in results:
+                    r['movie_id'] = r['id']
+                    r['watch_link'] = client.get_streaming_or_theatre_links(r['title'], 'movie', False)
+                return results
+            else:
+                from core.utils import fetch_tmdb_catalog
+                catalog = fetch_tmdb_catalog(endpoint_type="tv", list_type="popular", page=1)
+                results = catalog.get('results', [])[:8]
+                for r in results:
+                    r['watch_link'] = client.get_streaming_or_theatre_links(r['title'], 'tv', False)
+                return results
+        else:
+            from core.utils import fetch_tmdb_catalog
+            catalog = fetch_tmdb_catalog(endpoint_type=media_type, list_type="popular", page=1)
+            results = catalog.get('results', [])[:8]
+            for r in results:
+                if media_type == 'movie':
+                    r['movie_id'] = r['id']
+                r['watch_link'] = client.get_streaming_or_theatre_links(r['title'], media_type, False)
+            return results
         
     df = pd.DataFrame(data_dict)
     
