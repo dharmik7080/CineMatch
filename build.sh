@@ -10,6 +10,3 @@ python manage.py migrate --no-input
 
 # Load static files
 python manage.py collectstatic --no-input
-
-# Load pre-computed recommendation index fixtures into the database
-python manage.py loaddata recommendations.json
