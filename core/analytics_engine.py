@@ -158,26 +158,11 @@ def generate_networkx_graph(watchlist_movie_ids):
     Draws a relational network mapping connections between user-saved titles
     and their categorized genres, visually plotting topology.
     """
+    G = nx.Graph()
     df = get_credits_df()
     
-    if df is None or not watchlist_movie_ids:
-        # Default mock relationship graph if user watchlist is empty
-        mock_edges = [
-            ("Avatar", "Sci-Fi"), ("Avatar", "Adventure"), ("Avatar", "Fantasy"),
-            ("Interstellar", "Sci-Fi"), ("Interstellar", "Adventure"), ("Interstellar", "Drama"),
-            ("Inception", "Sci-Fi"), ("Inception", "Action"), ("Inception", "Adventure"),
-            ("The Dark Knight Rises", "Action"), ("The Dark Knight Rises", "Crime"), ("The Dark Knight Rises", "Thriller"),
-            ("Sci-Fi", "Adventure"), ("Action", "Adventure")
-        ]
-        G.add_edges_from(mock_edges)
-        
-        # Annotate nodes
-        for node in G.nodes():
-            if node in ["Sci-Fi", "Adventure", "Fantasy", "Drama", "Action", "Crime", "Thriller"]:
-                G.nodes[node]['type'] = 'genre'
-            else:
-                G.nodes[node]['type'] = 'movie'
-    else:
+    use_fallback = True
+    if df is not None and watchlist_movie_ids:
         # Build live graph based on active user watchlist items
         import ast
         for movie_id in watchlist_movie_ids[:5]: # Cap at 5 nodes to maintain visibility
@@ -194,6 +179,28 @@ def generate_networkx_graph(watchlist_movie_ids):
                         G.add_edge(title, gname)
                 except Exception:
                     pass
+        if G.number_of_nodes() > 0:
+            use_fallback = False
+
+    if use_fallback:
+        # Default mock relationship graph if user watchlist is empty or has only new unindexed releases
+        G.clear()
+        mock_edges = [
+            ("Avatar", "Sci-Fi"), ("Avatar", "Adventure"), ("Avatar", "Fantasy"),
+            ("Interstellar", "Sci-Fi"), ("Interstellar", "Adventure"), ("Interstellar", "Drama"),
+            ("Inception", "Sci-Fi"), ("Inception", "Action"), ("Inception", "Adventure"),
+            ("The Dark Knight Rises", "Action"), ("The Dark Knight Rises", "Crime"), ("The Dark Knight Rises", "Thriller"),
+            ("Sci-Fi", "Adventure"), ("Action", "Adventure")
+        ]
+        G.add_edges_from(mock_edges)
+        
+        # Annotate nodes
+        for node in G.nodes():
+            if node in ["Sci-Fi", "Adventure", "Fantasy", "Drama", "Action", "Crime", "Thriller"]:
+                G.nodes[node]['type'] = 'genre'
+            else:
+                G.nodes[node]['type'] = 'movie'
+
                     
     # Establish plot
     plt.figure(figsize=(8, 6))
