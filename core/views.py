@@ -274,25 +274,39 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
             if media_type == 'movie':
                 results = client.get_similar_movies(recent_id)[:8]
                 for r in results:
-                    r['movie_id'] = r['id']
-                    r['watch_link'] = client.get_streaming_or_theatre_links(r['title'], 'movie', False)
-                return results
+                    r['movie_id'] = r.get('id', r.get('movie_id'))
+                    title_text = r.get('title', 'Unknown Title')
+                    r['title'] = title_text
+                    r['poster_url'] = get_cached_poster(client, r['movie_id'], 'movie')
+                    r['watch_link'] = client.get_streaming_or_theatre_links(title_text, 'movie', False)
+                return [r for r in results if r.get('poster_url')]
             else:
                 from core.utils import fetch_tmdb_catalog
                 catalog = fetch_tmdb_catalog(endpoint_type="tv", list_type="popular", page=1)
                 results = catalog.get('results', [])[:8]
                 for r in results:
-                    r['watch_link'] = client.get_streaming_or_theatre_links(r['title'], 'tv', False)
-                return results
+                    tid = r.get('id', r.get('media_id'))
+                    title_text = r.get('name') or r.get('title') or 'Unknown Title'
+                    r['title'] = title_text
+                    r['id'] = tid
+                    r['poster_url'] = get_cached_poster(client, tid, 'tv')
+                    r['watch_link'] = client.get_streaming_or_theatre_links(title_text, 'tv', False)
+                return [r for r in results if r.get('poster_url')]
+
         else:
             from core.utils import fetch_tmdb_catalog
             catalog = fetch_tmdb_catalog(endpoint_type=media_type, list_type="popular", page=1)
             results = catalog.get('results', [])[:8]
             for r in results:
+                tid = r.get('id', r.get('movie_id'))
+                title_text = r.get('title') or r.get('name') or 'Unknown Title'
+                r['title'] = title_text
                 if media_type == 'movie':
-                    r['movie_id'] = r['id']
-                r['watch_link'] = client.get_streaming_or_theatre_links(r['title'], media_type, False)
-            return results
+                    r['movie_id'] = tid
+                r['poster_url'] = get_cached_poster(client, tid, media_type)
+                r['watch_link'] = client.get_streaming_or_theatre_links(title_text, media_type, False)
+            return [r for r in results if r.get('poster_url')]
+
         
     df = pd.DataFrame(data_dict)
     
@@ -712,9 +726,14 @@ def for_you_feed(request):
     recs = None
     try:
         recs = cache.get(cache_key)
+        # Auto-invalidate stale empty cache (e.g. after a deploy fix)
+        if recs is not None:
+            if not recs.get('recommended_movies') and not recs.get('recommended_tv_shows'):
+                cache.delete(cache_key)
+                recs = None
     except Exception as ce:
         print(f"[CACHE ERROR] Failed to fetch feed cache: {ce}")
-        
+
     if recs is None:
         try:
             recs = get_personalized_recommendations(user)
@@ -725,6 +744,7 @@ def for_you_feed(request):
                 'recommended_movies': [],
                 'recommended_tv_shows': []
             }
+
             
     recommended_movies = recs.get('recommended_movies', [])
     recommended_tv_shows = recs.get('recommended_tv_shows', [])
