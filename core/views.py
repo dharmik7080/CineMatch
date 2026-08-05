@@ -1681,6 +1681,26 @@ def tv_detail_view(request, series_id):
             data = None
 
     if data:
+        # Data Enrichment Logic: explicitly query watch/providers if missing or incomplete in cached data
+        providers_payload = data.get('watch/providers', {}).get('results', {})
+        if not providers_payload or (not providers_payload.get('IN') and not providers_payload.get('US')):
+            try:
+                prov_url = f"https://api.themoviedb.org/3/tv/{series_id_val}/watch/providers?api_key={api_key}"
+                prov_resp = get_resilient_session().get(prov_url, timeout=3.0)
+                if prov_resp.status_code == 200:
+                    prov_data = prov_resp.json()
+                    data['watch/providers'] = prov_data
+                    # Write-through/enrich the cached payload in db & django cache
+                    from django.core.cache import cache
+                    cache.set(f"tv_detail_data_{series_id}", data, 86400)
+                    CachedMedia.objects.update_or_create(
+                        media_id=series_id_val,
+                        media_type='tv',
+                        defaults={'data': data}
+                    )
+            except Exception as pe:
+                print(f"[DATA ENRICHMENT WARNING] Failed to enrich watch/providers for TV ID {series_id_val}: {pe}")
+
         try:
             imdb_id = data.get('external_ids', {}).get('imdb_id')
             if imdb_id:
@@ -1755,7 +1775,16 @@ def tv_detail_view(request, series_id):
             print(f"[DEBUG] tv_detail_view extracted trailer_key: {trailer_key}")
 
             providers_payload = data.get('watch/providers', {}).get('results', {})
-            region_data = providers_payload.get('IN') or providers_payload.get('US') or {}
+            region_data = providers_payload.get('IN') or providers_payload.get('US')
+            if not region_data:
+                # Fallback to the first region with flatrate subscription streaming data
+                for r_code, r_data in providers_payload.items():
+                    if isinstance(r_data, dict) and 'flatrate' in r_data:
+                        region_data = r_data
+                        break
+            if not region_data:
+                region_data = {}
+                
             raw_providers = region_data.get('flatrate', [])
             for p in raw_providers:
                 logo_path = p.get('logo_path') or ''
@@ -1933,6 +1962,7 @@ def tv_detail_view(request, series_id):
         'cast':            cast,
         'trailer_key':     trailer_key,
         'watch_providers': watch_providers,
+        'streaming_providers': watch_providers,
         'similar_shows':   similar_shows,
         'is_in_watchlist': is_in_watchlist,
         'seasons':         seasons,
