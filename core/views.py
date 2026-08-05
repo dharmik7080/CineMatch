@@ -272,40 +272,33 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
         if user_watchlist_ids:
             recent_id = user_watchlist_ids[0]
             if media_type == 'movie':
+                # get_similar_movies already returns poster_url from TMDB image CDN
                 results = client.get_similar_movies(recent_id)[:8]
                 for r in results:
                     r['movie_id'] = r.get('id', r.get('movie_id'))
-                    title_text = r.get('title', 'Unknown Title')
-                    r['title'] = title_text
-                    r['poster_url'] = get_cached_poster(client, r['movie_id'], 'movie')
-                    r['watch_link'] = client.get_streaming_or_theatre_links(title_text, 'movie', False)
-                return [r for r in results if r.get('poster_url')]
+                    r['title'] = r.get('title', 'Unknown Title')
+                    r['watch_link'] = client.get_streaming_or_theatre_links(r['title'], 'movie', False)
+                return results  # poster_url already set by get_similar_movies
             else:
                 from core.utils import fetch_tmdb_catalog
+                # fetch_tmdb_catalog already returns poster_url for each item
                 catalog = fetch_tmdb_catalog(endpoint_type="tv", list_type="popular", page=1)
                 results = catalog.get('results', [])[:8]
                 for r in results:
-                    tid = r.get('id', r.get('media_id'))
-                    title_text = r.get('name') or r.get('title') or 'Unknown Title'
-                    r['title'] = title_text
-                    r['id'] = tid
-                    r['poster_url'] = get_cached_poster(client, tid, 'tv')
-                    r['watch_link'] = client.get_streaming_or_theatre_links(title_text, 'tv', False)
-                return [r for r in results if r.get('poster_url')]
-
+                    r['title'] = r.get('name') or r.get('title') or 'Unknown Title'
+                    r['watch_link'] = client.get_streaming_or_theatre_links(r['title'], 'tv', False)
+                return results  # poster_url already set by fetch_tmdb_catalog
         else:
             from core.utils import fetch_tmdb_catalog
             catalog = fetch_tmdb_catalog(endpoint_type=media_type, list_type="popular", page=1)
             results = catalog.get('results', [])[:8]
             for r in results:
-                tid = r.get('id', r.get('movie_id'))
                 title_text = r.get('title') or r.get('name') or 'Unknown Title'
                 r['title'] = title_text
                 if media_type == 'movie':
-                    r['movie_id'] = tid
-                r['poster_url'] = get_cached_poster(client, tid, media_type)
+                    r['movie_id'] = r.get('id', r.get('movie_id'))
                 r['watch_link'] = client.get_streaming_or_theatre_links(title_text, media_type, False)
-            return [r for r in results if r.get('poster_url')]
+            return results  # poster_url already set by fetch_tmdb_catalog
 
         
     df = pd.DataFrame(data_dict)
