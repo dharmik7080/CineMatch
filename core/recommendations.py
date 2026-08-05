@@ -67,8 +67,8 @@ def get_recommendation_ids(user, media_type="movie", limit=8):
     # ── STEP 2: Build exclusion set (already bookmarked + watched) ──────────
     watched_ids = set(
         WatchedHistory.objects
-        .filter(user=user, media_type=media_type)
-        .values_list("media_id", flat=True)
+        .filter(user=user)
+        .values_list("movie_id", flat=True)
     )
     excluded_ids = set(recent_ids) | watched_ids
 

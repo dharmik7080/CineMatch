@@ -202,7 +202,7 @@ def get_genre_fallback_recommendations(recent_id, df, id_col, watchlist_indices,
     return recommendations
 
 
-def get_recommendations(user_watchlist_ids, media_type='movie'):
+def get_recommendations(user_watchlist_ids, media_type='movie', user=None):
     """
     Syllabus Reference: Units 4 & 5 Model Inference and Metric Evaluation
     Mathematical Concept: Similarity Matrix Vector Aggregation with Database Caching
@@ -227,15 +227,19 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
     from django.db.models import Sum, Count
     from core.models import CachedRecommendation, CachedMedia, WatchedHistory
     if user_watchlist_ids:
-        watched_ids = set(
-            WatchedHistory.objects
-            .filter(media_type=media_type)
-            .values_list("media_id", flat=True)
-        )
+        if user:
+            watched_ids = set(
+                WatchedHistory.objects
+                .filter(user=user)
+                .values_list("movie_id", flat=True)
+            )
+        else:
+            watched_ids = set()
         excluded_ids = set(user_watchlist_ids) | watched_ids
 
         qs = (
             CachedRecommendation.objects
+
             .filter(
                 source_id__in=user_watchlist_ids[:10],
                 media_type=media_type,
@@ -594,8 +598,8 @@ def get_personalized_recommendations(user):
     saved_movies = list(watchlist_items.filter(media_type='movie').values_list('media_id', flat=True))
     saved_tv_shows = list(watchlist_items.filter(media_type='tv').values_list('media_id', flat=True))
     
-    recommended_movies = get_recommendations(saved_movies, 'movie')
-    recommended_tv_shows = get_recommendations(saved_tv_shows, 'tv')
+    recommended_movies = get_recommendations(saved_movies, 'movie', user=user)
+    recommended_tv_shows = get_recommendations(saved_tv_shows, 'tv', user=user)
     
     return {
         'recommended_movies': recommended_movies,
