@@ -281,17 +281,49 @@ def get_recommendations(user_watchlist_ids, media_type='movie', user=None):
                 for r in results:
                     r['movie_id'] = r.get('id', r.get('movie_id'))
                     r['title'] = r.get('title', 'Unknown Title')
+                    r['poster_url'] = get_cached_poster(client, r['movie_id'], 'movie')
                     r['watch_link'] = client.get_streaming_or_theatre_links(r['title'], 'movie', False)
-                return results  # poster_url already set by get_similar_movies
+                return results
             else:
-                from core.utils import fetch_tmdb_catalog
-                # fetch_tmdb_catalog already returns poster_url for each item
-                catalog = fetch_tmdb_catalog(endpoint_type="tv", list_type="popular", page=1)
-                results = catalog.get('results', [])[:8]
-                for r in results:
-                    r['title'] = r.get('name') or r.get('title') or 'Unknown Title'
-                    r['watch_link'] = client.get_streaming_or_theatre_links(r['title'], 'tv', False)
-                return results  # poster_url already set by fetch_tmdb_catalog
+                # Fetch similar TV shows directly from TMDB
+                similar_url = f"{client.base_url}/tv/{recent_id}/similar"
+                params = {
+                    'api_key': settings.TMDB_API_KEY,
+                    'language': 'en-US',
+                    'page': 1
+                }
+                results = []
+                try:
+                    resp = get_resilient_session().get(similar_url, params=params, timeout=5.0)
+                    if resp.status_code == 200:
+                        raw_results = resp.json().get('results', [])
+                        for item in raw_results[:8]:
+                            show_id = item.get('id')
+                            title = item.get('name', 'Unknown Title')
+                            results.append({
+                                'id': show_id,
+                                'title': title,
+                                'poster_url': get_cached_poster(client, show_id, 'tv'),
+                                'watch_link': client.get_streaming_or_theatre_links(title, 'tv', False)
+                            })
+                except Exception as ex:
+                    print(f"[TV FALLBACK ERROR] Failed to fetch similar TV shows: {ex}")
+                
+                # If TMDB similar call failed or returned empty, use popular TV shows
+                if not results:
+                    from core.utils import fetch_tmdb_catalog
+                    catalog = fetch_tmdb_catalog(endpoint_type="tv", list_type="popular", page=1)
+                    raw_results = catalog.get('results', [])[:8]
+                    for r in raw_results:
+                        show_id = r.get('id')
+                        title = r.get('name', 'Unknown Title')
+                        results.append({
+                            'id': show_id,
+                            'title': title,
+                            'poster_url': get_cached_poster(client, show_id, 'tv'),
+                            'watch_link': client.get_streaming_or_theatre_links(title, 'tv', False)
+                        })
+                return results
         else:
             from core.utils import fetch_tmdb_catalog
             catalog = fetch_tmdb_catalog(endpoint_type=media_type, list_type="popular", page=1)
@@ -299,17 +331,37 @@ def get_recommendations(user_watchlist_ids, media_type='movie', user=None):
             for r in results:
                 title_text = r.get('title') or r.get('name') or 'Unknown Title'
                 r['title'] = title_text
+                r['poster_url'] = get_cached_poster(client, r.get('id'), media_type)
                 if media_type == 'movie':
                     r['movie_id'] = r.get('id', r.get('movie_id'))
                 r['watch_link'] = client.get_streaming_or_theatre_links(title_text, media_type, False)
-            return results  # poster_url already set by fetch_tmdb_catalog
-
+            return results
         
     df = pd.DataFrame(data_dict)
     
     # ── COLD START LOGIC & FALLBACK LAYER 1: Watchlist is completely empty ──
     if not user_watchlist_ids:
-        # Keep global popularity fallback only when watchlist is completely empty (no "last movie" exists)
+        # Pull genuine weekly popular/trending items from TMDB instead of arbitrary local database entries
+        try:
+            from core.utils import fetch_tmdb_catalog
+            catalog = fetch_tmdb_catalog(endpoint_type=media_type, list_type="popular", page=1)
+            results = catalog.get('results', [])[:8]
+            defaults = []
+            for r in results:
+                title_text = r.get('title') or r.get('name') or 'Unknown Title'
+                media_id = r.get('id')
+                defaults.append({
+                    id_col: media_id,
+                    'title': title_text,
+                    'poster_url': get_cached_poster(client, media_id, media_type),
+                    'watch_link': client.get_streaming_or_theatre_links(title_text, media_type, False),
+                })
+            if defaults:
+                return defaults
+        except Exception as fe:
+            print(f"[COLD START TMDB FALLBACK ERROR] {fe}")
+
+        # Emergency Fallback to local dataset if TMDB is offline
         if 'popularity' in df.columns:
             trending_df = df.sort_values(by='popularity', ascending=False)
         else:
