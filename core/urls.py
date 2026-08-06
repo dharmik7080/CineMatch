@@ -72,4 +72,9 @@ urlpatterns = [
     path('groups/<uuid:group_code>/add-item/', views.add_group_item_view, name='add_group_item'),
     path('groups/<uuid:group_code>/remove-item/<int:item_id>/', views.remove_group_item_view, name='remove_group_item'),
     path('groups/<uuid:group_code>/message/send/', views.send_group_message_view, name='send_group_message'),
+
+    # Notifications System patterns
+    path('notifications/', views.notifications_list_view, name='notifications_list'),
+    path('notifications/read/<int:notification_id>/', views.mark_notification_read, name='mark_notification_read'),
+    path('notifications/mark-all-read/', views.mark_all_notifications_read, name='mark_all_notifications_read'),
 ]

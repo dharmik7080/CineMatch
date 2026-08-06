@@ -2880,6 +2880,24 @@ def send_group_message_view(request, group_code):
         content=content
     )
     
+    # Bulk notify other members of the group
+    try:
+        from core.models import Notification
+        from django.urls import reverse
+        other_members = group.members.exclude(id=request.user.id)
+        notifications = [
+            Notification(
+                recipient=member,
+                sender=request.user,
+                message=f"@{request.user.username} sent a message in '{group.name}': \"{content[:30]}...\"",
+                target_url=reverse('group_dashboard', args=[group.invite_code])
+            )
+            for member in other_members
+        ]
+        Notification.objects.bulk_create(notifications)
+    except Exception as ne:
+        print(f"[NOTIFY ERROR] Failed to send chat notifications: {ne}")
+    
     return JsonResponse({
         'success': True,
         'message': {
@@ -2931,6 +2949,24 @@ def add_group_item_view(request, group_code):
         added_by=request.user
     )
 
+    # Bulk notify other members of the group
+    try:
+        from core.models import Notification
+        from django.urls import reverse
+        other_members = group.members.exclude(id=request.user.id)
+        notifications = [
+            Notification(
+                recipient=member,
+                sender=request.user,
+                message=f"@{request.user.username} added '{title}' to the watch group '{group.name}'.",
+                target_url=reverse('group_dashboard', args=[group.invite_code])
+            )
+            for member in other_members
+        ]
+        Notification.objects.bulk_create(notifications)
+    except Exception as ne:
+        print(f"[NOTIFY ERROR] Failed to send watchlist item notifications: {ne}")
+
     return JsonResponse({
         'success': True,
         'message': f"'{title}' added to the shared watchlist!",
@@ -2966,3 +3002,39 @@ def remove_group_item_view(request, group_code, item_id):
         'success': True,
         'message': f"'{title}' removed from group watchlist."
     })
+
+
+# ======================================================================
+# In-App Notification System Views
+# ======================================================================
+@login_required
+def notifications_list_view(request):
+    """
+    Renders the dedicated notifications list dashboard.
+    """
+    from core.models import Notification
+    notifications = Notification.objects.filter(recipient=request.user)
+    return render(request, 'core/notifications.html', {'notifications': notifications})
+
+
+@login_required
+def mark_notification_read(request, notification_id):
+    """
+    Marks a single notification as read and redirects the user to the target link destination.
+    """
+    from core.models import Notification
+    notification = get_object_or_404(Notification, id=notification_id, recipient=request.user)
+    notification.is_read = True
+    notification.save()
+    return redirect(notification.target_url)
+
+
+@login_required
+def mark_all_notifications_read(request):
+    """
+    Mark all unread notifications for the user as read.
+    """
+    from core.models import Notification
+    Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+    messages.success(request, "All notifications marked as read.")
+    return redirect('notifications_list')

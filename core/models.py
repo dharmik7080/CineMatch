@@ -370,3 +370,23 @@ class GroupMessage(models.Model):
 
     def __str__(self):
         return f"Msg from {self.sender.username} in {self.group.name} at {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
+
+class Notification(models.Model):
+    """
+    Represents an in-app notification sent to a user.
+    """
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications', help_text="The user receiving this notification.")
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_notifications', null=True, blank=True, help_text="The user who triggered the notification.")
+    message = models.TextField(help_text="Notification body text description.")
+    target_url = models.CharField(max_length=500, help_text="Redirect path URL when notification is clicked.")
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Notification"
+        verbose_name_plural = "Notifications"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Notification to {self.recipient.username}: {self.message[:30]}..."

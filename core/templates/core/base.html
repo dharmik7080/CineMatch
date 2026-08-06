@@ -226,9 +226,20 @@
                 </ul>
                 <div class="d-flex align-items-center gap-3">
                     <!-- SEARCH TRIGGER ICON ADDED HERE -->
-    <a href="#" class="nav-link text-white me-2" id="searchTrigger" style="cursor: pointer;">
-        <i class="fa-solid fa-magnifying-glass fs-5"></i>
-    </a>
+                    <a href="#" class="nav-link text-white me-1" id="searchTrigger" style="cursor: pointer;">
+                        <i class="fa-solid fa-magnifying-glass fs-5"></i>
+                    </a>
+                    {% if user.is_authenticated %}
+                        <!-- NOTIFICATION BELL ICON -->
+                        <a href="{% url 'notifications_list' %}" class="nav-link text-white me-2 position-relative" style="cursor: pointer;" title="Notifications">
+                            <i class="fa-regular fa-bell fs-5"></i>
+                            {% if unread_notifications_count > 0 %}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.55rem; padding: 0.25em 0.4em; box-shadow: 0 0 5px #ef4444;">
+                                    {{ unread_notifications_count }}
+                                </span>
+                            {% endif %}
+                        </a>
+                    {% endif %}
                     {% if user.is_authenticated %}
                         <span class="text-secondary d-none d-lg-inline fs-6">
                             <i class="fa-solid fa-circle-user text-accent me-1"></i> Hello, <strong class="text-white">{{ user.username }}</strong>
