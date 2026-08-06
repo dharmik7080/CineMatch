@@ -826,7 +826,7 @@
                     {% endif %}
                 </div>
 
-                <!-- TMDB Reviews Section -->
+      <!-- TMDB Reviews Section -->
 <div class="sidebar-card mb-4">
     <h2 class="section-heading">TMDB Reviews</h2>
     {% if tmdb_reviews %}
@@ -851,7 +851,7 @@
                             {{ review.created_at|date:"Y-m-d" }}
                         </div>
                     {% endif %}
-                    <p class="text-muted mb-0 review-content-text ps-0" onclick="this.classList.toggle('expanded')" title="Click to expand" style="font-size: 0.85rem; line-height: 1.4;">
+                    <p class="mb-0 review-content-text" onclick="this.classList.toggle('expanded')" title="Click to expand" style="font-size: 0.85rem; line-height: 1.4; color: #d1d5db !important; padding-left: 36px;">
                         {{ review.content }}
                     </p>
                 </div>
