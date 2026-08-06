@@ -2942,3 +2942,27 @@ def add_group_item_view(request, group_code):
             'added_by': item.added_by.username,
         }
     })
+
+
+@login_required
+@require_POST
+def remove_group_item_view(request, group_code, item_id):
+    """
+    AJAX POST endpoint to securely delete an item from the Watch Group's shared watchlist.
+    Verifies that the request user is a member of the group before executing.
+    """
+    from core.models import WatchGroup, SharedWatchlist
+    group = get_object_or_404(WatchGroup, invite_code=group_code)
+    
+    # Verify group membership
+    if request.user not in group.members.all():
+        return JsonResponse({'success': False, 'error': 'Permission denied.'}, status=403)
+        
+    item = get_object_or_404(SharedWatchlist, id=item_id, group=group)
+    title = item.title
+    item.delete()
+    
+    return JsonResponse({
+        'success': True,
+        'message': f"'{title}' removed from group watchlist."
+    })

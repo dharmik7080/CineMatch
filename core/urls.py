@@ -70,5 +70,6 @@ urlpatterns = [
     path('groups/join/<uuid:invite_code>/', views.join_group_view, name='join_watch_group'),
     path('groups/<uuid:group_code>/', views.group_dashboard_view, name='group_dashboard'),
     path('groups/<uuid:group_code>/add-item/', views.add_group_item_view, name='add_group_item'),
+    path('groups/<uuid:group_code>/remove-item/<int:item_id>/', views.remove_group_item_view, name='remove_group_item'),
     path('groups/<uuid:group_code>/message/send/', views.send_group_message_view, name='send_group_message'),
 ]
