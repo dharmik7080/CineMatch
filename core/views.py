@@ -1413,33 +1413,67 @@ def movie_detail_view(request, movie_id):
                         ),
                     })
 
-            # Extract similar movies from the batch/atomic TMDB detail payload (append_to_response includes similar)
-            similar_payload = data.get('similar', {})
-            raw_similar = similar_payload.get('results', [])
+            # --- TasteDive Recommendations Fetching (TasteDive API Integration) ---
+            tastedive_recs = []
+            tastedive_success = False
+            movie_title = movie.get('title')
             
-            # If not in the cached payload, fetch directly from the TMDB similar endpoint
-            if not raw_similar:
+            if movie_title:
+                tastedive_key = getattr(settings, 'TASTEDIVE_API_KEY', '')
+                tastedive_url = "https://tastedive.com/api/similar"
+                td_params = {
+                    'q': movie_title,
+                    'type': 'movie',
+                    'info': 1,
+                    'k': tastedive_key
+                }
                 try:
-                    similar_endpoint = f"https://api.themoviedb.org/3/movie/{movie_id_val}/similar?api_key={api_key}&language=en-US"
-                    sim_resp = get_resilient_session().get(similar_endpoint, timeout=3.0)
-                    if sim_resp.status_code == 200:
-                        similar_payload = sim_resp.json()
-                        raw_similar = similar_payload.get('results', [])
-                except Exception as e:
-                    print(f"[MOVIE DETAIL] Similar endpoint query failed: {e}")
+                    td_resp = get_resilient_session().get(tastedive_url, params=td_params, timeout=5.0)
+                    if td_resp.status_code == 200:
+                        td_data = td_resp.json()
+                        raw_results = td_data.get('Similar', {}).get('Results', [])
+                        for item in raw_results[:5]:
+                            tastedive_recs.append({
+                                'title': item.get('name', 'Unknown Title'),
+                                'teaser': item.get('description', ''),
+                                'wiki_url': item.get('wUrl', ''),
+                                'youtube_url': item.get('yUrl', ''),
+                                'youtube_id': item.get('yID', ''),
+                            })
+                        tastedive_success = True
+                except Exception as te:
+                    print(f"[TASTEDIVE ERROR] Failed to fetch TasteDive recommendations for '{movie_title}': {te}")
 
-            for s in raw_similar[:5]:
-                s_poster = s.get('poster_path') or ''
-                similar_movies.append({
-                    'id':           s.get('id'),
-                    'title':        s.get('title', 'Unknown'),
-                    'vote_average': round(s.get('vote_average', 0.0), 1),
-                    'poster_url': (
-                        f"https://image.tmdb.org/t/p/w300{s_poster}"
-                        if s_poster else
-                        '/static/images/placeholder-poster.png'
-                    ),
-                })
+            if tastedive_success and tastedive_recs:
+                tastedive_active = True
+            else:
+                tastedive_active = False
+                # Fallback: Extract similar movies from TMDB payload
+                similar_payload = data.get('similar', {})
+                raw_similar = similar_payload.get('results', [])
+                
+                if not raw_similar:
+                    try:
+                        similar_endpoint = f"https://api.themoviedb.org/3/movie/{movie_id_val}/similar?api_key={api_key}&language=en-US"
+                        sim_resp = get_resilient_session().get(similar_endpoint, timeout=3.0)
+                        if sim_resp.status_code == 200:
+                            similar_payload = sim_resp.json()
+                            raw_similar = similar_payload.get('results', [])
+                    except Exception as e:
+                        print(f"[MOVIE DETAIL] Similar endpoint query failed: {e}")
+
+                for s in raw_similar[:5]:
+                    s_poster = s.get('poster_path') or ''
+                    similar_movies.append({
+                        'id':           s.get('id'),
+                        'title':        s.get('title', 'Unknown'),
+                        'vote_average': round(s.get('vote_average', 0.0), 1),
+                        'poster_url': (
+                            f"https://image.tmdb.org/t/p/w300{s_poster}"
+                            if s_poster else
+                            'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=cover'
+                        ),
+                    })
 
             # Franchise / Collection Fetching
             belongs_to_collection = data.get('belongs_to_collection')
@@ -1627,6 +1661,8 @@ def movie_detail_view(request, movie_id):
         'streaming_links': streaming_links, # passed directly to context
         'similar_movies':  similar_movies,
         'recommendations': similar_movies, # mapped to recommendations
+        'tastedive_recs':   tastedive_recs,
+        'tastedive_active': tastedive_active,
         'is_in_watchlist': is_in_watchlist,
         'is_now_showing':  is_now_showing,
         'is_released':     is_released,

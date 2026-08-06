@@ -157,6 +157,9 @@ WATCHMODE_API_KEY = 'PiTJpSFDkmR40M6cvWqBwyuJjrielWKSnL9ZQuaz'
 # External OMDb API Key (Unit 7: REST API Integration)
 OMDB_API_KEY = '62218dac'
 
+# TasteDive API Key
+TASTEDIVE_API_KEY = '1076511-Cinematc-7517C533'
+
 # Custom CSRF and Session cookie names to prevent conflicts on localhost:8000
 CSRF_COOKIE_NAME = 'cinematch_csrftoken'
 SESSION_COOKIE_NAME = 'cinematch_sessionid'
