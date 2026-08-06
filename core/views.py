@@ -1764,7 +1764,7 @@ def tv_detail_view(request, series_id):
         f"https://api.themoviedb.org/3/tv/{series_id}"
         f"?api_key={api_key}"
         f"&language=en-US"
-        f"&append_to_response=credits,videos,watch/providers,similar,external_ids"
+        f"&append_to_response=credits,videos,watch/providers,similar,external_ids,reviews"
     )
 
     tv_show = {}
@@ -1774,6 +1774,7 @@ def tv_detail_view(request, series_id):
     similar_shows = []
     tastedive_recs = []
     omdb_data = None
+    tmdb_reviews = []
 
     # VIVA JUSTIFICATION / COLD START CACHING STRATEGY:
     # I implemented a Write-Through Caching pattern where the local database acts as the primary data store.
@@ -1833,6 +1834,25 @@ def tv_detail_view(request, series_id):
                     )
             except Exception as pe:
                 print(f"[DATA ENRICHMENT WARNING] Failed to enrich watch/providers for TV ID {series_id_val}: {pe}")
+
+        # Data Enrichment Logic: explicitly query reviews if missing in cached data
+        if 'reviews' not in data:
+            try:
+                reviews_url = f"https://api.themoviedb.org/3/tv/{series_id_val}/reviews?api_key={api_key}"
+                reviews_resp = get_resilient_session().get(reviews_url, timeout=3.0)
+                if reviews_resp.status_code == 200:
+                    reviews_data = reviews_resp.json()
+                    data['reviews'] = reviews_data
+                    # Write-through/enrich the cached payload in db & django cache
+                    from django.core.cache import cache
+                    cache.set(f"tv_detail_data_{series_id}", data, 86400)
+                    CachedMedia.objects.update_or_create(
+                        media_id=series_id_val,
+                        media_type='tv',
+                        defaults={'data': data}
+                    )
+            except Exception as re:
+                print(f"[DATA ENRICHMENT WARNING] Failed to enrich reviews for TV show ID {series_id_val}: {re}")
 
         try:
             imdb_id = data.get('external_ids', {}).get('imdb_id')
@@ -1978,6 +1998,28 @@ def tv_detail_view(request, series_id):
                             'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
                         ),
                     })
+
+            # Parse TMDB TV user reviews
+            raw_tmdb_reviews = data.get('reviews', {}).get('results', [])
+            for r in raw_tmdb_reviews:
+                author_details = r.get('author_details', {})
+                avatar_path = author_details.get('avatar_path') or ''
+                if avatar_path.startswith('/http') or avatar_path.startswith('http'):
+                    avatar_url = avatar_path[1:] if avatar_path.startswith('/') else avatar_path
+                elif avatar_path:
+                    avatar_url = f"https://image.tmdb.org/t/p/w92{avatar_path}"
+                else:
+                    avatar_url = f"https://ui-avatars.com/api/?name={urllib.parse.quote_plus(r.get('author', 'Critic'))}"
+                
+                rating = author_details.get('rating')
+                
+                tmdb_reviews.append({
+                    'author': r.get('author', 'Anonymous'),
+                    'avatar_url': avatar_url,
+                    'rating': rating,
+                    'content': r.get('content', ''),
+                    'created_at': r.get('created_at', '')[:10],
+                })
         except Exception as e:
             print(f"[TV DETAIL] Unexpected parsing error for series_id={series_id}: {e}")
             data = None
@@ -2139,6 +2181,7 @@ def tv_detail_view(request, series_id):
         'episodes':        episodes,
         # 💎 INJECTED REVIEWS DATA CONTEXTS
         'reviews':         reviews_list,
+        'tmdb_reviews':    tmdb_reviews,
         'user_review':     user_review,
         'omdb_data':       omdb_data,
     }

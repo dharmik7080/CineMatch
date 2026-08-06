@@ -385,6 +385,41 @@
     z-index: -1;
     pointer-events: none;
 }
+
+/* TMDB Reviews list layout */
+#tmdbReviewsContainer::-webkit-scrollbar {
+    width: 4px;
+}
+#tmdbReviewsContainer::-webkit-scrollbar-track {
+    background: transparent;
+}
+#tmdbReviewsContainer::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+#tmdbReviewsContainer::-webkit-scrollbar-thumb:hover {
+    background: rgba(168, 85, 247, 0.4);
+}
+.tmdb-review-row {
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.tmdb-review-row:last-child {
+    border-bottom: none;
+}
+.review-content-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    line-height: 1.5;
+}
+.review-content-text.expanded {
+    display: block;
+    overflow: visible;
+}
 {% endblock %}
 
 {% block content %}
@@ -791,10 +826,40 @@
                     {% endif %}
                 </div>
 
+                <!-- TMDB Reviews Section (Independent Sidebar Card) -->
+                <div class="sidebar-card mb-4">
+                    <h2 class="section-heading">TMDB Reviews</h2>
+                    {% if tmdb_reviews %}
+                        <div id="tmdbReviewsContainer" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+                            {% for review in tmdb_reviews %}
+                                <div class="tmdb-review-row mb-3 pb-3 border-bottom border-secondary" style="font-size: 0.9rem;">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <strong class="text-light"><i class="fas fa-user-circle me-1 text-danger"></i> {{ review.author }}</strong>
+                                        {% if review.rating %}
+                                            <span class="badge bg-warning text-dark" style="font-size: 0.75rem;">
+                                                <i class="fas fa-star"></i> {{ review.rating }}/10
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <p class="text-muted mb-1 review-content-text" onclick="this.classList.toggle('expanded')" title="Click to expand">
+                                        {{ review.content }}
+                                    </p>
+                                    <small class="text-muted" style="font-size: 0.75rem;">
+                                        <i class="far fa-clock"></i> {{ review.created_at|date:"M d, Y" }}
+                                    </small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted small mb-0">No reviews available from TMDB for this TV show yet.</p>
+                    {% endif %}
+                </div>
+
             </div>
         </div>
     </div>
 </section>
+
 
 {% if tastedive_active %}
 <section class="container mb-5">
