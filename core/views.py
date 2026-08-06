@@ -2834,7 +2834,7 @@ def group_dashboard_view(request, group_code):
     """
     Renders group_dashboard.html if request.user is a member of the group.
     """
-    from core.models import WatchGroup, SharedWatchlist
+    from core.models import WatchGroup, SharedWatchlist, GroupMessage
     group = get_object_or_404(WatchGroup, invite_code=group_code)
     
     # Assert membership security access controls
@@ -2842,6 +2842,7 @@ def group_dashboard_view(request, group_code):
         raise PermissionDenied("You are not a member of this Watch Group.")
 
     shared_items = group.watchlist_items.select_related('added_by').all()
+    chat_messages = group.messages.select_related('sender').all()
     
     # Build full absolute invite link for sharing
     from django.urls import reverse
@@ -2851,8 +2852,44 @@ def group_dashboard_view(request, group_code):
         'group': group,
         'shared_items': shared_items,
         'invite_url': invite_url,
+        'chat_messages': chat_messages,
     }
     return render(request, 'core/group_dashboard.html', context)
+
+
+@login_required
+@require_POST
+def send_group_message_view(request, group_code):
+    """
+    AJAX POST handler to save and broadcast a new group message.
+    """
+    from core.models import WatchGroup, GroupMessage
+    group = get_object_or_404(WatchGroup, invite_code=group_code)
+    
+    # Assert security membership
+    if request.user not in group.members.all():
+        return JsonResponse({'success': False, 'error': 'Permission denied.'}, status=403)
+        
+    content = request.POST.get('content', '').strip()
+    if not content:
+        return JsonResponse({'success': False, 'error': 'Message content cannot be blank.'}, status=400)
+        
+    msg = GroupMessage.objects.create(
+        group=group,
+        sender=request.user,
+        content=content
+    )
+    
+    return JsonResponse({
+        'success': True,
+        'message': {
+            'id': msg.id,
+            'sender': msg.sender.username,
+            'sender_initials': msg.sender.username[:2].upper(),
+            'content': msg.content,
+            'created_at': msg.created_at.strftime('%b %d, %H:%M')
+        }
+    })
 
 
 @login_required

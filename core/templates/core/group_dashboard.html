@@ -117,6 +117,21 @@
     color: #000000;
     border-color: #ffffff;
 }
+
+/* Chat container styles */
+#chatMessagesContainer::-webkit-scrollbar {
+    width: 4px;
+}
+#chatMessagesContainer::-webkit-scrollbar-track {
+    background: transparent;
+}
+#chatMessagesContainer::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+#chatMessagesContainer::-webkit-scrollbar-thumb:hover {
+    background: rgba(168, 85, 247, 0.4);
+}
 {% endblock %}
 
 {% block content %}
@@ -238,6 +253,43 @@
                         </div>
                     {% endfor %}
                 </div>
+            </div>
+
+            <!-- Group Chat Card -->
+            <div class="sidebar-card mt-4">
+                <h3 class="h6 text-secondary uppercase fw-bold mb-3 border-bottom border-secondary border-opacity-10 pb-2" style="font-size: 0.75rem; letter-spacing: 0.08em;">
+                    <i class="fa-regular fa-comments text-accent me-1"></i> Group Chat
+                </h3>
+                
+                <!-- Chat Messages Scroll Area -->
+                <div id="chatMessagesContainer" style="max-height: 280px; overflow-y: auto; padding-right: 0.25rem;" class="mb-3 d-flex flex-column gap-2">
+                    {% if chat_messages %}
+                        {% for msg in chat_messages %}
+                            <div class="d-flex align-items-start gap-2">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-accent" style="width: 24px; height: 24px; font-size: 0.6rem; background: rgba(168,85,247,0.12); border: 1px solid rgba(168,85,247,0.25); flex-shrink: 0;">
+                                    {{ msg.sender.username|slice:":2"|upper }}
+                                </div>
+                                <div class="bg-white bg-opacity-5 p-2 rounded-3" style="max-width: 85%; border: 1px solid rgba(255,255,255,0.03);">
+                                    <div class="d-flex justify-content-between align-items-center gap-2 mb-1" style="font-size: 0.65rem;">
+                                        <span class="text-white fw-bold">@{{ msg.sender.username }}</span>
+                                        <span class="text-secondary">{{ msg.created_at|date:"b d, H:i" }}</span>
+                                    </div>
+                                    <p class="text-light m-0 small" style="word-break: break-word; line-height: 1.35;">{{ msg.content }}</p>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-muted text-center py-4 small" id="noMessagesPlaceholder">No messages yet. Say hello!</div>
+                    {% endif %}
+                </div>
+                
+                <!-- Chat Form Input -->
+                <form id="chatMessageForm" class="d-flex gap-2">
+                    <input type="text" id="chatMessageInput" class="form-control form-control-sm text-white" placeholder="Type a message..." required autocomplete="off" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 0.45rem 1rem; font-size: 0.82rem;">
+                    <button type="submit" class="btn btn-sm btn-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; flex-shrink: 0; background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); border: none;">
+                        <i class="fa-solid fa-paper-plane" style="font-size: 0.75rem;"></i>
+                    </button>
+                </form>
             </div>
 
         </div>
@@ -400,6 +452,71 @@ document.addEventListener("DOMContentLoaded", function() {
         })
         .catch(err => {
             console.error("AJAX Error:", err);
+        });
+    }
+
+    // Scroll Chat to Bottom
+    var chatContainer = document.getElementById("chatMessagesContainer");
+    function scrollToBottom() {
+        if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    }
+    scrollToBottom();
+
+    // Handle AJAX chat message submission
+    var chatForm = document.getElementById("chatMessageForm");
+    var chatInput = document.getElementById("chatMessageInput");
+    
+    if (chatForm) {
+        chatForm.addEventListener("submit", function(event) {
+            event.preventDefault();
+            var content = chatInput.value.strip ? chatInput.value.strip() : chatInput.value.trim();
+            if (!content) return;
+
+            var formData = new FormData();
+            formData.append("content", content);
+            formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+
+            fetch("{% url 'send_group_message' group.invite_code %}", {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    var placeholder = document.getElementById("noMessagesPlaceholder");
+                    if (placeholder) {
+                        placeholder.remove();
+                    }
+
+                    var msgHtml = `
+                        <div class="d-flex align-items-start gap-2">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-accent" style="width: 24px; height: 24px; font-size: 0.6rem; background: rgba(168,85,247,0.12); border: 1px solid rgba(168,85,247,0.25); flex-shrink: 0;">
+                                ${data.message.sender_initials}
+                            </div>
+                            <div class="bg-white bg-opacity-5 p-2 rounded-3" style="max-width: 85%; border: 1px solid rgba(255,255,255,0.03);">
+                                <div class="d-flex justify-content-between align-items-center gap-2 mb-1" style="font-size: 0.65rem;">
+                                    <span class="text-white fw-bold">@${data.message.sender}</span>
+                                    <span class="text-secondary">${data.message.created_at}</span>
+                                </div>
+                                <p class="text-light m-0 small" style="word-break: break-word; line-height: 1.35;">${data.message.content}</p>
+                            </div>
+                        </div>
+                    `;
+                    chatContainer.insertAdjacentHTML("beforeend", msgHtml);
+                    chatInput.value = "";
+                    scrollToBottom();
+                } else {
+                    alert(data.error);
+                }
+            })
+            .catch(err => {
+                console.error("Chat Send Error:", err);
+            });
         });
     }
 });

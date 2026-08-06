@@ -352,3 +352,21 @@ class SharedWatchlist(models.Model):
 
     def __str__(self):
         return f"{self.title} in {self.group.name} (added by {self.added_by.username})"
+
+
+class GroupMessage(models.Model):
+    """
+    Represents a chat message sent inside a Watch Group.
+    """
+    group = models.ForeignKey(WatchGroup, on_delete=models.CASCADE, related_name='messages', help_text="The Watch Group containing this conversation.")
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, help_text="The member who sent this message.")
+    content = models.TextField(help_text="Body content of the message.")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Group Message"
+        verbose_name_plural = "Group Messages"
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Msg from {self.sender.username} in {self.group.name} at {self.created_at.strftime('%Y-%m-%d %H:%M')}"
