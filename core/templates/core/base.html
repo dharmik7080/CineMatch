@@ -219,6 +219,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'group_list' or request.resolver_match.url_name == 'group_dashboard' %}active{% endif %}" href="{% url 'group_list' %}">
+                            Watch Groups
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'analytics_dashboard' %}active{% endif %}" href="{% url 'analytics_dashboard' %}">
                             Analytics Dashboard
                         </a>

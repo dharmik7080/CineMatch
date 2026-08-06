@@ -2767,3 +2767,137 @@ def tv_shows_by_genre_view(request, genre_name):
     if is_ajax:
         return render(request, 'core/includes/tv_grid_partial.html', context)
     return render(request, 'core/explore_tv.html', context)
+
+
+# ======================================================================
+# Collaborative Watch Groups (Watch Party Feature)
+# ======================================================================
+from django.shortcuts import get_object_or_404
+from django.core.exceptions import PermissionDenied
+from django.contrib import messages
+from django.http import Http404
+
+@login_required
+def group_list_view(request):
+    """
+    Renders groups_list.html showing all groups the user created or joined.
+    """
+    from core.models import WatchGroup
+    user_groups = WatchGroup.objects.filter(members=request.user).distinct()
+    return render(request, 'core/groups_list.html', {'groups': user_groups})
+
+
+@login_required
+@require_POST
+def create_group_view(request):
+    """
+    POST handler to create a new Watch Group.
+    """
+    from core.models import WatchGroup
+    name = request.POST.get('name', '').strip()
+    if not name:
+        messages.error(request, "Group name cannot be blank.")
+        return redirect('group_list')
+
+    # Create the watch group
+    group = WatchGroup.objects.create(name=name, creator=request.user)
+    # The creator is automatically a member
+    group.members.add(request.user)
+    
+    messages.success(request, f"Watch Group '{group.name}' created successfully!")
+    return redirect('group_dashboard', group_code=group.invite_code)
+
+
+@login_required
+def join_group_view(request, invite_code):
+    """
+    Resolves the UUID invite link and adds the logged-in user to the group's members list.
+    """
+    from core.models import WatchGroup
+    group = get_object_or_404(WatchGroup, invite_code=invite_code)
+    
+    if request.user not in group.members.all():
+        group.members.add(request.user)
+        messages.success(request, f"You have successfully joined the Watch Group '{group.name}'!")
+    else:
+        messages.info(request, f"You are already a member of '{group.name}'.")
+        
+    return redirect('group_dashboard', group_code=group.invite_code)
+
+
+@login_required
+def group_dashboard_view(request, group_code):
+    """
+    Renders group_dashboard.html if request.user is a member of the group.
+    """
+    from core.models import WatchGroup, SharedWatchlist
+    group = get_object_or_404(WatchGroup, invite_code=group_code)
+    
+    # Assert membership security access controls
+    if request.user not in group.members.all():
+        raise PermissionDenied("You are not a member of this Watch Group.")
+
+    shared_items = group.watchlist_items.select_related('added_by').all()
+    
+    # Build full absolute invite link for sharing
+    from django.urls import reverse
+    invite_url = request.build_absolute_uri(reverse('join_watch_group', args=[group.invite_code]))
+
+    context = {
+        'group': group,
+        'shared_items': shared_items,
+        'invite_url': invite_url,
+    }
+    return render(request, 'core/group_dashboard.html', context)
+
+
+@login_required
+@require_POST
+def add_group_item_view(request, group_code):
+    """
+    AJAX POST endpoint to dynamically append a title to the group's shared watchlist.
+    """
+    from core.models import WatchGroup, SharedWatchlist
+    group = get_object_or_404(WatchGroup, invite_code=group_code)
+    
+    if request.user not in group.members.all():
+        return JsonResponse({'success': False, 'error': 'Permission denied.'}, status=403)
+        
+    media_id_raw = request.POST.get('media_id')
+    media_type = request.POST.get('media_type', 'movie')
+    title = request.POST.get('title', '').strip()
+    poster_url = request.POST.get('poster_url', '').strip()
+    
+    if not media_id_raw or not title:
+        return JsonResponse({'success': False, 'error': 'Missing required fields (media_id, title).'}, status=400)
+        
+    try:
+        media_id = int(media_id_raw)
+    except ValueError:
+        return JsonResponse({'success': False, 'error': 'Invalid media_id.'}, status=400)
+
+    # Prevent duplicates in the shared watchlist
+    exists = SharedWatchlist.objects.filter(group=group, media_id=media_id, media_type=media_type).exists()
+    if exists:
+        return JsonResponse({'success': False, 'error': 'This title is already on the shared watchlist.'}, status=400)
+
+    item = SharedWatchlist.objects.create(
+        group=group,
+        media_id=media_id,
+        media_type=media_type,
+        title=title,
+        poster_url=poster_url,
+        added_by=request.user
+    )
+
+    return JsonResponse({
+        'success': True,
+        'message': f"'{title}' added to the shared watchlist!",
+        'item': {
+            'id': item.id,
+            'title': item.title,
+            'media_type': item.get_media_type_display(),
+            'poster_url': item.poster_url,
+            'added_by': item.added_by.username,
+        }
+    })

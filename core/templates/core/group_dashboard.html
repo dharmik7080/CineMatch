@@ -1,0 +1,407 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ group.name }} — CineMatch{% endblock %}
+
+{% block extra_css %}
+.section-heading {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    border-left: 3px solid #a855f7;
+    padding-left: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+.sidebar-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 1.5rem;
+    backdrop-filter: blur(10px);
+}
+.shared-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1.25rem;
+}
+.shared-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    transition: transform 0.3s ease, border-color 0.3s ease;
+}
+.shared-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(168, 85, 247, 0.4);
+}
+.shared-card img {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    display: block;
+}
+.shared-badge-media {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 5;
+    background: rgba(4, 4, 6, 0.8);
+    backdrop-filter: blur(5px);
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+.shared-info-panel {
+    padding: 0.75rem;
+    background: #0f0f15;
+}
+.shared-added-by {
+    font-size: 0.7rem;
+    color: #9ca3af;
+    display: block;
+    margin-top: 0.25rem;
+}
+.search-results-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #0f0f15;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    z-index: 1000;
+    max-height: 350px;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    display: none;
+}
+.search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.search-result-item:hover {
+    background: rgba(168, 85, 247, 0.15);
+}
+.search-result-item img {
+    width: 36px;
+    height: 54px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+.empty-placeholder {
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 3rem 1rem;
+    text-align: center;
+    color: #6b7280;
+}
+.btn-outline-custom {
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.03);
+    transition: all 0.2s ease;
+}
+.btn-outline-custom:hover {
+    background: #ffffff;
+    color: #000000;
+    border-color: #ffffff;
+}
+{% endblock %}
+
+{% block content %}
+<section class="container mt-5 pt-4 mb-5">
+
+    <!-- Back to Group list -->
+    <a href="{% url 'group_list' %}" class="btn btn-sm btn-link text-secondary text-decoration-none p-0 mb-4 d-inline-flex align-items-center gap-1">
+        <i class="fa-solid fa-arrow-left small"></i> Back to groups
+    </a>
+
+    <!-- Top Dashboard Header Panel -->
+    <div class="mb-5 py-4 border-bottom border-secondary border-opacity-10">
+        <h1 class="text-white mb-3" style="font-size: 2.3rem; font-weight: 800; letter-spacing: -0.01em;">
+            {{ group.name }}
+        </h1>
+        
+        <!-- Invite widget link -->
+        <div class="row align-items-center">
+            <div class="col-md-6 col-lg-5">
+                <label class="form-label text-secondary small mb-1"><i class="fa-solid fa-share-nodes text-accent"></i> Invite Friends via Link</label>
+                <div class="input-group">
+                    <input type="text" class="form-control text-white text-truncate" id="inviteLinkInput" value="{{ invite_url }}" readonly style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px 0 0 12px; font-size: 0.85rem; padding: 0.65rem 1rem;">
+                    <button class="btn btn-outline-custom" type="button" id="copyInviteLinkBtn" onclick="copyInviteLink()" style="border-radius: 0 12px 12px 0; border: 1px solid rgba(255,255,255,0.08); border-left: none; padding: 0.65rem 1.25rem;">
+                        <i class="fa-regular fa-copy" id="copyBtnIcon"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Layout -->
+    <div class="row g-4">
+        
+        <!-- Shared Watchlist Section -->
+        <div class="col-lg-8 order-lg-1">
+            
+            <!-- Collaborative Add Item Widget -->
+            <div class="mb-5 position-relative">
+                <h2 class="section-heading">Add to Shared Watchlist</h2>
+                <div class="input-group mb-2">
+                    <span class="input-group-text bg-dark border-secondary border-opacity-20 text-secondary" style="border-radius: 14px 0 0 14px; border: 1px solid rgba(255,255,255,0.08); border-right: none; padding-left: 1.25rem;">
+                        <i class="fa-solid fa-magnifying-glass text-accent"></i>
+                    </span>
+                    <input type="text" class="form-control text-white" id="groupMediaSearch" placeholder="Type to search movie or TV show to add..." autocomplete="off" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-left: none; border-radius: 0 14px 14px 0; padding: 0.85rem 1rem; font-size: 0.95rem;">
+                </div>
+                
+                <!-- Autocomplete Dropdown list -->
+                <div id="searchResultsDropdown" class="search-results-dropdown"></div>
+            </div>
+
+            <!-- List Grid Section -->
+            <div class="mb-5">
+                <h2 class="section-heading">Group Watchlist</h2>
+                
+                <div class="shared-grid" id="sharedWatchlistGrid">
+                    {% if shared_items %}
+                        {% for item in shared_items %}
+                            <div class="shared-card" id="shared-item-{{ item.id }}">
+                                <span class="shared-badge-media text-white">
+                                    {% if item.media_type == 'movie' %}
+                                        <i class="fa-solid fa-film text-warning me-1"></i> Movie
+                                    {% else %}
+                                        <i class="fa-solid fa-tv text-warning me-1"></i> TV
+                                    {% endif %}
+                                </span>
+                                
+                                <img src="{{ item.poster_url|default:'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop' }}" alt="{{ item.title }}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop';">
+                                
+                                <div class="shared-info-panel">
+                                    <h4 class="text-white text-truncate m-0" style="font-size: 0.85rem; font-weight: 700;" title="{{ item.title }}">{{ item.title }}</h4>
+                                    <span class="shared-added-by">
+                                        <i class="fa-solid fa-user-plus me-1" style="font-size: 0.62rem; color: #a855f7;"></i> @{{ item.added_by.username }}
+                                    </span>
+                                    <div class="mt-2 pt-2 border-top border-secondary border-opacity-10 d-flex justify-content-end">
+                                        {% if item.media_type == 'movie' %}
+                                            <a href="{% url 'movie_detail' item.media_id %}" class="btn btn-sm btn-link text-accent text-decoration-none p-0 d-flex align-items-center gap-1" style="font-size: 0.72rem;">
+                                                Details <i class="fa-solid fa-chevron-right ms-1 small"></i>
+                                            </a>
+                                        {% else %}
+                                            <a href="{% url 'tv_show_detail' item.media_id %}" class="btn btn-sm btn-link text-accent text-decoration-none p-0 d-flex align-items-center gap-1" style="font-size: 0.72rem;">
+                                                Details <i class="fa-solid fa-chevron-right ms-1 small"></i>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-placeholder w-100 col-span-all" id="sharedWatchlistEmpty" style="grid-column: 1 / -1;">
+                            <i class="fa-solid fa-satellite-dish mb-2" style="font-size: 2rem; opacity: 0.3; color: #a855f7;"></i>
+                            <p class="mb-0" style="font-size: 0.88rem;">No titles on this group watchlist yet. Search above to add one!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Sidebar Section -->
+        <div class="col-lg-4 order-lg-2">
+            
+            <div class="sidebar-card">
+                <h3 class="h6 text-secondary uppercase fw-bold mb-3 border-bottom border-secondary border-opacity-10 pb-2" style="font-size: 0.75rem; letter-spacing: 0.08em;">Group Details</h3>
+                <p class="text-light small mb-2">
+                    <strong class="text-secondary">Owner:</strong> @{{ group.creator.username }}
+                </p>
+                <p class="text-light small mb-4">
+                    <strong class="text-secondary">Created:</strong> {{ group.created_at|date:"F d, Y" }}
+                </p>
+                
+                <h3 class="h6 text-secondary uppercase fw-bold mb-3 border-bottom border-secondary border-opacity-10 pb-2" style="font-size: 0.75rem; letter-spacing: 0.08em;">Members ({{ group.members.count }})</h3>
+                <div class="d-flex flex-column gap-2">
+                    {% for member in group.members.all %}
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-accent" style="width: 28px; height: 28px; font-size: 0.7rem; background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.3);">
+                                {{ member.username|slice:":2"|upper }}
+                            </div>
+                            <span class="text-light small" style="font-weight: 500;">@{{ member.username }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- Frontend Logic for Clipboard Copy and AJAX search autocomplete -->
+<script>
+function copyInviteLink() {
+    var copyText = document.getElementById("inviteLinkInput");
+    copyText.select();
+    copyText.setSelectionRange(0, 99999); // Mobile compatibility
+    
+    navigator.clipboard.writeText(copyText.value).then(function() {
+        var copyBtn = document.getElementById("copyInviteLinkBtn");
+        var copyIcon = document.getElementById("copyBtnIcon");
+        
+        // Success state UI feedback toggle
+        copyBtn.classList.remove("btn-outline-custom");
+        copyBtn.classList.add("btn-success");
+        copyIcon.className = "fa-solid fa-check";
+        
+        setTimeout(function() {
+            copyBtn.classList.remove("btn-success");
+            copyBtn.classList.add("btn-outline-custom");
+            copyIcon.className = "fa-regular fa-copy";
+        }, 1500);
+    });
+}
+
+// JQuery style AJAX multi-search auto-suggestion
+document.addEventListener("DOMContentLoaded", function() {
+    var searchInput = document.getElementById("groupMediaSearch");
+    var resultsDropdown = document.getElementById("searchResultsDropdown");
+    var timer = null;
+
+    searchInput.addEventListener("input", function() {
+        clearTimeout(timer);
+        var query = searchInput.value.trim();
+        if (query.length < 2) {
+            resultsDropdown.style.display = "none";
+            return;
+        }
+
+        // Throttle input requests
+        timer = setTimeout(function() {
+            fetch(`/universal-search/?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    resultsDropdown.innerHTML = "";
+                    var items = [];
+                    
+                    if (data.movies) {
+                        data.movies.forEach(m => {
+                            items.push({
+                                id: m.id,
+                                title: m.title,
+                                poster: m.poster,
+                                media_type: 'movie',
+                                details: m.release_date
+                            });
+                        });
+                    }
+                    if (data.tv_shows) {
+                        data.tv_shows.forEach(t => {
+                            items.push({
+                                id: t.id,
+                                title: t.name,
+                                poster: t.poster,
+                                media_type: 'tv',
+                                details: t.first_air_date
+                            });
+                        });
+                    }
+
+                    if (items.length === 0) {
+                        resultsDropdown.innerHTML = '<div class="text-muted p-3 text-center small">No matches found.</div>';
+                    } else {
+                        items.slice(0, 6).forEach(item => {
+                            var itemDiv = document.createElement("div");
+                            itemDiv.className = "search-result-item";
+                            itemDiv.innerHTML = `
+                                <img src="${item.poster}" alt="Poster">
+                                <div class="flex-grow-1">
+                                    <h5 class="text-white m-0" style="font-size:0.85rem; font-weight:600;">${item.title}</h5>
+                                    <small class="text-muted" style="font-size:0.7rem;">${item.media_type.toUpperCase()} &bull; ${item.details.substring(0,4)}</small>
+                                </div>
+                            `;
+                            itemDiv.addEventListener("click", function() {
+                                addItemToSharedWatchlist(item.id, item.media_type, item.title, item.poster);
+                                resultsDropdown.style.display = "none";
+                                searchInput.value = "";
+                            });
+                            resultsDropdown.appendChild(itemDiv);
+                        });
+                    }
+                    resultsDropdown.style.display = "block";
+                });
+        }, 300);
+    });
+
+    // Hide dropdown on clicking outside
+    document.addEventListener("click", function(event) {
+        if (!searchInput.contains(event.target) && !resultsDropdown.contains(event.target)) {
+            resultsDropdown.style.display = "none";
+        }
+    });
+
+    // POST dispatcher function
+    function addItemToSharedWatchlist(mediaId, mediaType, title, posterUrl) {
+        var formData = new FormData();
+        formData.append("media_id", mediaId);
+        formData.append("media_type", mediaType);
+        formData.append("title", title);
+        formData.append("poster_url", posterUrl);
+        formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+
+        fetch("{% url 'add_group_item' group.invite_code %}", {
+            method: "POST",
+            body: formData,
+            headers: {
+                "X-Requested-With": "XMLHttpRequest"
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Dynamically inject the new card
+                var grid = document.getElementById("sharedWatchlistGrid");
+                var emptyPlaceholder = document.getElementById("sharedWatchlistEmpty");
+                if (emptyPlaceholder) {
+                    emptyPlaceholder.remove();
+                }
+
+                var cardHtml = `
+                    <div class="shared-card" id="shared-item-${data.item.id}">
+                        <span class="shared-badge-media text-white">
+                            ${mediaType === 'movie' ? '<i class="fa-solid fa-film text-warning me-1"></i> Movie' : '<i class="fa-solid fa-tv text-warning me-1"></i> TV'}
+                        </span>
+                        <img src="${data.item.poster_url}" alt="${data.item.title}" onerror="this.src='https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop';">
+                        <div class="shared-info-panel">
+                            <h4 class="text-white text-truncate m-0" style="font-size: 0.85rem; font-weight: 700;" title="${data.item.title}">${data.item.title}</h4>
+                            <span class="shared-added-by">
+                                <i class="fa-solid fa-user-plus me-1" style="font-size: 0.62rem; color: #a855f7;"></i> @${data.item.added_by}
+                            </span>
+                            <div class="mt-2 pt-2 border-top border-secondary border-opacity-10 d-flex justify-content-end">
+                                <a href="/${mediaType === 'movie' ? 'movies' : 'tv'}/${mediaId}/" class="btn btn-sm btn-link text-accent text-decoration-none p-0 d-flex align-items-center gap-1" style="font-size: 0.72rem;">
+                                    Details <i class="fa-solid fa-chevron-right ms-1 small"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.insertAdjacentHTML("afterbegin", cardHtml);
+            } else {
+                alert(data.error);
+            }
+        })
+        .catch(err => {
+            console.error("AJAX Error:", err);
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -63,4 +63,11 @@ urlpatterns = [
 
     # Full Search Results Page Route
     path('search/', views.search_results_view, name='search_results'),
+
+    # Collaborative Watch Groups (Watch Party Feature)
+    path('groups/', views.group_list_view, name='group_list'),
+    path('groups/create/', views.create_group_view, name='create_watch_group'),
+    path('groups/join/<uuid:invite_code>/', views.join_group_view, name='join_watch_group'),
+    path('groups/<uuid:group_code>/', views.group_dashboard_view, name='group_dashboard'),
+    path('groups/<uuid:group_code>/add-item/', views.add_group_item_view, name='add_group_item'),
 ]

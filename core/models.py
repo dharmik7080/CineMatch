@@ -10,6 +10,7 @@ Syllabus Reference:
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
+import uuid
 
 # ======================================================================
 # Model 1: UserProfile
@@ -303,3 +304,51 @@ class CachedRecommendation(models.Model):
 
     def __str__(self):
         return f"{self.media_type.upper()} {self.source_id} -> {self.target_id} ({self.score:.2f})"
+
+
+# ======================================================================
+# Collaborative Watch Groups & Shared Watchlist Models
+# ======================================================================
+class WatchGroup(models.Model):
+    """
+    Represents a shared Watch Group (Watch Party) created by a user.
+    """
+    name = models.CharField(max_length=255, help_text="The name of the watch group.")
+    invite_code = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, db_index=True, help_text="Unique invite token.")
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_groups', help_text="Owner of the group.")
+    members = models.ManyToManyField(User, related_name='watch_groups', help_text="Users belonging to this group.")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Watch Group"
+        verbose_name_plural = "Watch Groups"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Group: {self.name} (by {self.creator.username})"
+
+
+class SharedWatchlist(models.Model):
+    """
+    Represents a movie or TV show added to a group's collaborative watchlist.
+    """
+    MEDIA_TYPE_CHOICES = [
+        ('movie', 'Movie'),
+        ('tv', 'TV Show'),
+    ]
+    group = models.ForeignKey(WatchGroup, on_delete=models.CASCADE, related_name='watchlist_items', help_text="Associated Watch Group.")
+    media_id = models.IntegerField(help_text="The TMDB identifier.")
+    media_type = models.CharField(max_length=10, choices=MEDIA_TYPE_CHOICES, default='movie')
+    title = models.CharField(max_length=255)
+    poster_url = models.CharField(max_length=500, blank=True, null=True)
+    added_by = models.ForeignKey(User, on_delete=models.CASCADE, help_text="The user who added this title.")
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Shared Watchlist Item"
+        verbose_name_plural = "Shared Watchlist Items"
+        ordering = ['-added_at']
+        unique_together = ('group', 'media_id', 'media_type')
+
+    def __str__(self):
+        return f"{self.title} in {self.group.name} (added by {self.added_by.username})"
