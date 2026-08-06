@@ -1720,6 +1720,7 @@ def tv_detail_view(request, series_id):
     trailer_key = None
     watch_providers = []
     similar_shows = []
+    tastedive_recs = []
     omdb_data = None
 
     # VIVA JUSTIFICATION / COLD START CACHING STRATEGY:
@@ -1876,20 +1877,55 @@ def tv_detail_view(request, series_id):
                     ),
                 })
 
-            similar_payload = data.get('similar', {})
-            raw_similar = similar_payload.get('results', [])
-            for s in raw_similar[:5]:
-                s_poster = s.get('poster_path') or ''
-                similar_shows.append({
-                    'id':           s.get('id'),
-                    'title':        s.get('name', 'Unknown'),
-                    'vote_average': round(s.get('vote_average', 0.0), 1),
-                    'poster_url': (
-                        f"https://image.tmdb.org/t/p/w300{s_poster}"
-                        if s_poster else
-                        'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
-                    ),
-                })
+            # --- TasteDive TV Show Recommendations ---
+            tastedive_success = False
+            tv_title = tv_show.get('title')
+            
+            if tv_title:
+                tastedive_key = getattr(settings, 'TASTEDIVE_API_KEY', '')
+                tastedive_url = "https://tastedive.com/api/similar"
+                td_params = {
+                    'q': tv_title,
+                    'type': 'show',
+                    'info': 1,
+                    'k': tastedive_key
+                }
+                try:
+                    td_resp = get_resilient_session().get(tastedive_url, params=td_params, timeout=5.0)
+                    if td_resp.status_code == 200:
+                        td_data = td_resp.json()
+                        raw_results = td_data.get('Similar', {}).get('Results', [])
+                        for item in raw_results[:5]:
+                            tastedive_recs.append({
+                                'title': item.get('name', 'Unknown Title'),
+                                'teaser': item.get('description', ''),
+                                'wiki_url': item.get('wUrl', ''),
+                                'youtube_url': item.get('yUrl', ''),
+                                'youtube_id': item.get('yID', ''),
+                            })
+                        tastedive_success = True
+                except Exception as te:
+                    print(f"[TASTEDIVE ERROR] Failed to fetch TasteDive TV recommendations for '{tv_title}': {te}")
+
+            if tastedive_success and tastedive_recs:
+                tastedive_active = True
+            else:
+                tastedive_active = False
+                # Fallback: Extract similar shows from TMDB payload
+                similar_payload = data.get('similar', {})
+                raw_similar = similar_payload.get('results', [])
+                for s in raw_similar[:5]:
+                    s_poster = s.get('poster_path') or ''
+                    similar_shows.append({
+                        'id':           s.get('id'),
+                        'title':        s.get('name', 'Unknown'),
+                        'vote_average': round(s.get('vote_average', 0.0), 1),
+                        'poster_url': (
+                            f"https://image.tmdb.org/t/p/w300{s_poster}"
+                            if s_poster else
+                            'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
+                        ),
+                    })
         except Exception as e:
             print(f"[TV DETAIL] Unexpected parsing error for series_id={series_id}: {e}")
             data = None
@@ -2044,6 +2080,8 @@ def tv_detail_view(request, series_id):
         'watch_providers': watch_providers,
         'streaming_providers': watch_providers,
         'similar_shows':   similar_shows,
+        'tastedive_recs':   tastedive_recs,
+        'tastedive_active': tastedive_active,
         'is_in_watchlist': is_in_watchlist,
         'seasons':         seasons,
         'episodes':        episodes,

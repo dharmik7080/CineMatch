@@ -796,7 +796,57 @@
     </div>
 </section>
 
-{% if similar_shows %}
+{% if tastedive_active %}
+<section class="container mb-5">
+    <hr style="border-color:rgba(255,255,255,0.07); margin-bottom:2rem;">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="section-heading mb-0">Recommended for You</h2>
+        <span class="text-secondary small">Powered by TasteDive</span>
+    </div>
+    
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-5 animate-fade-in">
+        {% for rec in tastedive_recs %}
+            <div class="col">
+                <div class="show-card p-3 d-flex flex-column justify-content-between h-100" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; min-height: 200px;">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge text-purple border border-purple border-opacity-30 px-2 py-1 rounded" style="font-size: 0.72rem; color: #a855f7 !important; background-color: rgba(168, 85, 247, 0.08) !important; border-color: rgba(168, 85, 247, 0.2) !important;">
+                                <i class="fa-solid fa-wand-magic-sparkles me-1"></i> TasteDive Suggestion
+                            </span>
+                            {% if rec.youtube_id %}
+                                <a href="https://www.youtube.com/watch?v={{ rec.youtube_id }}" target="_blank" rel="noopener" class="text-danger" title="Watch Preview">
+                                    <i class="fa-brands fa-youtube fs-5"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                        <h5 class="text-white fw-bold mb-2" style="font-size: 1.05rem;">{{ rec.title }}</h5>
+                        {% if rec.teaser %}
+                            <p class="text-secondary small mb-3" style="line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                {{ rec.teaser }}
+                            </p>
+                        {% else %}
+                            <p class="text-muted small mb-3 italic">
+                                No description teaser available.
+                            </p>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-auto pt-2">
+                        {% if rec.wiki_url %}
+                            <a href="{{ rec.wiki_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary text-white border-secondary rounded-pill px-3" style="font-size: 0.75rem;">
+                                <i class="fa-brands fa-wikipedia-w me-1"></i> Wikipedia
+                            </a>
+                        {% endif %}
+                        <a href="{% url 'explore_tv' %}?q={{ rec.title|urlencode }}" class="btn btn-sm btn-outline-custom rounded-pill px-3 ms-auto" style="font-size: 0.75rem;">
+                            Find <i class="fa-solid fa-magnifying-glass ms-1" style="font-size: 0.65rem;"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% elif similar_shows %}
 <section class="container mb-5">
     <hr style="border-color:rgba(255,255,255,0.07); margin-bottom:2rem;">
     <div class="d-flex align-items-center justify-content-between mb-3">
@@ -809,7 +859,6 @@
     <div class="similar-strip" role="list" aria-label="Similar TV show recommendations">
         {% for show in similar_shows %}
         <div class="similar-item" role="listitem">
-            <!-- 💎 ROUTING SYNCED TO 'tv_show_detail' -->
             <a href="{% url 'tv_show_detail' show.id %}" style="text-decoration:none; color:inherit;">
                 <img src="{{ show.poster_url }}"
                      alt="{{ show.title }} poster"
@@ -824,7 +873,6 @@
                     {{ show.vote_average }}
                 </div>
                 {% endif %}
-                <!-- 💎 ROUTING SYNCED TO 'tv_show_detail' -->
                 <a href="{% url 'tv_show_detail' show.id %}"
                    class="similar-action"
                    aria-label="View details for {{ show.title }}">
