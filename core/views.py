@@ -1181,7 +1181,7 @@ def movie_detail_view(request, movie_id):
         f"https://api.themoviedb.org/3/movie/{movie_id}"
         f"?api_key={api_key}"
         f"&language=en-US"
-        f"&append_to_response=credits,videos,watch/providers,similar"
+        f"&append_to_response=credits,videos,watch/providers,similar,reviews"
     )
 
     movie = {}
@@ -1190,6 +1190,7 @@ def movie_detail_view(request, movie_id):
     trailer_url = None
     watch_providers = []
     similar_movies = []
+    tmdb_reviews = []
     belongs_to_collection = None
     collection_movies = []
     collection_name = ""
@@ -1288,6 +1289,26 @@ def movie_detail_view(request, movie_id):
                     )
             except Exception as ve:
                 print(f"[DATA ENRICHMENT WARNING] Failed to enrich videos for movie ID {movie_id}: {ve}")
+        
+        # Data Enrichment Logic: explicitly query reviews if missing in cached data
+        if 'reviews' not in data:
+            try:
+                reviews_url = f"https://api.themoviedb.org/3/movie/{movie_id}/reviews?api_key={api_key}"
+                reviews_resp = get_resilient_session().get(reviews_url, timeout=3.0)
+                if reviews_resp.status_code == 200:
+                    reviews_data = reviews_resp.json()
+                    data['reviews'] = reviews_data
+                    # Write-through/enrich the cached payload in db & django cache
+                    from django.core.cache import cache
+                    cache.set(f"movie_detail_data_{movie_id}", data, 86400)
+                    CachedMedia.objects.update_or_create(
+                        media_id=movie_id_val,
+                        media_type='movie',
+                        defaults={'data': data}
+                    )
+            except Exception as re:
+                print(f"[DATA ENRICHMENT WARNING] Failed to enrich reviews for movie ID {movie_id}: {re}")
+
         try:
             imdb_id = data.get('imdb_id')
             if imdb_id:
@@ -1452,6 +1473,28 @@ def movie_detail_view(request, movie_id):
                                 })
                 except Exception as ce:
                     print(f"[COLLECTION ERROR] Failed to fetch collection details for {collection_id}: {ce}")
+
+            # Parse TMDB user reviews
+            raw_tmdb_reviews = data.get('reviews', {}).get('results', [])
+            for r in raw_tmdb_reviews:
+                author_details = r.get('author_details', {})
+                avatar_path = author_details.get('avatar_path') or ''
+                if avatar_path.startswith('/http') or avatar_path.startswith('http'):
+                    avatar_url = avatar_path[1:] if avatar_path.startswith('/') else avatar_path
+                elif avatar_path:
+                    avatar_url = f"https://image.tmdb.org/t/p/w92{avatar_path}"
+                else:
+                    avatar_url = f"https://ui-avatars.com/api/?name={urllib.parse.quote_plus(r.get('author', 'Critic'))}"
+                
+                rating = author_details.get('rating')
+                
+                tmdb_reviews.append({
+                    'author': r.get('author', 'Anonymous'),
+                    'avatar_url': avatar_url,
+                    'rating': rating,
+                    'content': r.get('content', ''),
+                    'created_at': r.get('created_at', '')[:10],
+                })
         except Exception as e:
             print(f"[MOVIE DETAIL] Unexpected parsing error for movie_id={movie_id}: {e}")
             data = None
@@ -1589,6 +1632,7 @@ def movie_detail_view(request, movie_id):
         'is_released':     is_released,
         # 💎 INJECTED REVIEWS DATA CONTEXTS
         'reviews':         reviews_list,
+        'tmdb_reviews':    tmdb_reviews,
         'user_review':     user_review,
         'director':        director,
         # Franchise Groups

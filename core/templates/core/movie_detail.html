@@ -394,6 +394,41 @@
     height: 100%;
     border: none;
 }
+
+/* TMDB Reviews list layout */
+#tmdbReviewsContainer::-webkit-scrollbar {
+    width: 4px;
+}
+#tmdbReviewsContainer::-webkit-scrollbar-track {
+    background: transparent;
+}
+#tmdbReviewsContainer::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+#tmdbReviewsContainer::-webkit-scrollbar-thumb:hover {
+    background: rgba(168, 85, 247, 0.4);
+}
+.tmdb-review-row {
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.tmdb-review-row:last-child {
+    border-bottom: none;
+}
+.review-content-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    line-height: 1.5;
+}
+.review-content-text.expanded {
+    display: block;
+    overflow: visible;
+}
 {% endblock %}
 
 {% block content %}
@@ -817,6 +852,40 @@
                         </div>
                     </div>
                     {% endif %}
+                </div>
+
+                <!-- TMDB Community Reviews Card -->
+                <div class="sidebar-card mb-4">
+                    <h2 class="section-heading">TMDB Reviews</h2>
+                    
+                    <div id="tmdbReviewsContainer" style="max-height: 420px; overflow-y: auto; padding-right: 0.25rem;">
+                        {% if tmdb_reviews %}
+                            {% for r in tmdb_reviews %}
+                                <div class="tmdb-review-row">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <img src="{{ r.avatar_url }}" alt="Reviewer Avatar" class="rounded-circle" style="width: 28px; height: 28px; object-fit: cover; border: 1px solid rgba(255, 255, 255, 0.1);">
+                                        <div class="flex-grow-1">
+                                            <h4 class="text-white m-0" style="font-size: 0.8rem; font-weight: 700;">{{ r.author }}</h4>
+                                            <small class="text-secondary" style="font-size: 0.65rem;">{{ r.created_at }}</small>
+                                        </div>
+                                        {% if r.rating %}
+                                            <span class="badge bg-warning text-dark d-flex align-items-center gap-1" style="font-size: 0.68rem; font-weight: 700;">
+                                                <i class="fa-solid fa-star"></i> {{ r.rating }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <div onclick="this.classList.toggle('expanded')" class="review-content-text text-secondary small" title="Click to expand/collapse">
+                                        {{ r.content|linebreaksbr }}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-muted text-center py-4 small">
+                                <i class="fa-regular fa-comments d-block mb-2 fs-4 opacity-30"></i>
+                                No community reviews on TMDB yet.
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
 
             </div>
