@@ -2073,11 +2073,15 @@ def watchlist_hub_view(request):
             'poster_url': poster_url or ('https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop' if m_type == 'movie' else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'),
         })
 
+    from core.models import WatchGroup
+    user_groups = WatchGroup.objects.filter(members=request.user).distinct()
+
     context = {
         'watchlist_movies':       watchlist_movies,
         'watchlist_tv':           watchlist_tv,
         'user_reviews':           user_reviews,
         'recently_viewed_media':  recently_viewed_media,
+        'groups':                 user_groups,
     }
     return render(request, 'core/watchlist_hub.html', context)
 
