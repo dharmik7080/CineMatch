@@ -81,9 +81,17 @@
     cursor: pointer;
     margin-bottom: -2px; /* Pull down to overlay precisely on the border line */
 }
+.custom-tabs .nav-link::after {
+    content: none !important;
+    display: none !important;
+}
 .custom-tabs .nav-link:hover {
     color: #ffffff !important;
     border-bottom: 3px solid rgba(168, 85, 247, 0.4) !important;
+}
+.custom-tabs .nav-link:focus {
+    outline: none !important;
+    box-shadow: none !important;
 }
 .custom-tabs .nav-link.active {
     color: #ffffff !important;
@@ -174,7 +182,7 @@
     </div>
 
     <!-- Custom Tabs Navigation -->
-    <div class="custom-tabs" id="hubTabs" role="tablist">
+    <div class="nav custom-tabs" id="hubTabs" role="tablist">
         <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal-content" type="button" role="tab" aria-controls="personal-content" aria-selected="true">
             <i class="fa-solid fa-user me-2"></i> Personal Watchlist
         </button>
