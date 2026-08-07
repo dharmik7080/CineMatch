@@ -62,26 +62,33 @@
     color: #6b7280;
 }
 
-/* Nav Tabs Style Overrides */
-.nav-tabs {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+/* Custom Tabs Styling */
+.custom-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
 }
-.nav-tabs .nav-link {
+.custom-tabs .nav-link {
     color: #9ca3af !important;
     background: transparent !important;
     border: none !important;
     border-bottom: 3px solid transparent !important;
-    padding: 0.75rem 1.5rem !important;
+    padding: 0.75rem 0.5rem !important;
     transition: all 0.3s ease !important;
     font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-bottom: -2px; /* Pull down to overlay precisely on the border line */
 }
-.nav-tabs .nav-link:hover {
+.custom-tabs .nav-link:hover {
     color: #ffffff !important;
     border-bottom: 3px solid rgba(168, 85, 247, 0.4) !important;
 }
-.nav-tabs .nav-link.active {
+.custom-tabs .nav-link.active {
     color: #ffffff !important;
     border-bottom: 3px solid #a855f7 !important;
+    text-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
 }
 
 /* Collaborative Groups styles */
@@ -166,19 +173,15 @@
         </p>
     </div>
 
-    <!-- Nav Tabs Navigation -->
-    <ul class="nav nav-tabs mb-4" id="hubTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal-content" type="button" role="tab" aria-controls="personal-content" aria-selected="true">
-                <i class="fa-solid fa-user me-2"></i> Personal Watchlist
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="groups-tab" data-bs-toggle="tab" data-bs-target="#groups-content" type="button" role="tab" aria-controls="groups-content" aria-selected="false">
-                <i class="fa-solid fa-users me-2"></i> Collaborative Watch Groups
-            </button>
-        </li>
-    </ul>
+    <!-- Custom Tabs Navigation -->
+    <div class="custom-tabs" id="hubTabs" role="tablist">
+        <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal-content" type="button" role="tab" aria-controls="personal-content" aria-selected="true">
+            <i class="fa-solid fa-user me-2"></i> Personal Watchlist
+        </button>
+        <button class="nav-link" id="groups-tab" data-bs-toggle="tab" data-bs-target="#groups-content" type="button" role="tab" aria-controls="groups-content" aria-selected="false">
+            <i class="fa-solid fa-users me-2"></i> Collaborative Watch Groups
+        </button>
+    </div>
 
     <!-- Tabs Content Container -->
     <div class="tab-content" id="hubTabsContent">
