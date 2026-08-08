@@ -300,7 +300,35 @@ def get_recommendations(user_watchlist_ids, media_type='movie', user=None):
     if data_dict is not None and sim_matrix is not None:
         try:
             df = pd.DataFrame(data_dict)
-            watchlist_indices = df[df[id_col].isin(user_watchlist_ids)].index.tolist()
+            title_col = 'title' if 'title' in df.columns else 'name'
+            
+            # Resolve actual titles for the user's watchlist items from CachedMedia (or TMDB API details)
+            from core.models import CachedMedia
+            watchlist_titles = []
+            for w_id in user_watchlist_ids:
+                cached = CachedMedia.objects.filter(media_id=w_id, media_type=media_type).first()
+                title = None
+                if cached and cached.data:
+                    title = cached.data.get('title') or cached.data.get('name')
+                
+                if not title:
+                    try:
+                        url = f"{client.base_url}/{'movie' if media_type == 'movie' else 'tv'}/{w_id}?api_key={settings.TMDB_API_KEY}"
+                        resp = get_resilient_session().get(url, timeout=3.0)
+                        if resp.status_code == 200:
+                            detail = resp.json()
+                            title = detail.get('title') or detail.get('name')
+                    except Exception:
+                        pass
+                if title:
+                    watchlist_titles.append(title.lower().strip())
+
+            # Find matching row indices in DataFrame using case-insensitive title matching
+            watchlist_indices = []
+            for t in watchlist_titles:
+                matches = df[df[title_col].astype(str).str.lower().str.strip() == t].index.tolist()
+                watchlist_indices.extend(matches)
+            watchlist_indices = list(set(watchlist_indices))
             
             if watchlist_indices:
                 # Calculate mean similarity vector across all user watchlist items
@@ -310,20 +338,57 @@ def get_recommendations(user_watchlist_ids, media_type='movie', user=None):
                 candidate_indices = [idx for idx in range(len(df)) if idx not in watchlist_indices]
                 sorted_candidates = sorted(candidate_indices, key=lambda idx: mean_sim[idx], reverse=True)
                 
-                top_indices = sorted_candidates[:8]
-                recommendations = df.iloc[top_indices].to_dict(orient='records')
-                
                 results = []
-                for rec in recommendations:
-                    media_id = rec[id_col]
-                    title_text = rec.get('title') or rec.get('name') or 'Unknown Title'
-                    results.append({
-                        id_col: media_id,
-                        'title': title_text,
-                        'poster_url': get_cached_poster(client, media_id, media_type),
-                        'watch_link': client.get_streaming_or_theatre_links(title_text, media_type, False)
-                    })
-                return results
+                resolved_titles = set()
+                
+                for idx in sorted_candidates:
+                    title_text = str(df.iloc[idx][title_col]).strip()
+                    title_lower = title_text.lower()
+                    
+                    if title_lower in resolved_titles:
+                        continue
+                    if title_lower in watchlist_titles:
+                        continue
+                    
+                    # Query CachedMedia matching this title case-insensitively
+                    cached = None
+                    cached_qs = CachedMedia.objects.filter(media_type=media_type)
+                    for item in cached_qs:
+                        if item.data and isinstance(item.data, dict):
+                            t = item.data.get('title') or item.data.get('name')
+                            if t and t.lower().strip() == title_lower:
+                                cached = item
+                                break
+                    
+                    if cached:
+                        media_id = cached.media_id
+                        results.append({
+                            id_col: media_id,
+                            'title': title_text,
+                            'poster_url': get_cached_poster(client, media_id, media_type),
+                            'watch_link': client.get_streaming_or_theatre_links(title_text, media_type, False)
+                        })
+                        resolved_titles.add(title_lower)
+                    else:
+                        # JIT fetch and cache if not present in CachedMedia
+                        media_id = int(df.iloc[idx][id_col])
+                        try:
+                            poster_url = get_cached_poster(client, media_id, media_type)
+                            results.append({
+                                id_col: media_id,
+                                'title': title_text,
+                                'poster_url': poster_url,
+                                'watch_link': client.get_streaming_or_theatre_links(title_text, media_type, False)
+                            })
+                            resolved_titles.add(title_lower)
+                        except Exception:
+                            pass
+                            
+                    if len(results) >= 8:
+                        break
+                
+                if results:
+                    return results
         except Exception as e:
             print(f"[ML INFERENCE ERROR] Pre-trained matrix lookup failed: {e}")
 
