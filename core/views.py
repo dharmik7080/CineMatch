@@ -3205,23 +3205,28 @@ def temp_load_fixture(request):
     Temporary route to load pre-computed recommendations fixture on the free Render instance.
     Runs asynchronously in a background thread to prevent 30s request gateway timeouts.
     """
+    from core.models import CachedRecommendation
+    from django.http import HttpResponse
     import threading
     from django.core.management import call_command
-    from django.http import HttpResponse
 
     if not request.user.is_superuser:
         return HttpResponse("Forbidden: Superuser privilege required.", status=403)
 
-    def load_fixture_bg():
-        print("[FIXTURE INGEST] Starting background loaddata task...")
-        try:
-            call_command('loaddata', 'recommendations.json')
-            print("[FIXTURE INGEST] Successfully loaded recommendations fixture!")
-        except Exception as e:
-            print(f"[FIXTURE INGEST] Error loading fixture: {e}")
+    count = CachedRecommendation.objects.count()
 
-    t = threading.Thread(target=load_fixture_bg)
-    t.daemon = True
-    t.start()
+    if request.GET.get('trigger') == 'true':
+        def load_fixture_bg():
+            print("[FIXTURE INGEST] Starting background loaddata task...")
+            try:
+                call_command('loaddata', 'recommendations.json')
+                print("[FIXTURE INGEST] Successfully loaded recommendations fixture!")
+            except Exception as e:
+                print(f"[FIXTURE INGEST] Error loading fixture: {e}")
 
-    return HttpResponse("Background loading task started! Please monitor your Render web service logs for completion.")
+        t = threading.Thread(target=load_fixture_bg)
+        t.daemon = True
+        t.start()
+        return HttpResponse(f"Background loading task started! Current database count before task: {count}. Please refresh this page (without ?trigger=true) in 1-2 minutes to check progress.")
+
+    return HttpResponse(f"Current CachedRecommendation count in database: {count}. To trigger/restart loading, visit this URL with '?trigger=true' (e.g. /temp-load-fixtures-route/?trigger=true).")
