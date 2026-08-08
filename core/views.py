@@ -202,13 +202,12 @@ def get_genre_fallback_recommendations(recent_id, df, id_col, watchlist_indices,
     return recommendations
 
 
-def get_recommendations(user_watchlist_ids, media_type='movie', user=None):
+def get_recommendations(user_watchlist_ids, media_type='movie'):
     """
-    Syllabus Reference: Units 4 & 5 Model Inference and Metric Evaluation
-    Mathematical Concept: Similarity Matrix Vector Aggregation with Database Caching
+    Main Vector Aggregation & Content-Based Recommendation Engine.
     """
     client = TMDBClient()
-    
+
     if media_type == 'movie':
         data_dict = MOVIE_DICT
         sim_matrix = MOVIE_SIMILARITY
@@ -218,269 +217,106 @@ def get_recommendations(user_watchlist_ids, media_type='movie', user=None):
         sim_matrix = TV_SIMILARITY
         id_col = 'id'
 
-    # ── 1. COLD START FALLBACK HANDLING (Empty watchlist or unauthenticated user) ──
+    if data_dict is None or sim_matrix is None:
+        return []
+
+    df = pd.DataFrame(data_dict)
+
+    # 1. COLD START LAYER 1: Empty Watchlist -> Global Popularity
     if not user_watchlist_ids:
-        try:
-            from core.models import CachedMedia
-            # Fetch CachedMedia sorted by popularity descending (retrieved from raw JSON payload)
-            qs = CachedMedia.objects.filter(media_type=media_type)
-            records = []
-            for item in qs:
-                if item.data and isinstance(item.data, dict):
-                    # Extract popularity from TMDB detail response payload
-                    popularity = item.data.get('popularity') or item.data.get('vote_average', 0.0) or 0.0
-                    try:
-                        popularity = float(popularity)
-                    except (ValueError, TypeError):
-                        popularity = 0.0
-                    
-                    title_text = item.data.get('title') or item.data.get('name') or 'Unknown Title'
-                    records.append({
-                        'id': item.media_id,
-                        'title': title_text,
-                        'popularity': popularity
-                    })
-            
-            # Sort records in-memory by popularity score descending
-            records.sort(key=lambda x: x['popularity'], reverse=True)
-            
-            defaults = []
-            for r in records[:8]:
-                defaults.append({
-                    id_col: r['id'],
-                    'title': r['title'],
-                    'poster_url': get_cached_poster(client, r['id'], media_type),
-                    'watch_link': client.get_streaming_or_theatre_links(r['title'], media_type, False),
-                })
-            
-            # Top up from dynamic TMDB popular catalog if CachedMedia has fewer than 8 entries
-            if len(defaults) < 8:
-                from core.utils import fetch_tmdb_catalog
-                catalog = fetch_tmdb_catalog(endpoint_type=media_type, list_type="popular", page=1)
-                results = catalog.get('results', [])
-                for r in results:
-                    title_text = r.get('title') or r.get('name') or 'Unknown Title'
-                    media_id = r.get('id')
-                    if media_id not in [d[id_col] for d in defaults]:
-                        defaults.append({
-                            id_col: media_id,
-                            'title': title_text,
-                            'poster_url': get_cached_poster(client, media_id, media_type),
-                            'watch_link': client.get_streaming_or_theatre_links(title_text, media_type, False),
-                        })
-                        if len(defaults) >= 8:
-                            break
-            
-            if defaults:
-                return defaults
-        except Exception as fe:
-            print(f"[COLD START FALLBACK ERROR] Failed to fetch popular from CachedMedia: {fe}")
+        trending_df = df.sort_values(by='popularity', ascending=False) if 'popularity' in df.columns else df
+        defaults = trending_df.head(8).to_dict(orient='records')
+        for d in defaults:
+            title_text = d.get('title') or d.get('name') or 'Unknown Title'
+            d['title'] = title_text
+            d['poster_url'] = get_cached_poster(client, d[id_col], media_type)
+            d['watch_link'] = client.get_streaming_or_theatre_links(title_text, media_type, False)
+        return defaults
 
-        # Fallback safeguard: fetch directly from popular catalog
-        try:
-            from core.utils import fetch_tmdb_catalog
-            catalog = fetch_tmdb_catalog(endpoint_type=media_type, list_type="popular", page=1)
-            results = catalog.get('results', [])[:8]
-            defaults = []
-            for r in results:
-                title_text = r.get('title') or r.get('name') or 'Unknown Title'
-                media_id = r.get('id')
-                defaults.append({
-                    id_col: media_id,
-                    'title': title_text,
-                    'poster_url': get_cached_poster(client, media_id, media_type),
-                    'watch_link': client.get_streaming_or_theatre_links(title_text, media_type, False),
-                })
-            return defaults
-        except Exception:
-            return []
+    watchlist_indices = df[df[id_col].isin(user_watchlist_ids)].index.tolist()
 
-    # ── 2. PRIMARY PRODUCTION ROUTE: PRE-TRAINED SIMILARITY MATRIX LOOKUP ──
-    # Performs mean vector similarity aggregation directly in memory if pickles are loaded
-    if data_dict is not None and sim_matrix is not None:
-        try:
-            df = pd.DataFrame(data_dict)
-            title_col = 'title' if 'title' in df.columns else 'name'
-            
-            # Resolve actual titles for the user's watchlist items from CachedMedia (or TMDB API details)
-            from core.models import CachedMedia
-            watchlist_titles = []
-            for w_id in user_watchlist_ids:
-                cached = CachedMedia.objects.filter(media_id=w_id, media_type=media_type).first()
-                title = None
-                if cached and cached.data:
-                    title = cached.data.get('title') or cached.data.get('name')
-                
-                if not title:
-                    try:
-                        url = f"{client.base_url}/{'movie' if media_type == 'movie' else 'tv'}/{w_id}?api_key={settings.TMDB_API_KEY}"
-                        resp = get_resilient_session().get(url, timeout=3.0)
-                        if resp.status_code == 200:
-                            detail = resp.json()
-                            title = detail.get('title') or detail.get('name')
-                    except Exception:
-                        pass
-                if title:
-                    watchlist_titles.append(title.lower().strip())
+    # 2. COLD START LAYER 2: Watchlist items not found in DataFrame -> Genre Fallback
+    if not watchlist_indices:
+        print("[ML ENGINE] Fallback Triggered: Watchlist item not found in vector index.")
+        recent_id = user_watchlist_ids[0] if user_watchlist_ids else None
+        return get_genre_fallback_recommendations(recent_id, df, id_col, watchlist_indices, media_type, client)
 
-            # Find matching row indices in DataFrame using case-insensitive title matching
-            watchlist_indices = []
-            for t in watchlist_titles:
-                matches = df[df[title_col].astype(str).str.lower().str.strip() == t].index.tolist()
-                watchlist_indices.extend(matches)
-            watchlist_indices = list(set(watchlist_indices))
-            
-            if watchlist_indices:
-                # Calculate mean similarity vector across all user watchlist items
-                mean_sim = np.mean(sim_matrix[watchlist_indices], axis=0)
-                
-                # Exclude already saved watchlist items (Deduplication)
-                candidate_indices = [idx for idx in range(len(df)) if idx not in watchlist_indices]
-                sorted_candidates = sorted(candidate_indices, key=lambda idx: mean_sim[idx], reverse=True)
-                
-                results = []
-                resolved_titles = set()
-                
-                for idx in sorted_candidates:
-                    title_text = str(df.iloc[idx][title_col]).strip()
-                    title_lower = title_text.lower()
-                    
-                    if title_lower in resolved_titles:
-                        continue
-                    if title_lower in watchlist_titles:
-                        continue
-                    
-                    # Query CachedMedia matching this title case-insensitively
-                    cached = None
-                    cached_qs = CachedMedia.objects.filter(media_type=media_type)
-                    for item in cached_qs:
-                        if item.data and isinstance(item.data, dict):
-                            t = item.data.get('title') or item.data.get('name')
-                            if t and t.lower().strip() == title_lower:
-                                cached = item
-                                break
-                    
-                    if cached:
-                        media_id = cached.media_id
-                        results.append({
-                            id_col: media_id,
-                            'title': title_text,
-                            'poster_url': get_cached_poster(client, media_id, media_type),
-                            'watch_link': client.get_streaming_or_theatre_links(title_text, media_type, False)
-                        })
-                        resolved_titles.add(title_lower)
-                    else:
-                        # JIT fetch and cache if not present in CachedMedia
-                        media_id = int(df.iloc[idx][id_col])
-                        try:
-                            poster_url = get_cached_poster(client, media_id, media_type)
-                            results.append({
-                                id_col: media_id,
-                                'title': title_text,
-                                'poster_url': poster_url,
-                                'watch_link': client.get_streaming_or_theatre_links(title_text, media_type, False)
-                            })
-                            resolved_titles.add(title_lower)
-                        except Exception:
-                            pass
-                            
-                    if len(results) >= 8:
-                        break
-                
-                if results:
-                    return results
-        except Exception as e:
-            print(f"[ML INFERENCE ERROR] Pre-trained matrix lookup failed: {e}")
-
-    # ── 3. SECONDARY ROUTE: DATABASE-CACHED RECOMMENDATIONS ──
-    # Falls back to database-cached pre-computed recommendations if pickles are missing on production
     try:
-        from django.db.models import Sum, Count
-        from core.models import CachedRecommendation, CachedMedia, WatchedHistory
-        
-        if user:
-            watched_ids = set(WatchedHistory.objects.filter(user=user).values_list("movie_id", flat=True))
-        else:
-            watched_ids = set()
-        excluded_ids = set(user_watchlist_ids) | watched_ids
-        
-        qs = (
-            CachedRecommendation.objects
-            .filter(source_id__in=user_watchlist_ids[:10], media_type=media_type)
-            .exclude(target_id__in=excluded_ids)
-            .values("target_id")
-            .annotate(total_score=Sum("score"))
-            .order_by("-total_score")
-            [:8]
-        )
-        
-        if qs.exists():
-            recommendations = []
-            for row in qs:
-                tid = row["target_id"]
-                cached = CachedMedia.objects.filter(media_id=tid, media_type=media_type).first()
-                title_text = cached.data.get('title') or cached.data.get('name') if (cached and cached.data) else 'Unknown Title'
-                recommendations.append({
-                    id_col: tid,
-                    'title': title_text,
-                    'poster_url': get_cached_poster(client, tid, media_type),
-                    'watch_link': client.get_streaming_or_theatre_links(title_text, media_type, False)
-                })
-            return recommendations
-    except Exception as dbe:
-        print(f"[DB FALLBACK ERROR] Database CachedRecommendation fetch failed: {dbe}")
+        # Calculate Centroid Mean Cosine Similarity
+        mean_sim = np.mean(sim_matrix[watchlist_indices], axis=0)
 
-    # ── 4. TERTIARY ROUTE: LIVE API FALLBACK (TMDB /similar and /trending) ──
-    # Dynamic live recommendation query fallback if database tables are empty
-    recent_id = user_watchlist_ids[0]
-    if media_type == 'movie':
-        results = client.get_similar_movies(recent_id)[:8]
-        for r in results:
-            r['movie_id'] = r.get('id', r.get('movie_id'))
-            r['title'] = r.get('title', 'Unknown Title')
-            r['poster_url'] = get_cached_poster(client, r['movie_id'], 'movie')
-            r['watch_link'] = client.get_streaming_or_theatre_links(r['title'], 'movie', False)
-        return results
-    else:
-        # Fetch similar TV shows directly from TMDB
-        similar_url = f"{client.base_url}/tv/{recent_id}/similar"
-        params = {
-            'api_key': settings.TMDB_API_KEY,
-            'language': 'en-US',
-            'page': 1
-        }
-        results = []
-        try:
-            resp = get_resilient_session().get(similar_url, params=params, timeout=5.0)
-            if resp.status_code == 200:
-                raw_results = resp.json().get('results', [])
-                for item in raw_results[:8]:
-                    show_id = item.get('id')
-                    title = item.get('name', 'Unknown Title')
-                    results.append({
-                        'id': show_id,
-                        'title': title,
-                        'poster_url': get_cached_poster(client, show_id, 'tv'),
-                        'watch_link': client.get_streaming_or_theatre_links(title, 'tv', False)
-                    })
-        except Exception as ex:
-            print(f"[TV FALLBACK ERROR] Failed to fetch similar TV shows: {ex}")
-        
-        # If TMDB similar call failed or returned empty, use popular TV shows
-        if not results:
-            from core.utils import fetch_tmdb_catalog
-            catalog = fetch_tmdb_catalog(endpoint_type="tv", list_type="popular", page=1)
-            raw_results = catalog.get('results', [])[:8]
-            for r in raw_results:
-                show_id = r.get('id')
-                title = r.get('name', 'Unknown Title')
-                results.append({
-                    'id': show_id,
-                    'title': title,
-                    'poster_url': get_cached_poster(client, show_id, 'tv'),
-                    'watch_link': client.get_streaming_or_theatre_links(title, 'tv', False)
-                })
-        return results
+        candidate_indices = [idx for idx in range(len(df)) if idx not in watchlist_indices]
+        sorted_candidates = sorted(candidate_indices, key=lambda idx: mean_sim[idx], reverse=True)
+
+        # Set Cosine Similarity Threshold (tuned to 0.25 for sparse BoW features)
+        threshold = 0.25
+        high_sim_candidates = [idx for idx in sorted_candidates if mean_sim[idx] > threshold]
+
+        top_3_scores = np.sort(mean_sim)[::-1][:3]
+        print(f"\n[ML ENGINE] Input Watchlist ID(s): {user_watchlist_ids}")
+        print(f"[ML ENGINE] Top 3 similarity scores: {list(top_3_scores)}")
+
+        if len(top_3_scores) == 0 or all(score == 0.0 for score in top_3_scores):
+            recent_id = user_watchlist_ids[0] if user_watchlist_ids else None
+            return get_genre_fallback_recommendations(recent_id, df, id_col, watchlist_indices, media_type, client)
+
+        # 3. HYBRID SELECTION MECHANISM
+        if len(high_sim_candidates) >= 8:
+            top_indices = high_sim_candidates[:8]
+        else:
+            # 50% High Similarity + 50% Genre Matching
+            sim_part = sorted_candidates[:4]
+            recent_id = user_watchlist_ids[0] if user_watchlist_ids else None
+            
+            recent_genres = []
+            if recent_id:
+                try:
+                    cached_item = CachedMedia.objects.filter(media_id=recent_id, media_type=media_type).first()
+                    if cached_item and cached_item.data:
+                        recent_genres = [g.get('name', '').lower() for g in cached_item.data.get('genres', [])]
+                except Exception:
+                    pass
+
+                if not recent_genres:
+                    match_row = df[df[id_col] == recent_id]
+                    if not match_row.empty:
+                        tags_val = str(match_row.iloc[0]['tags']).lower()
+                        known_genres = ['action', 'adventure', 'fantasy', 'sciencefiction', 'crime', 'drama', 'comedy', 'thriller', 'romance', 'animation', 'family', 'mystery']
+                        recent_genres = [g for g in known_genres if g in tags_val]
+
+            genre_part = []
+            if recent_genres:
+                for idx in sorted_candidates:
+                    if idx not in sim_part:
+                        tags_val = str(df.iloc[idx]['tags']).lower()
+                        if any(g in tags_val for g in recent_genres):
+                            genre_part.append(idx)
+                            if len(genre_part) >= 4:
+                                break
+
+            if len(genre_part) < 4:
+                for idx in sorted_candidates:
+                    if idx not in sim_part and idx not in genre_part:
+                        genre_part.append(idx)
+                        if len(genre_part) >= 4:
+                            break
+
+            top_indices = sim_part + genre_part
+
+        recommendations = df.iloc[top_indices].to_dict(orient='records')
+
+        for rec in recommendations:
+            media_id = rec[id_col]
+            title_text = rec.get('title') or rec.get('name') or 'Unknown Title'
+            rec['title'] = title_text
+            rec['poster_url'] = get_cached_poster(client, media_id, media_type)
+            rec['watch_link'] = client.get_streaming_or_theatre_links(title_text, media_type, False)
+
+        return recommendations
+
+    except Exception as e:
+        print(f"[ML INFERENCE] Error during recommendation calculation: {e}")
+        return []
 
 # ======================================================================
 # User Authentication, Registration, and Home Views
@@ -660,8 +496,8 @@ def get_personalized_recommendations(user):
     saved_movies = list(watchlist_items.filter(media_type='movie').values_list('media_id', flat=True))
     saved_tv_shows = list(watchlist_items.filter(media_type='tv').values_list('media_id', flat=True))
     
-    recommended_movies = get_recommendations(saved_movies, 'movie', user=user)
-    recommended_tv_shows = get_recommendations(saved_tv_shows, 'tv', user=user)
+    recommended_movies = get_recommendations(saved_movies, 'movie')
+    recommended_tv_shows = get_recommendations(saved_tv_shows, 'tv')
     
     return {
         'recommended_movies': recommended_movies,
