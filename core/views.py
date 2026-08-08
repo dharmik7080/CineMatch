@@ -3213,7 +3213,6 @@ def temp_load_fixture(request):
     import os
     from django.conf import settings
     import threading
-    from django.core.management import call_command
 
     count = CachedRecommendation.objects.count()
     fixture_path = os.path.join(settings.BASE_DIR, 'recommendations.json')
@@ -3223,13 +3222,36 @@ def temp_load_fixture(request):
     if request.GET.get('trigger') == 'true':
         BG_LOGS = []  # Reset logs
         def load_fixture_bg():
-            BG_LOGS.append("Starting background loaddata task...")
+            import json
+            BG_LOGS.append("Starting background fast bulk-create import...")
             try:
                 fixture_path_bg = os.path.join(settings.BASE_DIR, 'recommendations.json')
-                BG_LOGS.append(f"Fixture absolute path: {fixture_path_bg}")
-                BG_LOGS.append(f"Fixture exists: {os.path.exists(fixture_path_bg)}")
-                call_command('loaddata', fixture_path_bg)
-                BG_LOGS.append("Successfully loaded recommendations fixture!")
+                BG_LOGS.append("Reading JSON file into memory...")
+                with open(fixture_path_bg, 'r') as f:
+                    data = json.load(f)
+                
+                BG_LOGS.append(f"Loaded {len(data)} records from JSON. Clearing old recommendations...")
+                CachedRecommendation.objects.all().delete()
+                
+                BG_LOGS.append("Converting to model instances...")
+                recs = []
+                for item in data:
+                    fields = item['fields']
+                    recs.append(CachedRecommendation(
+                        source_id=fields['source_id'],
+                        target_id=fields['target_id'],
+                        score=fields['score'],
+                        media_type=fields['media_type']
+                    ))
+                
+                BG_LOGS.append("Executing bulk create database inserts in chunks of 20,000...")
+                chunk_size = 20000
+                for i in range(0, len(recs), chunk_size):
+                    chunk = recs[i:i+chunk_size]
+                    CachedRecommendation.objects.bulk_create(chunk)
+                    BG_LOGS.append(f"Inserted {i + len(chunk)} / {len(recs)} records...")
+                
+                BG_LOGS.append("Successfully loaded recommendations fixture using fast bulk create!")
             except Exception as e:
                 import traceback
                 error_trace = traceback.format_exc()
