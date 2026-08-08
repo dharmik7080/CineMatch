@@ -3199,35 +3199,53 @@ def mark_all_notifications_read(request):
     return redirect('notifications_list')
 
 
+BG_LOGS = []
+
 @login_required
 def temp_load_fixture(request):
     """
     Temporary route to load pre-computed recommendations fixture on the free Render instance.
     Runs asynchronously in a background thread to prevent 30s request gateway timeouts.
     """
+    global BG_LOGS
     from core.models import CachedRecommendation
     from django.http import HttpResponse
+    import os
+    from django.conf import settings
     import threading
     from django.core.management import call_command
 
     count = CachedRecommendation.objects.count()
+    fixture_path = os.path.join(settings.BASE_DIR, 'recommendations.json')
+    exists = os.path.exists(fixture_path)
+    size = os.path.getsize(fixture_path) if exists else 0
 
     if request.GET.get('trigger') == 'true':
+        BG_LOGS = []  # Reset logs
         def load_fixture_bg():
-            import os
-            from django.conf import settings
-            print("[FIXTURE INGEST] Starting background loaddata task...")
+            BG_LOGS.append("Starting background loaddata task...")
             try:
-                fixture_path = os.path.join(settings.BASE_DIR, 'recommendations.json')
-                print(f"[FIXTURE INGEST] Loading from absolute path: {fixture_path}")
-                call_command('loaddata', fixture_path)
-                print("[FIXTURE INGEST] Successfully loaded recommendations fixture!")
+                fixture_path_bg = os.path.join(settings.BASE_DIR, 'recommendations.json')
+                BG_LOGS.append(f"Fixture absolute path: {fixture_path_bg}")
+                BG_LOGS.append(f"Fixture exists: {os.path.exists(fixture_path_bg)}")
+                call_command('loaddata', fixture_path_bg)
+                BG_LOGS.append("Successfully loaded recommendations fixture!")
             except Exception as e:
-                print(f"[FIXTURE INGEST] Error loading fixture: {e}")
+                import traceback
+                error_trace = traceback.format_exc()
+                BG_LOGS.append(f"Error loading fixture: {e}")
+                BG_LOGS.append(error_trace.replace("\n", "<br>"))
 
         t = threading.Thread(target=load_fixture_bg)
         t.daemon = True
         t.start()
-        return HttpResponse(f"Background loading task started! Current database count before task: {count}. Please refresh this page (without ?trigger=true) in 1-2 minutes to check progress.")
+        return HttpResponse(f"Background loading task triggered. Refresh this page to view logs.")
 
-    return HttpResponse(f"Current CachedRecommendation count in database: {count}. To trigger/restart loading, visit this URL with '?trigger=true' (e.g. /temp-load-fixtures-route/?trigger=true).")
+    logs_str = "<br>".join(BG_LOGS)
+    return HttpResponse(
+        f"<b>Database Count:</b> {count}<br>"
+        f"<b>Fixture File Path:</b> {fixture_path}<br>"
+        f"<b>Fixture File Exists:</b> {exists} (Size: {size} bytes)<br><br>"
+        f"<b>Logs from last run:</b><br>{logs_str}<br><br>"
+        f"To trigger loading, append ?trigger=true to the URL."
+    )
