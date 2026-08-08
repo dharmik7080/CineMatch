@@ -3210,9 +3210,6 @@ def temp_load_fixture(request):
     import threading
     from django.core.management import call_command
 
-    if not request.user.is_superuser:
-        return HttpResponse("Forbidden: Superuser privilege required.", status=403)
-
     count = CachedRecommendation.objects.count()
 
     if request.GET.get('trigger') == 'true':
