@@ -16,3 +16,8 @@ fi
 
 # Load static files
 python manage.py collectstatic --no-input
+
+# Load pre-computed similarity recommendations fixture into the database
+echo "Loading pre-computed similarity recommendations fixture..."
+python manage.py loaddata recommendations.json
+
