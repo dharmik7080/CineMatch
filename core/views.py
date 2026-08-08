@@ -3214,9 +3214,13 @@ def temp_load_fixture(request):
 
     if request.GET.get('trigger') == 'true':
         def load_fixture_bg():
+            import os
+            from django.conf import settings
             print("[FIXTURE INGEST] Starting background loaddata task...")
             try:
-                call_command('loaddata', 'recommendations.json')
+                fixture_path = os.path.join(settings.BASE_DIR, 'recommendations.json')
+                print(f"[FIXTURE INGEST] Loading from absolute path: {fixture_path}")
+                call_command('loaddata', fixture_path)
                 print("[FIXTURE INGEST] Successfully loaded recommendations fixture!")
             except Exception as e:
                 print(f"[FIXTURE INGEST] Error loading fixture: {e}")
