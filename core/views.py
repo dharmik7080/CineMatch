@@ -3197,3 +3197,31 @@ def mark_all_notifications_read(request):
     Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
     messages.success(request, "All notifications marked as read.")
     return redirect('notifications_list')
+
+
+@login_required
+def temp_load_fixture(request):
+    """
+    Temporary route to load pre-computed recommendations fixture on the free Render instance.
+    Runs asynchronously in a background thread to prevent 30s request gateway timeouts.
+    """
+    import threading
+    from django.core.management import call_command
+    from django.http import HttpResponse
+
+    if not request.user.is_superuser:
+        return HttpResponse("Forbidden: Superuser privilege required.", status=403)
+
+    def load_fixture_bg():
+        print("[FIXTURE INGEST] Starting background loaddata task...")
+        try:
+            call_command('loaddata', 'recommendations.json')
+            print("[FIXTURE INGEST] Successfully loaded recommendations fixture!")
+        except Exception as e:
+            print(f"[FIXTURE INGEST] Error loading fixture: {e}")
+
+    t = threading.Thread(target=load_fixture_bg)
+    t.daemon = True
+    t.start()
+
+    return HttpResponse("Background loading task started! Please monitor your Render web service logs for completion.")

@@ -77,4 +77,7 @@ urlpatterns = [
     path('notifications/', views.notifications_list_view, name='notifications_list'),
     path('notifications/read/<int:notification_id>/', views.mark_notification_read, name='mark_notification_read'),
     path('notifications/mark-all-read/', views.mark_all_notifications_read, name='mark_all_notifications_read'),
+
+    # Temporary route to trigger fixture loading on Render free tier
+    path('temp-load-fixtures-route/', views.temp_load_fixture, name='temp_load_fixture'),
 ]
