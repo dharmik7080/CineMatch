@@ -555,6 +555,7 @@
             <h1 class="hero-title" id="spotlight-title">{{ spotlight_movie.title }}</h1>
             <p class="hero-overview" id="spotlight-overview">{{ spotlight_movie.overview }}</p>
             <div class="d-flex gap-3 flex-wrap">
+                {% if user.is_authenticated %}
                 <button onclick="toggleWatchlist(this, {{ spotlight_movie.movie_id }}, 'movie')"
                         id="spotlight-bookmark-btn"
                         class="btn btn-glow"
@@ -565,6 +566,12 @@
                         <i class="fa-regular fa-bookmark me-1"></i> Add to Watchlist
                     {% endif %}
                 </button>
+                {% else %}
+                <a href="{% url 'login' %}?next={{ request.path }}"
+                   class="btn btn-glow d-inline-flex align-items-center justify-content-center text-decoration-none">
+                    <i class="fa-solid fa-right-to-bracket me-2"></i> Sign In to Add to Watchlist
+                </a>
+                {% endif %}
                 <a href="https://www.youtube.com/results?search_query={{ spotlight_movie.title }}+official+trailer"
                    id="spotlight-trailer-link"
                    target="_blank" class="btn btn-outline-custom">
@@ -1122,11 +1129,16 @@
 
 {% block extra_js %}
 <script>
+const isUserAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
 // Sync single-argument calls to toggleWatchlist('123') with the backend MVT handler
 const parentToggleWatchlist = window.toggleWatchlist;
 let savedIds = {{ saved_ids|safe }};
 
 window.toggleWatchlist = function(elementOrId, mediaId, mediaType) {
+    if (!isUserAuthenticated) {
+        window.location.href = "{% url 'login' %}?next=" + encodeURIComponent(window.location.pathname);
+        return;
+    }
     if (typeof elementOrId === 'string' || typeof elementOrId === 'number') {
         const id = elementOrId;
         const btn = document.querySelector(`button[onclick*="toggleWatchlist('${id}')"]`) || 

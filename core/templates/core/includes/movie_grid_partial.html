@@ -6,6 +6,7 @@
                 
                 <!-- Watchlist Action Button -->
                 <div class="watchlist-btn-overlay">
+                    {% if user.is_authenticated %}
                     <button onclick="toggleWatchlist(this, {{ movie.movie_id|default:movie.id }}, 'movie')" 
                             class="btn btn-circle {% if movie.movie_id|default:movie.id in watchlist_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}"
                             data-saved="{% if movie.movie_id|default:movie.id in watchlist_ids %}true{% else %}false{% endif %}"
@@ -16,6 +17,13 @@
                             <i class="fa-regular fa-bookmark"></i>
                         {% endif %}
                     </button>
+                    {% else %}
+                    <a href="{% url 'login' %}?next={{ request.path }}" 
+                       class="btn btn-circle btn-dark rgba-bg d-flex align-items-center justify-content-center text-decoration-none"
+                       title="Sign In to Watchlist">
+                        <i class="fa-solid fa-right-to-bracket text-white"></i>
+                    </a>
+                    {% endif %}
                 </div>
                 
                 <!-- Dynamic variable image with fallback check -->
@@ -49,6 +57,7 @@
                         
                         <!-- Watchlist Action Button -->
                         <div class="watchlist-btn-overlay">
+                            {% if user.is_authenticated %}
                             <button onclick="toggleWatchlist(this, {{ movie.movie_id }}, 'movie')" 
                                     class="btn btn-circle {% if movie.movie_id in watchlist_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}"
                                     data-saved="{% if movie.movie_id in watchlist_ids %}true{% else %}false{% endif %}"
@@ -59,6 +68,13 @@
                                     <i class="fa-regular fa-bookmark"></i>
                                 {% endif %}
                             </button>
+                            {% else %}
+                            <a href="{% url 'login' %}?next={{ request.path }}" 
+                               class="btn btn-circle btn-dark rgba-bg d-flex align-items-center justify-content-center text-decoration-none"
+                               title="Sign In to Watchlist">
+                                <i class="fa-solid fa-right-to-bracket text-white"></i>
+                            </a>
+                            {% endif %}
                         </div>
                         
                         <!-- Dynamic variable image with fallback check -->

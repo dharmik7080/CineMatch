@@ -547,6 +547,7 @@
                 <div class="mb-3"></div>
                 {% endif %}
 
+                {% if user.is_authenticated %}
                 <button id="detail-watchlist-btn"
                         class="btn rounded-pill px-4 py-2 {% if is_in_watchlist %}btn-watchlist-saved{% else %}btn-watchlist-add{% endif %}"
                         data-saved="{{ is_in_watchlist|lower }}"
@@ -559,6 +560,13 @@
                         <i class="fa-regular fa-bookmark me-2"></i> Add to Watchlist
                     {% endif %}
                 </button>
+                {% else %}
+                <a href="{% url 'login' %}?next={{ request.path }}"
+                   class="btn rounded-pill px-4 py-2 btn-watchlist-add d-inline-flex align-items-center justify-content-center text-decoration-none"
+                   style="font-size:0.88rem; transition:all 0.3s ease;">
+                    <i class="fa-solid fa-right-to-bracket me-2"></i> Sign In to Add to Watchlist
+                </a>
+                {% endif %}
 
             </div>
         </div>
@@ -985,7 +993,7 @@
                 {% else %}
                     <div class="text-center rounded-3 p-4 mb-4" style="background: rgba(255,255,255,0.015); border: 1px dashed rgba(255,255,255,0.12);">
                         <p class="text-secondary mb-2" style="font-size: 0.88rem;">Want to write a review and contribute data to our upcoming NLP sentiment model?</p>
-                        <a href="{% url 'login' %}" class="btn btn-sm btn-outline-light rounded-pill px-4 fw-bold" style="font-size: 0.78rem;">Sign In to Account</a>
+                        <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-sm btn-outline-light rounded-pill px-4 fw-bold" style="font-size: 0.78rem;">Sign In to Account</a>
                     </div>
                 {% endif %}
             {% endif %}

@@ -504,11 +504,9 @@ def logout_view(request):
 def home_redirect(request):
     """
     Intelligent Root Redirection gatekeeper (Unit 8 Routing)
-    Redirects authenticated users to the personalized feed, and guests to the login page.
+    Redirects all users to the home feed.
     """
-    if request.user.is_authenticated:
-        return redirect('for_you_feed')
-    return redirect('login')
+    return redirect('for_you_feed')
 
 
 
@@ -607,15 +605,21 @@ def get_personalized_recommendations(user):
 # ======================================================================
 # Home / "For You" Feed Loader (Read & Recommend)
 # ======================================================================
-@login_required
 def for_you_feed(request):
     user = request.user
     client = TMDBClient()
     
-    watchlist_items = MovieWatchlist.objects.filter(user=user)
-    saved_movies = list(watchlist_items.filter(media_type='movie').values_list('media_id', flat=True))
-    saved_tv_shows = list(watchlist_items.filter(media_type='tv').values_list('media_id', flat=True))
-    saved_ids = list(watchlist_items.values_list('media_id', flat=True))
+    if user.is_authenticated:
+        watchlist_items = MovieWatchlist.objects.filter(user=user)
+        saved_movies = list(watchlist_items.filter(media_type='movie').values_list('media_id', flat=True))
+        saved_tv_shows = list(watchlist_items.filter(media_type='tv').values_list('media_id', flat=True))
+        saved_ids = list(watchlist_items.values_list('media_id', flat=True))
+        watchlist_count = watchlist_items.count()
+    else:
+        saved_movies = []
+        saved_tv_shows = []
+        saved_ids = []
+        watchlist_count = 0
     
     spotlight_movies = [
         {
@@ -717,28 +721,45 @@ def for_you_feed(request):
     
     # ── CACHE-ASIDE PATTERN FOR PERSONALIZED RECOMMENDATIONS ──
     from django.core.cache import cache
-    cache_key = f"user_feed_{user.id}"
-    recs = None
-    try:
-        recs = cache.get(cache_key)
-        # Auto-invalidate stale empty cache (e.g. after a deploy fix)
-        if recs is not None:
-            if not recs.get('recommended_movies') and not recs.get('recommended_tv_shows'):
-                cache.delete(cache_key)
-                recs = None
-    except Exception as ce:
-        print(f"[CACHE ERROR] Failed to fetch feed cache: {ce}")
-
-    if recs is None:
+    if user.is_authenticated:
+        cache_key = f"user_feed_{user.id}"
+        recs = None
         try:
-            recs = get_personalized_recommendations(user)
-            cache.set(cache_key, recs, 1800)
-        except Exception as re_err:
-            print(f"[RECOMMENDATION ENGINE ERROR] Failed to get recommendations: {re_err}")
+            recs = cache.get(cache_key)
+            # Auto-invalidate stale empty cache (e.g. after a deploy fix)
+            if recs is not None:
+                if not recs.get('recommended_movies') and not recs.get('recommended_tv_shows'):
+                    cache.delete(cache_key)
+                    recs = None
+        except Exception as ce:
+            print(f"[CACHE ERROR] Failed to fetch feed cache: {ce}")
+
+        if recs is None:
+            try:
+                recs = get_personalized_recommendations(user)
+                cache.set(cache_key, recs, 1800)
+            except Exception as re_err:
+                print(f"[RECOMMENDATION ENGINE ERROR] Failed to get recommendations: {re_err}")
+                recs = {
+                    'recommended_movies': [],
+                    'recommended_tv_shows': []
+                }
+    else:
+        cache_key = "user_feed_anonymous"
+        recs = None
+        try:
+            recs = cache.get(cache_key)
+        except Exception as ce:
+            print(f"[CACHE ERROR] Failed to fetch anonymous feed cache: {ce}")
+        if recs is None:
             recs = {
-                'recommended_movies': [],
-                'recommended_tv_shows': []
+                'recommended_movies': get_recommendations([], 'movie'),
+                'recommended_tv_shows': get_recommendations([], 'tv')
             }
+            try:
+                cache.set(cache_key, recs, 3600)
+            except Exception as ce:
+                print(f"[CACHE ERROR] Failed to write anonymous feed cache: {ce}")
 
             
     recommended_movies = recs.get('recommended_movies', [])
@@ -811,7 +832,7 @@ def for_you_feed(request):
         print(f"[DEBUG] First entry of netflix_movies: {netflix_data[0]}")
         
     context = {
-        'watchlist_count': watchlist_items.count(),
+        'watchlist_count': watchlist_count,
         'saved_movies': saved_movies,
         'saved_tv_shows': saved_tv_shows,
         'saved_ids': saved_ids,
@@ -854,7 +875,6 @@ def for_you_feed(request):
 # ======================================================================
 # Explore Movies View
 # ======================================================================
-@login_required
 def explore_movies(request):
     from core.utils import fetch_tmdb_catalog
     
@@ -894,9 +914,12 @@ def explore_movies(request):
     # Check if request is AJAX
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == 'true'
 
-    watchlist_ids = list(MovieWatchlist.objects.filter(
-        user=request.user, media_type='movie'
-    ).values_list('media_id', flat=True))
+    if request.user.is_authenticated:
+        watchlist_ids = list(MovieWatchlist.objects.filter(
+            user=request.user, media_type='movie'
+        ).values_list('media_id', flat=True))
+    else:
+        watchlist_ids = []
 
     context = {
         'movies':       movies_records,
@@ -913,7 +936,6 @@ def explore_movies(request):
 # ======================================================================
 # Explore TV Shows View
 # ======================================================================
-@login_required
 def explore_tv(request):
     from core.utils import fetch_tmdb_catalog
     
@@ -953,9 +975,12 @@ def explore_tv(request):
     # Check if request is AJAX
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == 'true'
 
-    watchlist_ids = list(MovieWatchlist.objects.filter(
-        user=request.user, media_type='tv'
-    ).values_list('media_id', flat=True))
+    if request.user.is_authenticated:
+        watchlist_ids = list(MovieWatchlist.objects.filter(
+            user=request.user, media_type='tv'
+        ).values_list('media_id', flat=True))
+    else:
+        watchlist_ids = []
 
     context = {
         'tv_shows':      tv_records,
@@ -1153,7 +1178,6 @@ def analytics_dashboard(request):
 # ======================================================================
 # Movie Detail Hub View
 # ======================================================================
-@login_required
 def movie_detail_view(request, movie_id):
     # ── ROUTE/TYPE DETECTION ──
     from django.shortcuts import redirect
@@ -1555,9 +1579,11 @@ def movie_detail_view(request, movie_id):
             'backdrop_url': '',
         }
 
-    is_in_watchlist = MovieWatchlist.objects.filter(
-        user=request.user, media_id=movie_id, media_type='movie'
-    ).exists()
+    is_in_watchlist = False
+    if request.user.is_authenticated:
+        is_in_watchlist = MovieWatchlist.objects.filter(
+            user=request.user, media_id=movie_id, media_type='movie'
+        ).exists()
 
     from datetime import datetime
     release_date_str = movie.get('release_date', '')
@@ -1683,7 +1709,6 @@ def movie_detail_view(request, movie_id):
 # ======================================================================
 # TV Show Detail Hub View
 # ======================================================================
-@login_required
 def tv_detail_view(request, series_id):
     # ── ROUTE/TYPE DETECTION ──
     from django.shortcuts import redirect
@@ -1995,9 +2020,11 @@ def tv_detail_view(request, series_id):
             'backdrop_url': '',
         }
 
-    is_in_watchlist = MovieWatchlist.objects.filter(
-        user=request.user, media_id=series_id, media_type='tv'
-    ).exists()
+    is_in_watchlist = False
+    if request.user.is_authenticated:
+        is_in_watchlist = MovieWatchlist.objects.filter(
+            user=request.user, media_id=series_id, media_type='tv'
+        ).exists()
 
     # ── FETCH REVIEWS DATALAYER AND AUTHOR ACCESSORS ──
     raw_reviews = MediaReview.objects.filter(media_id=series_id, media_type='tv').select_related('user')
@@ -2135,7 +2162,6 @@ def tv_detail_view(request, series_id):
     return render(request, 'core/tv_detail.html', context)
 
 
-@login_required
 def tv_season_ajax(request, series_id, season_number):
     api_key = settings.TMDB_API_KEY
     from django.core.cache import cache
@@ -2354,7 +2380,6 @@ def get_provider_recommendations(provider_id, media_type='movie'):
     return []
 
 
-@login_required
 def person_profile(request, person_id):
     """
     Fetches the profile info and combined filmography (acting & directing) of a person using TMDB.

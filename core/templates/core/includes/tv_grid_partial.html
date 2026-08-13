@@ -8,6 +8,7 @@
                         
                         <!-- Watchlist Action Button -->
                         <div class="watchlist-btn-overlay">
+                            {% if user.is_authenticated %}
                             <button onclick="toggleWatchlist(this, {{ tv.id }}, 'tv')" 
                                     class="btn btn-circle {% if tv.id in watchlist_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}"
                                     data-saved="{% if tv.id in watchlist_ids %}true{% else %}false{% endif %}"
@@ -18,6 +19,13 @@
                                     <i class="fa-regular fa-bookmark"></i>
                                 {% endif %}
                             </button>
+                            {% else %}
+                            <a href="{% url 'login' %}?next={{ request.path }}" 
+                               class="btn btn-circle btn-dark rgba-bg d-flex align-items-center justify-content-center text-decoration-none"
+                               title="Sign In to Watchlist">
+                                <i class="fa-solid fa-right-to-bracket text-white"></i>
+                            </a>
+                            {% endif %}
                         </div>
                         
                         <!-- Dynamic variable image with fallback check -->
