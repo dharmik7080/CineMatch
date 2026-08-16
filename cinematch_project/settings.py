@@ -176,4 +176,5 @@ CACHES = {
 # Google reCAPTCHA Configuration
 RECAPTCHA_PUBLIC_KEY = '6LdbtlgtAAAAAE3VSr1G0jU6FFE3NVWmalQgTf7k'
 RECAPTCHA_PRIVATE_KEY = '6LdbtlgtAAAAAOqGFrvneoMmMggt_Pu3ZQrXQwDOq'
+# Trigger Render deployment
 
