@@ -183,6 +183,35 @@
             z-index: 1050;
         }
 
+        /* Loading Button State */
+        .btn-loading {
+            position: relative !important;
+            color: transparent !important;
+            pointer-events: none !important;
+            user-select: none;
+        }
+
+        .btn-loading::after {
+            content: "";
+            position: absolute;
+            width: 1.2rem;
+            height: 1.2rem;
+            top: 50%;
+            left: 50%;
+            margin-top: -0.6rem;
+            margin-left: -0.6rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #ffffff;
+            animation: cinematch-spin 0.6s linear infinite;
+        }
+
+        @keyframes cinematch-spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         {% block extra_css %}{% endblock %}
     </style>
 </head>
@@ -864,6 +893,28 @@
                 } else {
                     footerAction.classList.add("d-none");
                 }
+            }
+        });
+
+        // Auth Form Loading Buttons Animation
+        document.addEventListener("DOMContentLoaded", function() {
+            const isAuthPage = window.location.pathname.includes('/login/') || 
+                               window.location.pathname.includes('/signup/') || 
+                               window.location.pathname.includes('/register/');
+            if (isAuthPage) {
+                const forms = document.querySelectorAll("form");
+                forms.forEach(function(form) {
+                    form.addEventListener("submit", function() {
+                        if (!form.checkValidity()) {
+                            return;
+                        }
+                        const submitBtn = form.querySelector("button[type='submit']");
+                        if (submitBtn) {
+                            submitBtn.classList.add("btn-loading");
+                            submitBtn.setAttribute("disabled", "true");
+                        }
+                    });
+                });
             }
         });
     </script>
