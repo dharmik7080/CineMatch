@@ -306,6 +306,26 @@ class CachedRecommendation(models.Model):
         return f"{self.media_type.upper()} {self.source_id} -> {self.target_id} ({self.score:.2f})"
 
 
+class RecommendationFeedback(models.Model):
+    """A user signal that removes a title from future personalised feeds."""
+    MEDIA_TYPE_CHOICES = [
+        ('movie', 'Movie'),
+        ('tv', 'TV Show'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recommendation_feedback')
+    media_id = models.IntegerField()
+    media_type = models.CharField(max_length=10, choices=MEDIA_TYPE_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'media_id', 'media_type')
+        indexes = [models.Index(fields=['user', 'media_type'])]
+
+    def __str__(self):
+        return f"{self.user.username} is not interested in {self.media_type} {self.media_id}"
+
+
 # ======================================================================
 # Collaborative Watch Groups & Shared Watchlist Models
 # ======================================================================

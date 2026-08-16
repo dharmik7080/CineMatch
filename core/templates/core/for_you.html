@@ -394,6 +394,13 @@
         isolation: isolate;
     }
 
+    .rec-feedback-float {
+        position: absolute;
+        top: 54px;
+        right: 12px;
+        z-index: 5;
+    }
+
     .rec-watchlist-float .btn-circle {
         background: rgba(4,4,6,0.72);
         backdrop-filter: blur(6px);
@@ -857,7 +864,6 @@
                             <i class="fa-bookmark {% if film.id in saved_ids %}fa-solid text-warning{% else %}fa-regular text-white{% endif %}"></i>
                         </button>
                     </div>
-
                     <!-- Poster image -->
                     {% if film.poster_url %}
                         <img src="{{ film.poster_url }}" alt="{% if film.title %}{{ film.title }}{% else %}{{ film.name }}{% endif %}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
@@ -1043,6 +1049,13 @@
                             <i class="fa-bookmark {% if movie.movie_id in saved_ids %}fa-solid text-warning{% else %}fa-regular text-white{% endif %}"></i>
                         </button>
                     </div>
+                    {% if user.is_authenticated %}
+                    <div class="rec-feedback-float" title="Not interested">
+                        <button type="button" class="btn btn-circle border-0 btn-dark rgba-bg" onclick="markNotInterested(this, {{ movie.movie_id }}, 'movie')" aria-label="Not interested in {{ movie.title }}" style="width: 36px; height: 36px; border-radius: 50%;">
+                            <i class="fa-solid fa-eye-slash text-white"></i>
+                        </button>
+                    </div>
+                    {% endif %}
 
                     <!-- Poster image -->
                     {% if movie.poster_url %}
@@ -1057,7 +1070,7 @@
                     <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%); padding: 1.25rem 1rem 1rem 1rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
                         <div style="max-width: 65%; display: flex; flex-direction: column; gap: 2px;">
                             <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{{ movie.title }}">{{ movie.title }}</h5>
-                            <p class="card-text text-muted m-0" style="font-size: 0.75rem;">ID: {{ movie.movie_id|default:"N/A" }}</p>
+                            <p class="card-text text-muted m-0" style="font-size: 0.75rem;">{{ movie.recommendation_reason|default:"Picked for you" }}</p>
                         </div>
                         {% if movie.movie_id %}
                         <div style="z-index: 5;">
@@ -1093,6 +1106,13 @@
                             <i class="fa-bookmark {% if tv.id in saved_ids %}fa-solid text-warning{% else %}fa-regular text-white{% endif %}"></i>
                         </button>
                     </div>
+                    {% if user.is_authenticated %}
+                    <div class="rec-feedback-float" title="Not interested">
+                        <button type="button" class="btn btn-circle border-0 btn-dark rgba-bg" onclick="markNotInterested(this, {{ tv.id }}, 'tv')" aria-label="Not interested in {{ tv.title }}" style="width: 36px; height: 36px; border-radius: 50%;">
+                            <i class="fa-solid fa-eye-slash text-white"></i>
+                        </button>
+                    </div>
+                    {% endif %}
 
                     <!-- Poster image -->
                     {% if tv.poster_url %}
@@ -1107,7 +1127,7 @@
                     <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%); padding: 1.25rem 1rem 1rem 1rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
                         <div style="max-width: 65%; display: flex; flex-direction: column; gap: 2px;">
                             <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{{ tv.title }}">{{ tv.title }}</h5>
-                            <p class="card-text text-muted m-0" style="font-size: 0.75rem;">ID: {{ tv.id|default:"N/A" }}</p>
+                            <p class="card-text text-muted m-0" style="font-size: 0.75rem;">{{ tv.recommendation_reason|default:"Picked for you" }}</p>
                         </div>
                         {% if tv.id %}
                         <div style="z-index: 5;">
@@ -1133,6 +1153,28 @@ const isUserAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
 // Sync single-argument calls to toggleWatchlist('123') with the backend MVT handler
 const parentToggleWatchlist = window.toggleWatchlist;
 let savedIds = {{ saved_ids|safe }};
+
+function markNotInterested(button, mediaId, mediaType) {
+    const formData = new FormData();
+    formData.append('media_id', mediaId);
+    formData.append('media_type', mediaType);
+    fetch("{% url 'mark_not_interested' %}", {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrftoken, 'X-Requested-With': 'XMLHttpRequest'},
+        body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            showNotification('Error: ' + data.error);
+            return;
+        }
+        showNotification(data.message);
+        const card = button.closest('.slider-card');
+        if (card) card.remove();
+    })
+    .catch(() => showNotification('Could not update your recommendations.'));
+}
 
 window.toggleWatchlist = function(elementOrId, mediaId, mediaType) {
     if (!isUserAuthenticated) {

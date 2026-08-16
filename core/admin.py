@@ -13,7 +13,8 @@ from .models import (
     UserReview, 
     MediaReview, 
     Review, 
-    WatchedHistory
+    WatchedHistory,
+    RecommendationFeedback,
 )
 
 # Admin configuration for WatchedHistory to make analytics data readable
@@ -44,3 +45,8 @@ class MovieWatchlistAdmin(admin.ModelAdmin):
 
 admin.site.register(UserProfile)
 admin.site.register(UserReview)
+
+@admin.register(RecommendationFeedback)
+class RecommendationFeedbackAdmin(admin.ModelAdmin):
+    list_display = ('user', 'media_id', 'media_type', 'created_at')
+    list_filter = ('media_type', 'created_at')
