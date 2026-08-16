@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
+    'django_recaptcha',
     'core',
 ]
 
@@ -171,3 +172,8 @@ CACHES = {
         'LOCATION': 'cinematch-local-memory-cache',
     }
 }
+
+# Google reCAPTCHA Configuration
+RECAPTCHA_PUBLIC_KEY = os.environ.get('RECAPTCHA_PUBLIC_KEY', '6LfgpogtAAAAADrHVQ2OVeClMElinfOQ6KyuyyCs')
+RECAPTCHA_PRIVATE_KEY = os.environ.get('RECAPTCHA_PRIVATE_KEY', '6LfgpogtAAAAAPAASY1GA7-B0hpdVJEn2yut6gUB')
+

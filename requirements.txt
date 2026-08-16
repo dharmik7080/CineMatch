@@ -12,3 +12,4 @@ matplotlib
 seaborn
 plotly
 networkx
+django-recaptcha

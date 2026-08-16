@@ -16,7 +16,7 @@ import joblib
 from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
-from django.contrib.auth.forms import UserCreationForm
+from core.forms import CineMatchRegistrationForm, CineMatchLoginForm
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_protect
@@ -25,7 +25,10 @@ from django.conf import settings
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.utils.html import escape
 
-from .models import UserProfile, MovieWatchlist, MediaReview, Review, WatchedHistory
+from .models import (
+    UserProfile, MovieWatchlist, MediaReview, Review, WatchedHistory,
+    UserReview, RecommendationFeedback,
+)
 from .tmdb_api import TMDBClient
 from core.utils import TMDB_GENRE_MAP, get_resilient_session
 
@@ -202,7 +205,7 @@ def get_genre_fallback_recommendations(recent_id, df, id_col, watchlist_indices,
     return recommendations
 
 
-def get_recommendations(user_watchlist_ids, media_type='movie'):
+def get_recommendations(user_watchlist_ids, media_type='movie', user=None):
     """
     Main Vector Aggregation & Content-Based Recommendation Engine.
     """
@@ -335,6 +338,53 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
 
     watchlist_indices = df[df[id_col].isin(user_watchlist_ids)].index.tolist()
 
+    # A saved title is an interest signal, not necessarily a favourite.  When
+    # available, explicit ratings and recency make the user's taste vector more
+    # representative than a plain average of every saved title.
+    source_weights = np.ones(len(watchlist_indices), dtype=float)
+    excluded_ids = set(user_watchlist_ids)
+    if user is not None:
+        watchlist_rows = list(
+            MovieWatchlist.objects.filter(user=user, media_type=media_type)
+            .order_by('-added_at')
+            .values('media_id', 'added_at')
+        )
+        rating_by_id = {
+            row['media_id']: row['rating']
+            for row in UserReview.objects.filter(user=user, media_type=media_type)
+            .values('media_id', 'rating')
+        }
+        if media_type == 'movie':
+            rating_by_id.update({
+                row['movie_id']: row['rating']
+                for row in Review.objects.filter(user=user).values('movie_id', 'rating')
+            })
+            excluded_ids.update(
+                WatchedHistory.objects.filter(user=user).values_list('movie_id', flat=True)
+            )
+
+        excluded_ids.update(
+            RecommendationFeedback.objects.filter(user=user, media_type=media_type)
+            .values_list('media_id', flat=True)
+        )
+
+        weights_by_id = {}
+        for rank, item in enumerate(watchlist_rows):
+            # Recent activity decays smoothly instead of discarding older taste.
+            recency_weight = 0.85 ** rank
+            rating = rating_by_id.get(item['media_id'])
+            if rating is None:
+                rating_weight = 0.60
+            else:
+                max_rating = 10.0 if media_type == 'movie' and rating > 5 else 5.0
+                rating_weight = max(0.15, min(1.0, float(rating) / max_rating))
+            weights_by_id[item['media_id']] = (0.40 + 0.60 * recency_weight) * rating_weight
+
+        source_weights = np.array(
+            [weights_by_id.get(df.iloc[idx][id_col], 0.60) for idx in watchlist_indices],
+            dtype=float,
+        )
+
     # 2. COLD START LAYER 2: Watchlist items not found in DataFrame -> Genre Fallback
     if not watchlist_indices:
         print("[ML ENGINE] Fallback Triggered: Watchlist item not found in vector index.")
@@ -342,10 +392,13 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
         return get_genre_fallback_recommendations(recent_id, df, id_col, watchlist_indices, media_type, client)
 
     try:
-        # Calculate Centroid Mean Cosine Similarity
-        mean_sim = np.mean(sim_matrix[watchlist_indices], axis=0)
+        # Weighted centroid: recent, highly-rated saves carry more influence.
+        mean_sim = np.average(sim_matrix[watchlist_indices], axis=0, weights=source_weights)
 
-        candidate_indices = [idx for idx in range(len(df)) if idx not in watchlist_indices]
+        candidate_indices = [
+            idx for idx in range(len(df))
+            if idx not in watchlist_indices and df.iloc[idx][id_col] not in excluded_ids
+        ]
         sorted_candidates = sorted(candidate_indices, key=lambda idx: mean_sim[idx], reverse=True)
 
         # Set Cosine Similarity Threshold (tuned to 0.25 for sparse BoW features)
@@ -360,48 +413,40 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
             recent_id = user_watchlist_ids[0] if user_watchlist_ids else None
             return get_genre_fallback_recommendations(recent_id, df, id_col, watchlist_indices, media_type, client)
 
-        # 3. HYBRID SELECTION MECHANISM
-        if len(high_sim_candidates) >= 8:
-            top_indices = high_sim_candidates[:8]
-        else:
-            # 50% High Similarity + 50% Genre Matching
-            sim_part = sorted_candidates[:4]
-            recent_id = user_watchlist_ids[0] if user_watchlist_ids else None
-            
-            recent_genres = []
-            if recent_id:
-                try:
-                    cached_item = CachedMedia.objects.filter(media_id=recent_id, media_type=media_type).first()
-                    if cached_item and cached_item.data:
-                        recent_genres = [g.get('name', '').lower() for g in cached_item.data.get('genres', [])]
-                except Exception:
-                    pass
+        # Maximal marginal relevance keeps the row useful: it favours relevant
+        # titles while avoiding eight near-identical recommendations.  Start
+        # from a wider relevance pool so diversity has meaningful alternatives.
+        pool = sorted_candidates[:250]
+        top_indices = []
+        seen_franchises = set()
+        diversity_strength = 0.35
 
-                if not recent_genres:
-                    match_row = df[df[id_col] == recent_id]
-                    if not match_row.empty:
-                        tags_val = str(match_row.iloc[0]['tags']).lower()
-                        known_genres = ['action', 'adventure', 'fantasy', 'sciencefiction', 'crime', 'drama', 'comedy', 'thriller', 'romance', 'animation', 'family', 'mystery']
-                        recent_genres = [g for g in known_genres if g in tags_val]
+        def franchise_key(index):
+            """A lightweight guard against a row being dominated by sequels."""
+            title = str(df.iloc[index].get('title') or df.iloc[index].get('name') or '')
+            words = [word.lower() for word in re.findall(r"[a-zA-Z]+", title)]
+            words = [word for word in words if word not in {'the', 'a', 'an', 'of', 'and', 'in'}]
+            return ' '.join(words[:2]) if len(words) >= 2 else ''
 
-            genre_part = []
-            if recent_genres:
-                for idx in sorted_candidates:
-                    if idx not in sim_part:
-                        tags_val = str(df.iloc[idx]['tags']).lower()
-                        if any(g in tags_val for g in recent_genres):
-                            genre_part.append(idx)
-                            if len(genre_part) >= 4:
-                                break
-
-            if len(genre_part) < 4:
-                for idx in sorted_candidates:
-                    if idx not in sim_part and idx not in genre_part:
-                        genre_part.append(idx)
-                        if len(genre_part) >= 4:
-                            break
-
-            top_indices = sim_part + genre_part
+        while pool and len(top_indices) < 8:
+            eligible_pool = [idx for idx in pool if franchise_key(idx) not in seen_franchises]
+            if not eligible_pool:
+                break
+            if not top_indices:
+                best_idx = eligible_pool[0]
+            else:
+                best_idx = max(
+                    eligible_pool,
+                    key=lambda idx: (
+                        (1.0 - diversity_strength) * mean_sim[idx]
+                        - diversity_strength * max(sim_matrix[idx][chosen] for chosen in top_indices)
+                    ),
+                )
+            top_indices.append(best_idx)
+            pool.remove(best_idx)
+            key = franchise_key(best_idx)
+            if key:
+                seen_franchises.add(key)
 
         recommendations = df.iloc[top_indices].to_dict(orient='records')
 
@@ -411,6 +456,12 @@ def get_recommendations(user_watchlist_ids, media_type='movie'):
             rec['title'] = title_text
             rec['poster_url'] = get_cached_poster(client, media_id, media_type)
             rec['watch_link'] = client.get_streaming_or_theatre_links(title_text, media_type, False)
+            # Explain the strongest matching taste signal on the card.
+            source_pos = int(np.argmax([sim_matrix[source_idx][df.index[df[id_col] == media_id][0]] * source_weights[pos]
+                                        for pos, source_idx in enumerate(watchlist_indices)]))
+            source = df.iloc[watchlist_indices[source_pos]]
+            source_title = source.get('title') or source.get('name') or 'your watchlist'
+            rec['recommendation_reason'] = f"Because you saved {source_title}"
 
         return recommendations
 
@@ -440,7 +491,7 @@ def signup_view(request):
     random_posters = [m['poster_url'] for m in movies_list if m.get('poster_url')]
 
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = CineMatchRegistrationForm(request.POST)
         if form.is_valid():
             user = form.save()
             UserProfile.objects.get_or_create(user=user)
@@ -450,7 +501,7 @@ def signup_view(request):
         else:
             messages.error(request, "Please correct the registration errors below.")
     else:
-        form = UserCreationForm()
+        form = CineMatchRegistrationForm()
         
     return render(request, 'core/signup.html', {
         'form': form,
@@ -474,7 +525,7 @@ def login_view(request):
     random_posters = [m['poster_url'] for m in movies_list if m.get('poster_url')]
 
     if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST)
+        form = CineMatchLoginForm(request, data=request.POST)
         if form.is_valid():
             username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
@@ -489,7 +540,7 @@ def login_view(request):
         else:
             messages.error(request, "Invalid username or password.")
     else:
-        form = AuthenticationForm()
+        form = CineMatchLoginForm()
         
     return render(request, 'core/login.html', {
         'form': form,
@@ -585,6 +636,29 @@ def watchlist_delete(request):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
+
+@login_required
+@require_POST
+def mark_not_interested(request):
+    """Hide a recommendation and remove it from the next personalised feed."""
+    media_id = request.POST.get('media_id')
+    media_type = request.POST.get('media_type', 'movie')
+    if media_type not in ('movie', 'tv'):
+        return JsonResponse({'success': False, 'error': 'Invalid media_type parameter.'}, status=400)
+    try:
+        feedback, created = RecommendationFeedback.objects.get_or_create(
+            user=request.user,
+            media_id=int(media_id),
+            media_type=media_type,
+        )
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'error': 'media_id must be a valid integer.'}, status=400)
+
+    from django.core.cache import cache
+    cache.delete(f'user_feed_{request.user.id}')
+    message = 'We will show fewer recommendations like this.' if created else 'This title is already hidden from your recommendations.'
+    return JsonResponse({'success': True, 'message': message})
+
 def get_personalized_recommendations(user):
     """
     Syllabus Topic: Recommendation logic encapsulation (Unit 8)
@@ -594,8 +668,8 @@ def get_personalized_recommendations(user):
     saved_movies = list(watchlist_items.filter(media_type='movie').values_list('media_id', flat=True))
     saved_tv_shows = list(watchlist_items.filter(media_type='tv').values_list('media_id', flat=True))
     
-    recommended_movies = get_recommendations(saved_movies, 'movie')
-    recommended_tv_shows = get_recommendations(saved_tv_shows, 'tv')
+    recommended_movies = get_recommendations(saved_movies, 'movie', user=user)
+    recommended_tv_shows = get_recommendations(saved_tv_shows, 'tv', user=user)
     
     return {
         'recommended_movies': recommended_movies,
