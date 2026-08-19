@@ -17,8 +17,8 @@ fi
 # Load static files
 python manage.py collectstatic --no-input
 
-# Ingest precalculated similarity matrix records into the database
-python manage.py import_similarities
+# Load precalculated similarity records from the JSON database fixture (avoids missing local .pkl files)
+python manage.py loaddata recommendations.json
 
 # Synchronize local media cache for bootstrap titles
 python manage.py sync_media_cache
