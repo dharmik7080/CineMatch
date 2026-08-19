@@ -17,4 +17,10 @@ fi
 # Load static files
 python manage.py collectstatic --no-input
 
+# Ingest precalculated similarity matrix records into the database
+python manage.py import_similarities
+
+# Synchronize local media cache for bootstrap titles
+python manage.py sync_media_cache
+
 
