@@ -24,13 +24,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-09)rkt+jxe^q0aaerk_d40r2q+j&_f-(x2$g7gb3sz%rsosvmq')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = 'RENDER' not in os.environ
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true' if 'RENDER' in os.environ else True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 render_external_hostname = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if render_external_hostname:
     ALLOWED_HOSTS.append(render_external_hostname)
+
+# Support additional hosts configured via the Render environment panel
+extra_hosts = os.environ.get('ALLOWED_HOSTS')
+if extra_hosts:
+    ALLOWED_HOSTS.extend([host.strip() for host in extra_hosts.split(',') if host.strip()])
 
 
 
@@ -151,15 +155,15 @@ LOGOUT_REDIRECT_URL = 'login'
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 # External TMDB API Key (Unit 7: REST API Integration)
-TMDB_API_KEY = '41fc74ce5602882786e1e9d4933fdcc6'
+TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '41fc74ce5602882786e1e9d4933fdcc6')
 
-WATCHMODE_API_KEY = 'PiTJpSFDkmR40M6cvWqBwyuJjrielWKSnL9ZQuaz'
+WATCHMODE_API_KEY = os.environ.get('WATCHMODE_API_KEY', 'PiTJpSFDkmR40M6cvWqBwyuJjrielWKSnL9ZQuaz')
 
 # External OMDb API Key (Unit 7: REST API Integration)
-OMDB_API_KEY = '62218dac'
+OMDB_API_KEY = os.environ.get('OMDB_API_KEY', '62218dac')
 
 # TasteDive API Key
-TASTEDIVE_API_KEY = '1076511-Cinematc-7517C533'
+TASTEDIVE_API_KEY = os.environ.get('TASTEDIVE_API_KEY', '1076511-Cinematc-7517C533')
 
 # Custom CSRF and Session cookie names to prevent conflicts on localhost:8000
 CSRF_COOKIE_NAME = 'cinematch_csrftoken'
@@ -174,6 +178,6 @@ CACHES = {
 }
 
 # Google reCAPTCHA Configuration
-RECAPTCHA_PUBLIC_KEY = '6LdbtIgtAAAAAE3VSr1G0jU6FFE3NVWmalQgTf7k'
-RECAPTCHA_PRIVATE_KEY = '6LdbtIgtAAAAAOqGFrvneoMmGgt_Pu3ZQrXQwDOq'
+RECAPTCHA_PUBLIC_KEY = os.environ.get('RECAPTCHA_PUBLIC_KEY', '6LdbtIgtAAAAAE3VSr1G0jU6FFE3NVWmalQgTf7k')
+RECAPTCHA_PRIVATE_KEY = os.environ.get('RECAPTCHA_PRIVATE_KEY', '6LdbtIgtAAAAAOqGFrvneoMmGgt_Pu3ZQrXQwDOq')
 
