@@ -23,3 +23,6 @@ myenv/
 # Collected static files
 staticfiles/
 
+# Local environment variables secrets file
+.env
+

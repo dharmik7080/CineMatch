@@ -25,7 +25,8 @@ from django.db.models import (
     Sum, Avg, Count, FloatField, ExpressionWrapper
 )
 
-TMDB_API_KEY = os.environ.get("TMDB_API_KEY", "41fc74ce5602882786e1e9d4933fdcc6")
+from django.conf import settings
+TMDB_API_KEY = getattr(settings, "TMDB_API_KEY", "")
 TMDB_BASE    = "https://api.themoviedb.org/3"
 REQUEST_TIMEOUT = 5   # seconds — hard cap to protect Gunicorn worker threads
 

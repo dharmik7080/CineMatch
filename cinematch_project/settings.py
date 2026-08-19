@@ -17,12 +17,21 @@ import dj_database_url
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load .env file if it exists (for local development)
+env_path = BASE_DIR / '.env'
+if env_path.exists():
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#'):
+                key, val = line.split('=', 1)
+                os.environ[key.strip()] = val.strip().strip("'").strip('"')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-09)rkt+jxe^q0aaerk_d40r2q+j&_f-(x2$g7gb3sz%rsosvmq')
+SECRET_KEY = os.environ.get('SECRET_KEY', '')
 
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true' if 'RENDER' in os.environ else True
 
@@ -155,15 +164,15 @@ LOGOUT_REDIRECT_URL = 'login'
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 # External TMDB API Key (Unit 7: REST API Integration)
-TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '41fc74ce5602882786e1e9d4933fdcc6')
+TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '')
 
-WATCHMODE_API_KEY = os.environ.get('WATCHMODE_API_KEY', 'PiTJpSFDkmR40M6cvWqBwyuJjrielWKSnL9ZQuaz')
+WATCHMODE_API_KEY = os.environ.get('WATCHMODE_API_KEY', '')
 
 # External OMDb API Key (Unit 7: REST API Integration)
-OMDB_API_KEY = os.environ.get('OMDB_API_KEY', '62218dac')
+OMDB_API_KEY = os.environ.get('OMDB_API_KEY', '')
 
 # TasteDive API Key
-TASTEDIVE_API_KEY = os.environ.get('TASTEDIVE_API_KEY', '1076511-Cinematc-7517C533')
+TASTEDIVE_API_KEY = os.environ.get('TASTEDIVE_API_KEY', '')
 
 # Custom CSRF and Session cookie names to prevent conflicts on localhost:8000
 CSRF_COOKIE_NAME = 'cinematch_csrftoken'
@@ -178,6 +187,6 @@ CACHES = {
 }
 
 # Google reCAPTCHA Configuration
-RECAPTCHA_PUBLIC_KEY = os.environ.get('RECAPTCHA_PUBLIC_KEY', '6LdbtIgtAAAAAE3VSr1G0jU6FFE3NVWmalQgTf7k')
-RECAPTCHA_PRIVATE_KEY = os.environ.get('RECAPTCHA_PRIVATE_KEY', '6LdbtIgtAAAAAOqGFrvneoMmGgt_Pu3ZQrXQwDOq')
+RECAPTCHA_PUBLIC_KEY = os.environ.get('RECAPTCHA_PUBLIC_KEY', '')
+RECAPTCHA_PRIVATE_KEY = os.environ.get('RECAPTCHA_PRIVATE_KEY', '')
 
