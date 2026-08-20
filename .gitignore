@@ -10,6 +10,7 @@ cinematch_project/db.sqlite3
 
 # Large flat-file datasets and similarity pickles (over GitHub's 100MB file limit)
 *.csv
+!recommendations.csv
 *.pkl
 *.pkl.gz
 data/

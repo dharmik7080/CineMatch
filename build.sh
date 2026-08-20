@@ -17,8 +17,8 @@ fi
 # Load static files
 python manage.py collectstatic --no-input
 
-# Load precalculated similarity records from the JSON database fixture (avoids missing local .pkl files)
-python manage.py loaddata recommendations.json
+# Ingest precalculated similarity records from the CSV file (low memory usage for Render Free Tier)
+python manage.py import_recommendations_csv
 
 # Synchronize local media cache for bootstrap titles
 python manage.py sync_media_cache
