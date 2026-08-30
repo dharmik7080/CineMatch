@@ -1155,35 +1155,35 @@
     </div>
 </section>
 
+<!-- TV CINEMA PLAYER HEADER (outside modal so it's never affected by parent opacity) -->
+<div id="tv-player-header" class="cinema-player-header" style="display:none;">
+    <div class="d-flex align-items-center">
+        <button class="cinema-player-back-btn" onclick="closeEpisodeModal()" aria-label="Close modal">
+            <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <h3 class="text-white mb-0" style="font-size: 1.2rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+            {{ tv_show.title }} - <span id="tv-header-episode-info"></span>
+        </h3>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+        <!-- Server Dropdown Selector -->
+        <select id="ep-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-2 py-1" style="width: auto; font-size: 0.8rem; background-color: #0b0b14; border-color: rgba(255,255,255,0.15) !important;" onchange="changeTvServer(this.value)">
+            <option value="https://vidsrc.xyz/embed/tv/">Server 1 (Vidsrc.xyz)</option>
+            <option value="https://vidsrc.to/embed/tv/">Server 2 (Vidsrc.to)</option>
+            <option value="https://embed.su/embed/tv/">Server 3 (Embed.su)</option>
+            <option value="https://vidlink.pro/tv/">Server 4 (Vidlink.pro) - Multilingual</option>
+            <option value="https://www.2embed.cc/embedtv/">Server 5 (2Embed)</option>
+        </select>
+
+        <!-- Next Episode Button -->
+        <button id="ep-next-btn" class="btn btn-outline-light rounded-pill px-3 py-1 btn-sm fw-bold border-secondary" style="font-size: 0.8rem; background-color: rgba(255, 255, 255, 0.05); color: #fff; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="playNextTvEpisode()">
+            Next Episode <i class="fa-solid fa-forward" style="font-size: 0.72rem;"></i>
+        </button>
+    </div>
+</div>
+
 <!-- INTERACTIVE EPISODE DETAIL POPUP MODAL -->
 <div id="ep-modal" class="ep-modal-overlay" onclick="closeEpModalOnOverlay(event)">
-    <!-- Top bar for TV show theater mode -->
-    <div id="tv-player-header" class="cinema-player-header">
-        <div class="d-flex align-items-center">
-            <button class="cinema-player-back-btn" onclick="closeEpisodeModal()" aria-label="Close modal">
-                <i class="fa-solid fa-arrow-left"></i>
-            </button>
-            <h3 class="text-white mb-0" style="font-size: 1.2rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
-                {{ tv_show.title }} - <span id="tv-header-episode-info"></span>
-            </h3>
-        </div>
-        <div class="d-flex align-items-center gap-3">
-            <!-- Server Dropdown Selector -->
-            <select id="ep-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-2 py-1" style="width: auto; font-size: 0.8rem; background-color: #0b0b14; border-color: rgba(255,255,255,0.15) !important;" onchange="changeTvServer(this.value)">
-                <option value="https://vidsrc.xyz/embed/tv/">Server 1 (Vidsrc.xyz)</option>
-                <option value="https://vidsrc.to/embed/tv/">Server 2 (Vidsrc.to)</option>
-                <option value="https://embed.su/embed/tv/">Server 3 (Embed.su)</option>
-                <option value="https://vidlink.pro/tv/">Server 4 (Vidlink.pro) - Multilingual</option>
-                <option value="https://www.2embed.cc/embedtv/">Server 5 (2Embed)</option>
-            </select>
-
-            <!-- Next Episode Button -->
-            <button id="ep-next-btn" class="btn btn-outline-light rounded-pill px-3 py-1 btn-sm fw-bold border-secondary" style="font-size: 0.8rem; background-color: rgba(255, 255, 255, 0.05); color: #fff; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="playNextTvEpisode()">
-                Next Episode <i class="fa-solid fa-forward" style="font-size: 0.72rem;"></i>
-            </button>
-        </div>
-    </div>
-
     <button class="ep-modal-close" onclick="closeEpisodeModal()" aria-label="Close modal">
         <i class="fa-solid fa-xmark"></i>
     </button>
@@ -1560,10 +1560,14 @@ function startTvEpisodePlay() {
     if (container) {
         const iframeUrl = getTvEpisodeUrl(baseServerUrl, showId, imdbId, seasonNumber, episodeNumber);
         
-        // Toggle theater-mode classes
+        // Toggle theater-mode classes + show header
         const modal = document.getElementById('ep-modal');
+        const tvHeader = document.getElementById('tv-player-header');
         if (modal) {
             modal.classList.add('theater-mode');
+        }
+        if (tvHeader) {
+            tvHeader.style.display = 'flex';
         }
         
         // Populate episode info in the custom top header bar
@@ -1610,10 +1614,14 @@ function resetTvEpisodePlayer() {
         serverSelect.value = "https://vidsrc.xyz/embed/tv/"; // Reset dropdown selection to Server 1
     }
     
-    // Remove theater-mode classes
+    // Remove theater-mode classes + hide header
     const modal = document.getElementById('ep-modal');
+    const tvHeader = document.getElementById('tv-player-header');
     if (modal) {
         modal.classList.remove('theater-mode');
+    }
+    if (tvHeader) {
+        tvHeader.style.display = 'none';
     }
     
     if (container) {

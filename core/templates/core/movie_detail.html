@@ -1247,35 +1247,35 @@
     </div>
 </div>
 
+<!-- MOVIE CINEMA PLAYER HEADER (outside modal so it's never affected by parent opacity) -->
+<div id="cinema-player-header" class="cinema-player-header" style="display:none;">
+    <div class="d-flex align-items-center">
+        <button class="cinema-player-back-btn" onclick="closeMoviePlayerModal()" aria-label="Close modal">
+            <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <h3 class="text-white mb-0" style="font-size: 1.2rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+            {{ movie.title }}
+        </h3>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+        <label for="modal-movie-server-select" class="text-muted small fw-bold text-uppercase mb-0" style="letter-spacing: 0.5px; font-size: 0.72rem; color: rgba(255,255,255,0.7) !important;">Server:</label>
+        <select id="modal-movie-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-3 py-1" style="width: auto; font-size: 0.82rem; min-width: 150px; background-color: #0b0b14; border-color: rgba(255,255,255,0.2) !important;" onchange="changeMoviePlayerServer(this.value)">
+            <option value="https://vidsrc.xyz/embed/movie/{{ movie.id }}">Server 1 (Vidsrc.xyz)</option>
+            <option value="https://vidsrc.to/embed/movie/{{ movie.id }}">Server 2 (Vidsrc.to)</option>
+            <option value="https://embed.su/embed/movie/{{ movie.id }}">Server 3 (Embed.su)</option>
+            {% if movie.imdb_id %}
+            <option value="https://vidlink.pro/movie/{{ movie.imdb_id }}">Server 4 (Vidlink.pro) - Multilingual</option>
+            {% else %}
+            <option value="https://vidlink.pro/movie/{{ movie.id }}">Server 4 (Vidlink.pro) - Multilingual</option>
+            {% endif %}
+            <option value="https://www.2embed.cc/embed/{{ movie.id }}">Server 5 (2Embed)</option>
+        </select>
+    </div>
+</div>
+
 <!-- IMMERSIVE CINEMATIC MOVIE PLAYER MODAL OVERLAY -->
 <div id="movie-player-modal" class="cinema-player-overlay" onclick="closeMoviePlayerModalOnOverlay(event)">
-    <!-- Top bar containing Title and Controls -->
-    <div id="cinema-player-header" class="cinema-player-header">
-        <div class="d-flex align-items-center">
-            <button class="cinema-player-back-btn" onclick="closeMoviePlayerModal()" aria-label="Close modal">
-                <i class="fa-solid fa-arrow-left"></i>
-            </button>
-            <h3 class="text-white mb-0" style="font-size: 1.2rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
-                {{ movie.title }}
-            </h3>
-        </div>
-        <div class="d-flex align-items-center gap-3">
-            <label for="modal-movie-server-select" class="text-muted small fw-bold text-uppercase mb-0" style="letter-spacing: 0.5px; font-size: 0.72rem; color: rgba(255,255,255,0.7) !important;">Server:</label>
-            <select id="modal-movie-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-3 py-1" style="width: auto; font-size: 0.82rem; min-width: 150px; background-color: #0b0b14; border-color: rgba(255,255,255,0.2) !important;" onchange="changeMoviePlayerServer(this.value)">
-                <option value="https://vidsrc.xyz/embed/movie/{{ movie.id }}">Server 1 (Vidsrc.xyz)</option>
-                <option value="https://vidsrc.to/embed/movie/{{ movie.id }}">Server 2 (Vidsrc.to)</option>
-                <option value="https://embed.su/embed/movie/{{ movie.id }}">Server 3 (Embed.su)</option>
-                {% if movie.imdb_id %}
-                <option value="https://vidlink.pro/movie/{{ movie.imdb_id }}">Server 4 (Vidlink.pro) - Multilingual</option>
-                {% else %}
-                <option value="https://vidlink.pro/movie/{{ movie.id }}">Server 4 (Vidlink.pro) - Multilingual</option>
-                {% endif %}
-                <option value="https://www.2embed.cc/embed/{{ movie.id }}">Server 5 (2Embed)</option>
-            </select>
-        </div>
-    </div>
-
-    <!-- Video Iframe Container -->
+    <!-- Video Iframe Container (fills entire overlay) -->
     <div class="cinema-player-container">
         <iframe id="movie-player-iframe"
                 src=""
@@ -1468,11 +1468,13 @@ function openMoviePlayerModal() {
     const modal = document.getElementById('movie-player-modal');
     const iframe = document.getElementById('movie-player-iframe');
     const serverSelect = document.getElementById('modal-movie-server-select');
+    const header = document.getElementById('cinema-player-header');
     
     const selectedUrl = serverSelect ? serverSelect.value : movieStreamBaseUrls.server1;
     iframe.src = selectedUrl;
     
     modal.classList.add('active');
+    if (header) header.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
     // Save to Continue Watching list
@@ -1488,11 +1490,13 @@ function closeMoviePlayerModal() {
     const modal = document.getElementById('movie-player-modal');
     const iframe = document.getElementById('movie-player-iframe');
     const serverSelect = document.getElementById('modal-movie-server-select');
+    const header = document.getElementById('cinema-player-header');
     
     modal.classList.remove('active');
+    if (header) header.style.display = 'none';
     iframe.src = '';
     if (serverSelect) {
-        serverSelect.value = movieStreamBaseUrls.server1; // Reset to Server 1 on close
+        serverSelect.value = movieStreamBaseUrls.server1;
     }
     
     document.body.style.overflow = '';
