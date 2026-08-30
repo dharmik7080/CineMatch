@@ -3,6 +3,15 @@
 {% block title %}{{ tv_show.title }} — CineMatch{% endblock %}
 
 {% block extra_css %}
+/* ── Play Button Overlay Styling ── */
+#ep-modal-play-overlay:hover {
+    background: rgba(0,0,0,0.1) !important;
+}
+#ep-modal-play-overlay:hover #ep-modal-play-btn-circle {
+    transform: scale(1.1);
+    box-shadow: 0 6px 25px rgba(168,85,247,0.6) !important;
+}
+
 /* ── Hero Backdrop ── */
 .detail-hero {
     position: relative;
@@ -1084,8 +1093,16 @@
     </button>
     <div class="ep-modal-glow"></div>
     <div class="ep-modal-container">
-        <div style="width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #000; position: relative;">
+        <div style="width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #000; position: relative;" id="ep-modal-player-container">
             <img id="ep-modal-still" src="" alt="Episode Still" style="width: 100%; height: 100%; object-fit: cover;">
+            
+            <!-- Play Button Overlay -->
+            <div id="ep-modal-play-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.3s ease;" onclick="startTvEpisodePlay()">
+                <div style="width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #a855f7 0%, #3b82f6 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(168,85,247,0.4); border: 2px solid rgba(255,255,255,0.25); transition: transform 0.3s ease;" id="ep-modal-play-btn-circle">
+                    <i class="fa-solid fa-play text-white" style="font-size: 1.6rem; margin-left: 4px;"></i>
+                </div>
+            </div>
+            
             <div id="ep-modal-badge" style="position: absolute; bottom: 15px; left: 15px; background: rgba(0,0,0,0.8); border-radius: 20px; padding: 0.25rem 0.75rem; font-size: 0.82rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.15); color: #fff;">
                 Episode 1
             </div>
@@ -1319,6 +1336,8 @@ function loadSeasonEpisodes(seasonNumber) {
 }
 
 // ── EPISODE DETAIL POPUP MODAL HANDLERS ──
+let currentEpisodeNumber = null;
+
 function openEpisodeModal(card) {
     const title = card.getAttribute('data-title');
     const number = card.getAttribute('data-number');
@@ -1326,6 +1345,8 @@ function openEpisodeModal(card) {
     const runtime = card.getAttribute('data-runtime');
     const rating = card.getAttribute('data-rating');
     const still = card.getAttribute('data-still');
+    
+    currentEpisodeNumber = number;
     
     const modal = document.getElementById('ep-modal');
     document.getElementById('ep-modal-title').textContent = title;
@@ -1351,6 +1372,9 @@ function openEpisodeModal(card) {
         runtimeBadge.style.display = 'none';
     }
     
+    // Reset player overlay to default image state
+    resetTvEpisodePlayer();
+    
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
 }
@@ -1359,11 +1383,63 @@ function closeEpisodeModal() {
     const modal = document.getElementById('ep-modal');
     modal.classList.remove('active');
     document.body.style.overflow = '';
+    // Stop video and reset player container
+    resetTvEpisodePlayer();
 }
 
 function closeEpModalOnOverlay(event) {
     if (event.target.id === 'ep-modal') {
         closeEpisodeModal();
+    }
+}
+
+// ── TV STREAMS HANDLERS ──
+function startTvEpisodePlay() {
+    const showId = "{{ tv_show.id }}";
+    const seasonSelect = document.getElementById('season-select');
+    const seasonNumber = seasonSelect ? seasonSelect.value : "1";
+    const episodeNumber = currentEpisodeNumber || "1";
+    
+    const container = document.getElementById('ep-modal-player-container');
+    if (container) {
+        const iframeUrl = `https://vidsrc.xyz/embed/tv/${showId}/${seasonNumber}/${episodeNumber}`;
+        
+        // Hide overlay items
+        document.getElementById('ep-modal-still').style.display = 'none';
+        document.getElementById('ep-modal-play-overlay').style.display = 'none';
+        document.getElementById('ep-modal-badge').style.display = 'none';
+        
+        // Inject iframe player
+        container.innerHTML = `
+            <iframe id="ep-modal-iframe" src="${iframeUrl}" 
+                    style="width: 100%; height: 100%; border: none;" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen 
+                    referrerpolicy="origin">
+            </iframe>
+        `;
+    }
+}
+
+function resetTvEpisodePlayer() {
+    const container = document.getElementById('ep-modal-player-container');
+    const stillImg = document.getElementById('ep-modal-still');
+    
+    if (container) {
+        // If iframe is loaded, destroy it and reconstruct default layout
+        container.innerHTML = `
+            <img id="ep-modal-still" src="${stillImg ? stillImg.src : ''}" alt="Episode Still" style="width: 100%; height: 100%; object-fit: cover;">
+            
+            <div id="ep-modal-play-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.3s ease;" onclick="startTvEpisodePlay()">
+                <div style="width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #a855f7 0%, #3b82f6 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(168,85,247,0.4); border: 2px solid rgba(255,255,255,0.25); transition: transform 0.3s ease;" id="ep-modal-play-btn-circle">
+                    <i class="fa-solid fa-play text-white" style="font-size: 1.6rem; margin-left: 4px;"></i>
+                </div>
+            </div>
+            
+            <div id="ep-modal-badge" style="position: absolute; bottom: 15px; left: 15px; background: rgba(0,0,0,0.8); border-radius: 20px; padding: 0.25rem 0.75rem; font-size: 0.82rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.15); color: #fff;">
+                Episode ${currentEpisodeNumber || '1'}
+            </div>
+        `;
     }
 }
 </script>

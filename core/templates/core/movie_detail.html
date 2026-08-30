@@ -699,6 +699,18 @@
             {% endif %}
 
             <div class="mb-5">
+                <h2 class="section-heading">Watch Movie</h2>
+                <div class="trailer-wrapper mb-4" style="box-shadow: 0 0 30px rgba(168, 85, 247, 0.25); border: 1px solid rgba(168, 85, 247, 0.35);">
+                    <iframe src="https://vidsrc.xyz/embed/movie/{{ movie.id }}"
+                            title="Watch {{ movie.title }}"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen
+                            referrerpolicy="origin"
+                            loading="lazy"></iframe>
+                </div>
+            </div>
+
+            <div class="mb-5">
                 <h2 class="section-heading">Official Trailer</h2>
                 {% if trailer_url %}
                 <div class="trailer-wrapper">
