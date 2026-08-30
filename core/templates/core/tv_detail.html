@@ -1188,11 +1188,11 @@
     <div class="d-flex align-items-center gap-3">
         <!-- Server Dropdown Selector -->
         <select id="ep-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-2 py-1" style="width: auto; font-size: 0.8rem; background-color: #0b0b14; border-color: rgba(255,255,255,0.15) !important;" onchange="changeTvServer(this.value)">
-            <option value="https://vidsrc.xyz/embed/tv/">Server 1 (Vidsrc.xyz)</option>
-            <option value="https://vidsrc.to/embed/tv/">Server 2 (Vidsrc.to)</option>
-            <option value="https://embed.su/embed/tv/">Server 3 (Embed.su)</option>
-            <option value="https://vidlink.pro/tv/">Server 4 (Vidlink.pro) - Multilingual</option>
-            <option value="https://www.2embed.cc/embedtv/">Server 5 (2Embed)</option>
+            <option value="https://vidsrc.xyz/embed/tv/">Server 1 — Vidsrc.xyz</option>
+            <option value="https://vidsrc.to/embed/tv/">Server 2 — Vidsrc.to ✦ Subs</option>
+            <option value="https://embed.su/embed/tv/">Server 3 — Embed.su</option>
+            <option value="https://vidlink.pro/tv/" selected>Server 4 — Vidlink.pro ✦ Multi-Audio+Subs</option>
+            <option value="https://www.2embed.cc/embedtv/">Server 5 — 2Embed</option>
         </select>
 
         <!-- Next Episode Button -->
@@ -1541,7 +1541,7 @@ function getTvEpisodeUrl(baseServerUrl, showId, imdbId, seasonNumber, episodeNum
     }
     if (baseServerUrl.includes('vidlink.pro')) {
         const idToUse = imdbId && imdbId !== 'None' ? imdbId : showId;
-        return `${baseServerUrl}${idToUse}/${seasonNumber}/${episodeNumber}`;
+        return `${baseServerUrl}${idToUse}/${seasonNumber}/${episodeNumber}?sub=1&ds_lang=en&autostart=true`;
     }
     return `${baseServerUrl}${showId}/${seasonNumber}/${episodeNumber}`;
 }
@@ -1631,7 +1631,7 @@ function resetTvEpisodePlayer() {
     const stillImg = document.getElementById('ep-modal-still');
     const serverSelect = document.getElementById('ep-server-select');
     if (serverSelect) {
-        serverSelect.value = "https://vidsrc.xyz/embed/tv/"; // Reset dropdown selection to Server 1
+        serverSelect.value = "https://vidlink.pro/tv/"; // Default to Server 4 (Vidlink.pro)
     }
     
     // Remove theater-mode classes + hide header

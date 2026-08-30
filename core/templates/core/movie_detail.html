@@ -1259,16 +1259,16 @@
     </div>
     <div class="d-flex align-items-center gap-3">
         <label for="modal-movie-server-select" class="text-muted small fw-bold text-uppercase mb-0" style="letter-spacing: 0.5px; font-size: 0.72rem; color: rgba(255,255,255,0.7) !important;">Server:</label>
-        <select id="modal-movie-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-3 py-1" style="width: auto; font-size: 0.82rem; min-width: 150px; background-color: #0b0b14; border-color: rgba(255,255,255,0.2) !important;" onchange="changeMoviePlayerServer(this.value)">
-            <option value="https://vidsrc.xyz/embed/movie/{{ movie.id }}">Server 1 (Vidsrc.xyz)</option>
-            <option value="https://vidsrc.to/embed/movie/{{ movie.id }}">Server 2 (Vidsrc.to)</option>
-            <option value="https://embed.su/embed/movie/{{ movie.id }}">Server 3 (Embed.su)</option>
+        <select id="modal-movie-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-3 py-1" style="width: auto; font-size: 0.82rem; min-width: 180px; background-color: #0b0b14; border-color: rgba(255,255,255,0.2) !important;" onchange="changeMoviePlayerServer(this.value)">
+            <option value="https://vidsrc.xyz/embed/movie/{{ movie.id }}">Server 1 — Vidsrc.xyz</option>
+            <option value="https://vidsrc.to/embed/movie/{{ movie.id }}">Server 2 — Vidsrc.to ✦ Subs</option>
+            <option value="https://embed.su/embed/movie/{{ movie.id }}">Server 3 — Embed.su</option>
             {% if movie.imdb_id %}
-            <option value="https://vidlink.pro/movie/{{ movie.imdb_id }}">Server 4 (Vidlink.pro) - Multilingual</option>
+            <option value="https://vidlink.pro/movie/{{ movie.imdb_id }}?sub=1&ds_lang=en&autostart=true" selected>Server 4 — Vidlink.pro ✦ Multi-Audio+Subs</option>
             {% else %}
-            <option value="https://vidlink.pro/movie/{{ movie.id }}">Server 4 (Vidlink.pro) - Multilingual</option>
+            <option value="https://vidlink.pro/movie/{{ movie.id }}?sub=1&ds_lang=en&autostart=true" selected>Server 4 — Vidlink.pro ✦ Multi-Audio+Subs</option>
             {% endif %}
-            <option value="https://www.2embed.cc/embed/{{ movie.id }}">Server 5 (2Embed)</option>
+            <option value="https://www.2embed.cc/embed/{{ movie.id }}">Server 5 — 2Embed</option>
         </select>
     </div>
 </div>
@@ -1452,7 +1452,7 @@ const movieStreamBaseUrls = {
     server1: "https://vidsrc.xyz/embed/movie/{{ movie.id }}",
     server2: "https://vidsrc.to/embed/movie/{{ movie.id }}",
     server3: "https://embed.su/embed/movie/{{ movie.id }}",
-    server4: "{% if movie.imdb_id %}https://vidlink.pro/movie/{{ movie.imdb_id }}{% else %}https://vidlink.pro/movie/{{ movie.id }}{% endif %}",
+    server4: "{% if movie.imdb_id %}https://vidlink.pro/movie/{{ movie.imdb_id }}?sub=1&ds_lang=en&autostart=true{% else %}https://vidlink.pro/movie/{{ movie.id }}?sub=1&ds_lang=en&autostart=true{% endif %}",
     server5: "https://www.2embed.cc/embed/{{ movie.id }}"
 };
 
@@ -1470,7 +1470,7 @@ function openMoviePlayerModal() {
     const serverSelect = document.getElementById('modal-movie-server-select');
     const header = document.getElementById('cinema-player-header');
     
-    const selectedUrl = serverSelect ? serverSelect.value : movieStreamBaseUrls.server1;
+    const selectedUrl = serverSelect ? serverSelect.value : movieStreamBaseUrls.server4;
     iframe.src = selectedUrl;
     
     modal.classList.add('active');
@@ -1496,7 +1496,7 @@ function closeMoviePlayerModal() {
     if (header) header.style.display = 'none';
     iframe.src = '';
     if (serverSelect) {
-        serverSelect.value = movieStreamBaseUrls.server1;
+        serverSelect.value = movieStreamBaseUrls.server4; // Default to Server 4 (Vidlink.pro)
     }
     
     document.body.style.overflow = '';
