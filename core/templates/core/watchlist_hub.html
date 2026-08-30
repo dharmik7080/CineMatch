@@ -18,6 +18,33 @@
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 1.5rem;
 }
+.carousel-row {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 1.5rem;
+    padding-bottom: 1.25rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(168, 85, 247, 0.4) rgba(255, 255, 255, 0.05);
+}
+.carousel-row::-webkit-scrollbar {
+    height: 6px;
+}
+.carousel-row::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+.carousel-row::-webkit-scrollbar-thumb {
+    background: rgba(168, 85, 247, 0.4);
+    border-radius: 10px;
+}
+.carousel-row::-webkit-scrollbar-thumb:hover {
+    background: rgba(168, 85, 247, 0.6);
+}
+.carousel-row .watchlist-card {
+    flex: 0 0 160px;
+    max-width: 160px;
+}
 .watchlist-card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.07);
@@ -200,7 +227,7 @@
             <!-- Continue Watching Section (Client-Side LocalStorage) -->
             <div id="continue-watching-section" class="mb-5 mt-3" style="display: none;">
                 <h2 class="section-heading">Continue Watching</h2>
-                <div id="continue-watching-grid" class="watchlist-grid">
+                <div id="continue-watching-grid" class="carousel-row">
                     <!-- Injected via JavaScript -->
                 </div>
             </div>
