@@ -1200,7 +1200,11 @@
                     <option value="https://vidsrc.xyz/embed/movie/{{ movie.id }}">Server 1 (Vidsrc.xyz)</option>
                     <option value="https://vidsrc.to/embed/movie/{{ movie.id }}">Server 2 (Vidsrc.to)</option>
                     <option value="https://embed.su/embed/movie/{{ movie.id }}">Server 3 (Embed.su)</option>
+                    {% if movie.imdb_id %}
+                    <option value="https://vidlink.pro/movie/{{ movie.imdb_id }}">Server 4 (Vidlink.pro) - Multilingual</option>
+                    {% else %}
                     <option value="https://vidlink.pro/movie/{{ movie.id }}">Server 4 (Vidlink.pro) - Multilingual</option>
+                    {% endif %}
                     <option value="https://www.2embed.cc/embed/{{ movie.id }}">Server 5 (2Embed)</option>
                 </select>
             </div>
@@ -1384,7 +1388,7 @@ const movieStreamBaseUrls = {
     server1: "https://vidsrc.xyz/embed/movie/{{ movie.id }}",
     server2: "https://vidsrc.to/embed/movie/{{ movie.id }}",
     server3: "https://embed.su/embed/movie/{{ movie.id }}",
-    server4: "https://vidlink.pro/movie/{{ movie.id }}",
+    server4: "{% if movie.imdb_id %}https://vidlink.pro/movie/{{ movie.imdb_id }}{% else %}https://vidlink.pro/movie/{{ movie.id }}{% endif %}",
     server5: "https://www.2embed.cc/embed/{{ movie.id }}"
 };
 

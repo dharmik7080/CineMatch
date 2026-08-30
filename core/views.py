@@ -1420,6 +1420,7 @@ def movie_detail_view(request, movie_id):
             
             movie = {
                 'id':            data.get('id', movie_id),
+                'imdb_id':       data.get('imdb_id'),
                 'title':         data.get('title', 'Unknown Title'),
                 'overview':      data.get('overview', ''),
                 'release_date':  data.get('release_date', ''),
@@ -1910,6 +1911,7 @@ def tv_detail_view(request, series_id):
 
             tv_show = {
                 'id':                 data.get('id', series_id),
+                'imdb_id':            imdb_id,
                 'title':              data.get('name', 'Unknown Title'),
                 'overview':           data.get('overview', ''),
                 'first_air_date':     data.get('first_air_date', ''),

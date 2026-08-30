@@ -1403,27 +1403,33 @@ function closeEpModalOnOverlay(event) {
 }
 
 // ── TV STREAMS HANDLERS ──
-function getTvEpisodeUrl(baseServerUrl, showId, seasonNumber, episodeNumber) {
+function getTvEpisodeUrl(baseServerUrl, showId, imdbId, seasonNumber, episodeNumber) {
     if (baseServerUrl.includes('2embed.cc')) {
         return `https://www.2embed.cc/embedtv/${showId}&s=${seasonNumber}&e=${episodeNumber}`;
+    }
+    if (baseServerUrl.includes('vidlink.pro')) {
+        const idToUse = imdbId && imdbId !== 'None' ? imdbId : showId;
+        return `${baseServerUrl}${idToUse}/${seasonNumber}/${episodeNumber}`;
     }
     return `${baseServerUrl}${showId}/${seasonNumber}/${episodeNumber}`;
 }
 
 function changeTvServer(baseServerUrl) {
     const showId = "{{ tv_show.id }}";
+    const imdbId = "{{ tv_show.imdb_id|default_if_none:'' }}";
     const seasonSelect = document.getElementById('season-select');
     const seasonNumber = seasonSelect ? seasonSelect.value : "1";
     const episodeNumber = currentEpisodeNumber || "1";
     
     const iframe = document.getElementById('ep-modal-iframe');
     if (iframe) {
-        iframe.src = getTvEpisodeUrl(baseServerUrl, showId, seasonNumber, episodeNumber);
+        iframe.src = getTvEpisodeUrl(baseServerUrl, showId, imdbId, seasonNumber, episodeNumber);
     }
 }
 
 function startTvEpisodePlay() {
     const showId = "{{ tv_show.id }}";
+    const imdbId = "{{ tv_show.imdb_id|default_if_none:'' }}";
     const seasonSelect = document.getElementById('season-select');
     const seasonNumber = seasonSelect ? seasonSelect.value : "1";
     const episodeNumber = currentEpisodeNumber || "1";
@@ -1432,7 +1438,7 @@ function startTvEpisodePlay() {
     
     const container = document.getElementById('ep-modal-player-container');
     if (container) {
-        const iframeUrl = getTvEpisodeUrl(baseServerUrl, showId, seasonNumber, episodeNumber);
+        const iframeUrl = getTvEpisodeUrl(baseServerUrl, showId, imdbId, seasonNumber, episodeNumber);
         
         // Hide overlay items
         document.getElementById('ep-modal-still').style.display = 'none';
