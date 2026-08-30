@@ -2280,33 +2280,35 @@ def tv_season_ajax(request, series_id, season_number):
 # ======================================================================
 # Watchlist Hub Dashboard View
 # ======================================================================
-@login_required
 def watchlist_hub_view(request):
     client = TMDBClient()
-    db_items = MovieWatchlist.objects.filter(user=request.user).order_by("-id")
-
     watchlist_movies = []
     watchlist_tv = []
+    user_reviews = []
+    user_groups = []
 
-    for item in db_items:
-        cache_key = f"{item.media_type}_{item.media_id}"
-        poster_url = POSTER_CACHE.get(cache_key)
-        
-        if not poster_url:
-            poster_url = get_cached_poster(client, item.media_id, item.media_type)
+    if request.user.is_authenticated:
+        db_items = MovieWatchlist.objects.filter(user=request.user).order_by("-id")
+        for item in db_items:
+            cache_key = f"{item.media_type}_{item.media_id}"
+            poster_url = POSTER_CACHE.get(cache_key)
+            
+            if not poster_url:
+                poster_url = get_cached_poster(client, item.media_id, item.media_type)
 
-        showcase_item = {
-            'id': item.media_id,
-            'poster_url': poster_url or 'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop',
-        }
+            showcase_item = {
+                'id': item.media_id,
+                'poster_url': poster_url or 'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop',
+            }
 
-        if item.media_type == 'movie':
-            watchlist_movies.append(showcase_item)
-        else:
-            watchlist_tv.append(showcase_item)
+            if item.media_type == 'movie':
+                watchlist_movies.append(showcase_item)
+            else:
+                watchlist_tv.append(showcase_item)
 
-    # ── QUERY USER CUSTOM REVIEWS ──
-    user_reviews = Review.objects.filter(user=request.user).order_by('-created_at')
+        user_reviews = Review.objects.filter(user=request.user).order_by('-created_at')
+        from core.models import WatchGroup
+        user_groups = WatchGroup.objects.filter(members=request.user).distinct()
 
     # ── QUERY SESSION BASED RECENTLY VIEWED ──
     recently_viewed_ids = request.session.get('recently_viewed', [])
@@ -2333,9 +2335,6 @@ def watchlist_hub_view(request):
             'type': m_type,
             'poster_url': poster_url or ('https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop' if m_type == 'movie' else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'),
         })
-
-    from core.models import WatchGroup
-    user_groups = WatchGroup.objects.filter(members=request.user).distinct()
 
     context = {
         'watchlist_movies':       watchlist_movies,

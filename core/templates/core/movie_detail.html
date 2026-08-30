@@ -1392,6 +1392,14 @@ const movieStreamBaseUrls = {
     server5: "https://www.2embed.cc/embed/{{ movie.id }}"
 };
 
+function saveToContinueWatching(item) {
+    let list = JSON.parse(localStorage.getItem('continue_watching') || '[]');
+    list = list.filter(x => !(x.id === item.id && x.type === item.type));
+    list.unshift(item);
+    if (list.length > 12) list.pop();
+    localStorage.setItem('continue_watching', JSON.stringify(list));
+}
+
 function openMoviePlayerModal() {
     const modal = document.getElementById('movie-player-modal');
     const iframe = document.getElementById('movie-player-iframe');
@@ -1402,6 +1410,14 @@ function openMoviePlayerModal() {
     
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
+
+    // Save to Continue Watching list
+    saveToContinueWatching({
+        id: "{{ movie.id }}",
+        title: "{{ movie.title|escapejs }}",
+        type: "movie",
+        poster_url: "{{ movie.poster_url }}"
+    });
 }
 
 function closeMoviePlayerModal() {

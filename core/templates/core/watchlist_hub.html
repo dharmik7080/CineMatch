@@ -196,7 +196,16 @@
         
         <!-- Tab 1: Personal Watchlist -->
         <div class="tab-pane fade show active" id="personal-content" role="tabpanel" aria-labelledby="personal-tab">
-            <div class="mb-5 mt-3">
+            
+            <!-- Continue Watching Section (Client-Side LocalStorage) -->
+            <div id="continue-watching-section" class="mb-5 mt-3" style="display: none;">
+                <h2 class="section-heading">Continue Watching</h2>
+                <div id="continue-watching-grid" class="watchlist-grid">
+                    <!-- Injected via JavaScript -->
+                </div>
+            </div>
+
+            <div class="mb-5">
                 <h2 class="section-heading">Saved Movies</h2>
                 {% if watchlist_movies %}
                     <div class="watchlist-grid">
@@ -411,6 +420,70 @@
 
 {% block extra_js %}
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+    const list = JSON.parse(localStorage.getItem('continue_watching') || '[]');
+    if (list.length > 0) {
+        const section = document.getElementById('continue-watching-section');
+        const grid = document.getElementById('continue-watching-grid');
+        section.style.display = 'block';
+        
+        list.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'watchlist-card';
+            card.id = `card-continue-${item.type}-${item.id}`;
+            
+            let detailUrl = '';
+            let subtitle = '';
+            if (item.type === 'movie') {
+                detailUrl = `/movies/${item.id}/`;
+                subtitle = 'Movie';
+            } else {
+                detailUrl = `/tv/${item.id}/`;
+                subtitle = `S${item.season} E${item.episode}: ${item.episode_title || 'Episode'}`;
+            }
+            
+            card.innerHTML = `
+                <!-- Floating Delete Button -->
+                <div style="position: absolute; top: 10px; right: 10px; z-index: 10;">
+                    <button class="remove-btn-float border-0" onclick="removeFromContinueWatching('${item.id}', '${item.type}')" title="Remove from Continue Watching">
+                        <i class="fa-solid fa-xmark" style="font-size: 0.8rem;"></i>
+                    </button>
+                </div>
+                <img src="${item.poster_url}" alt="${item.title}" loading="lazy" onerror="this.src='${item.type === 'movie' ? 'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'}';">
+                <div class="card-overlay">
+                    <h5 class="text-white text-center fw-bold px-2 m-0" style="font-size: 0.88rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-height: 2.6em;">${item.title}</h5>
+                    <p class="text-accent small m-0 text-center" style="font-size: 0.72rem; color: #a855f7 !important;">${subtitle}</p>
+                    <a href="${detailUrl}" class="btn btn-sm btn-light rounded-pill px-3 fw-bold mt-2" style="font-size: 0.75rem;">
+                        <i class="fa-solid fa-play me-1"></i> Watch
+                    </a>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+});
+
+function removeFromContinueWatching(id, type) {
+    let list = JSON.parse(localStorage.getItem('continue_watching') || '[]');
+    list = list.filter(x => !(x.id === id && x.type === type));
+    localStorage.setItem('continue_watching', JSON.stringify(list));
+    
+    // Remove element smoothly
+    const card = document.getElementById(`card-continue-${type}-${id}`);
+    if (card) {
+        card.style.transition = 'all 0.4s ease';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.8)';
+        setTimeout(() => {
+            card.remove();
+            const grid = document.getElementById('continue-watching-grid');
+            if (grid.children.length === 0) {
+                document.getElementById('continue-watching-section').style.display = 'none';
+            }
+        }, 400);
+    }
+}
+
 function removeTargetItem(mediaId, mediaType) {
     const url = "{% url 'watchlist_delete' %}";
     const formData = new FormData();
