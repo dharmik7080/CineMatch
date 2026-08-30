@@ -395,6 +395,76 @@
     border: none;
 }
 
+/* ── Cinematic Fullscreen Video Player Overlay ── */
+.cinema-player-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background-color: #000000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: stretch;
+}
+.cinema-player-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Immersive Top Bar */
+.cinema-player-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    z-index: 10000;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2.5rem;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+.cinema-player-header.header-hidden {
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+}
+
+.cinema-player-back-btn {
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    margin-right: 1.5rem;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.cinema-player-back-btn:hover {
+    transform: scale(1.1);
+    opacity: 0.8;
+}
+
+/* Screen filler video container */
+.cinema-player-container {
+    width: 100%;
+    height: 100%;
+    background: #000000;
+}
+.cinema-player-container iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
 /* TMDB Reviews list layout */
 #tmdbReviewsContainer::-webkit-scrollbar {
     width: 4px;
@@ -1181,44 +1251,41 @@
 </div>
 
 <!-- IMMERSIVE CINEMATIC MOVIE PLAYER MODAL OVERLAY -->
-<div id="movie-player-modal" class="trailer-modal-overlay" onclick="closeMoviePlayerModalOnOverlay(event)">
-    <button class="trailer-modal-close" onclick="closeMoviePlayerModal()" aria-label="Close modal">
-        <i class="fa-solid fa-xmark"></i>
-    </button>
-    <div class="trailer-modal-glow"></div>
-    
-    <!-- Structured Wrapper for Header and Video Container -->
-    <div class="d-flex flex-column gap-3" style="width: 100%; max-width: 960px; z-index: 10;">
-        <!-- Top bar containing Title and Server select -->
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <h3 class="text-white mb-0" style="font-size: 1.25rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+<div id="movie-player-modal" class="cinema-player-overlay" onclick="closeMoviePlayerModalOnOverlay(event)">
+    <!-- Top bar containing Title and Controls -->
+    <div id="cinema-player-header" class="cinema-player-header">
+        <div class="d-flex align-items-center">
+            <button class="cinema-player-back-btn" onclick="closeMoviePlayerModal()" aria-label="Close modal">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <h3 class="text-white mb-0" style="font-size: 1.2rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
                 {{ movie.title }}
             </h3>
-            <div class="d-flex align-items-center gap-2">
-                <label for="modal-movie-server-select" class="text-muted small fw-bold text-uppercase mb-0" style="letter-spacing: 0.5px; font-size: 0.72rem; color: rgba(255,255,255,0.7) !important;">Server:</label>
-                <select id="modal-movie-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-3 py-1" style="width: auto; font-size: 0.82rem; min-width: 150px; background-color: #0b0b14; border-color: rgba(255,255,255,0.2) !important;" onchange="changeMoviePlayerServer(this.value)">
-                    <option value="https://vidsrc.xyz/embed/movie/{{ movie.id }}">Server 1 (Vidsrc.xyz)</option>
-                    <option value="https://vidsrc.to/embed/movie/{{ movie.id }}">Server 2 (Vidsrc.to)</option>
-                    <option value="https://embed.su/embed/movie/{{ movie.id }}">Server 3 (Embed.su)</option>
-                    {% if movie.imdb_id %}
-                    <option value="https://vidlink.pro/movie/{{ movie.imdb_id }}">Server 4 (Vidlink.pro) - Multilingual</option>
-                    {% else %}
-                    <option value="https://vidlink.pro/movie/{{ movie.id }}">Server 4 (Vidlink.pro) - Multilingual</option>
-                    {% endif %}
-                    <option value="https://www.2embed.cc/embed/{{ movie.id }}">Server 5 (2Embed)</option>
-                </select>
-            </div>
         </div>
+        <div class="d-flex align-items-center gap-3">
+            <label for="modal-movie-server-select" class="text-muted small fw-bold text-uppercase mb-0" style="letter-spacing: 0.5px; font-size: 0.72rem; color: rgba(255,255,255,0.7) !important;">Server:</label>
+            <select id="modal-movie-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-3 py-1" style="width: auto; font-size: 0.82rem; min-width: 150px; background-color: #0b0b14; border-color: rgba(255,255,255,0.2) !important;" onchange="changeMoviePlayerServer(this.value)">
+                <option value="https://vidsrc.xyz/embed/movie/{{ movie.id }}">Server 1 (Vidsrc.xyz)</option>
+                <option value="https://vidsrc.to/embed/movie/{{ movie.id }}">Server 2 (Vidsrc.to)</option>
+                <option value="https://embed.su/embed/movie/{{ movie.id }}">Server 3 (Embed.su)</option>
+                {% if movie.imdb_id %}
+                <option value="https://vidlink.pro/movie/{{ movie.imdb_id }}">Server 4 (Vidlink.pro) - Multilingual</option>
+                {% else %}
+                <option value="https://vidlink.pro/movie/{{ movie.id }}">Server 4 (Vidlink.pro) - Multilingual</option>
+                {% endif %}
+                <option value="https://www.2embed.cc/embed/{{ movie.id }}">Server 5 (2Embed)</option>
+            </select>
+        </div>
+    </div>
 
-        <div class="trailer-modal-container" style="margin: 0; max-width: 100%;">
-            <iframe id="movie-player-iframe"
-                    src=""
-                    title="Watch {{ movie.title }}"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowfullscreen
-                    referrerpolicy="origin"
-                    style="width: 100%; height: 100%; border: none;"></iframe>
-        </div>
+    <!-- Video Iframe Container -->
+    <div class="cinema-player-container">
+        <iframe id="movie-player-iframe"
+                src=""
+                title="Watch {{ movie.title }}"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen
+                referrerpolicy="origin"></iframe>
     </div>
 </div>
 
@@ -1400,6 +1467,25 @@ function saveToContinueWatching(item) {
     localStorage.setItem('continue_watching', JSON.stringify(list));
 }
 
+let movieHeaderHideTimeout = null;
+
+function handleMovieHeaderMouseMove() {
+    const movieHeader = document.getElementById('cinema-player-header');
+    if (!movieHeader) return;
+    
+    movieHeader.classList.remove('header-hidden');
+    if (movieHeaderHideTimeout) clearTimeout(movieHeaderHideTimeout);
+    
+    movieHeaderHideTimeout = setTimeout(() => {
+        const activeSelect = document.activeElement;
+        const isSelectorFocused = activeSelect && (activeSelect.id === 'modal-movie-server-select');
+        const modal = document.getElementById('movie-player-modal');
+        if (modal && modal.classList.contains('active') && !isSelectorFocused) {
+            movieHeader.classList.add('header-hidden');
+        }
+    }, 3000);
+}
+
 function openMoviePlayerModal() {
     const modal = document.getElementById('movie-player-modal');
     const iframe = document.getElementById('movie-player-iframe');
@@ -1410,6 +1496,10 @@ function openMoviePlayerModal() {
     
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
+
+    // Register mousemove header show/hide events
+    modal.addEventListener('mousemove', handleMovieHeaderMouseMove);
+    handleMovieHeaderMouseMove();
 
     // Save to Continue Watching list
     saveToContinueWatching({
@@ -1424,12 +1514,24 @@ function closeMoviePlayerModal() {
     const modal = document.getElementById('movie-player-modal');
     const iframe = document.getElementById('movie-player-iframe');
     const serverSelect = document.getElementById('modal-movie-server-select');
+    const movieHeader = document.getElementById('cinema-player-header');
     
     modal.classList.remove('active');
     iframe.src = '';
     if (serverSelect) {
         serverSelect.value = movieStreamBaseUrls.server1; // Reset to Server 1 on close
     }
+    if (movieHeader) {
+        movieHeader.classList.remove('header-hidden');
+    }
+    
+    // Cleanup listeners and timeouts
+    modal.removeEventListener('mousemove', handleMovieHeaderMouseMove);
+    if (movieHeaderHideTimeout) {
+        clearTimeout(movieHeaderHideTimeout);
+        movieHeaderHideTimeout = null;
+    }
+    
     document.body.style.overflow = '';
 }
 

@@ -395,6 +395,78 @@
     pointer-events: none;
 }
 
+/* ── Immersive Fullscreen Video Player Overlay (Theater Mode) ── */
+.cinema-player-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    z-index: 10000;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2.5rem;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+.cinema-player-header.header-hidden {
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+}
+
+.cinema-player-back-btn {
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    margin-right: 1.5rem;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.cinema-player-back-btn:hover {
+    transform: scale(1.1);
+    opacity: 0.8;
+}
+
+#ep-modal.theater-mode {
+    background-color: #000000;
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+#ep-modal.theater-mode .ep-modal-glow {
+    display: none;
+}
+#ep-modal.theater-mode .ep-modal-container {
+    max-width: 100%;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    border: none;
+    aspect-ratio: auto;
+    transform: none;
+    background: #000000;
+}
+#ep-modal.theater-mode .ep-modal-container iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+#ep-modal.theater-mode .ep-modal-details-box {
+    display: none !important;
+}
+#ep-modal.theater-mode .ep-modal-close {
+    display: none !important;
+}
+
 /* TMDB Reviews list layout */
 #tmdbReviewsContainer::-webkit-scrollbar {
     width: 4px;
@@ -1088,6 +1160,33 @@
 
 <!-- INTERACTIVE EPISODE DETAIL POPUP MODAL -->
 <div id="ep-modal" class="ep-modal-overlay" onclick="closeEpModalOnOverlay(event)">
+    <!-- Top bar for TV show theater mode -->
+    <div id="tv-player-header" class="cinema-player-header">
+        <div class="d-flex align-items-center">
+            <button class="cinema-player-back-btn" onclick="closeEpisodeModal()" aria-label="Close modal">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <h3 class="text-white mb-0" style="font-size: 1.2rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                {{ tv_show.title }} - <span id="tv-header-episode-info"></span>
+            </h3>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <!-- Server Dropdown Selector -->
+            <select id="ep-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-2 py-1" style="width: auto; font-size: 0.8rem; background-color: #0b0b14; border-color: rgba(255,255,255,0.15) !important;" onchange="changeTvServer(this.value)">
+                <option value="https://vidsrc.xyz/embed/tv/">Server 1 (Vidsrc.xyz)</option>
+                <option value="https://vidsrc.to/embed/tv/">Server 2 (Vidsrc.to)</option>
+                <option value="https://embed.su/embed/tv/">Server 3 (Embed.su)</option>
+                <option value="https://vidlink.pro/tv/">Server 4 (Vidlink.pro) - Multilingual</option>
+                <option value="https://www.2embed.cc/embedtv/">Server 5 (2Embed)</option>
+            </select>
+
+            <!-- Next Episode Button -->
+            <button id="ep-next-btn" class="btn btn-outline-light rounded-pill px-3 py-1 btn-sm fw-bold border-secondary" style="font-size: 0.8rem; background-color: rgba(255, 255, 255, 0.05); color: #fff; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="playNextTvEpisode()">
+                Next Episode <i class="fa-solid fa-forward" style="font-size: 0.72rem;"></i>
+            </button>
+        </div>
+    </div>
+
     <button class="ep-modal-close" onclick="closeEpisodeModal()" aria-label="Close modal">
         <i class="fa-solid fa-xmark"></i>
     </button>
@@ -1107,7 +1206,9 @@
                 Episode 1
             </div>
         </div>
-        <div style="padding: 2rem;">
+        
+        <!-- Wrapped Details Box -->
+        <div class="ep-modal-details-box" style="padding: 2rem;">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
                 <h2 id="ep-modal-title" style="font-size: 1.45rem; font-weight: 800; color: #fff; margin-bottom: 0; line-height: 1.25;">Episode Title</h2>
                 <div class="d-flex align-items-center gap-2">
@@ -1117,20 +1218,6 @@
                     <span id="ep-modal-runtime-badge" class="text-secondary small fw-bold" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 0.25rem 0.75rem;">
                         <i class="fa-regular fa-clock me-1"></i><span id="ep-modal-runtime"></span> min
                     </span>
-                    
-                    <!-- Server Dropdown Selector -->
-                    <select id="ep-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-2 py-1" style="width: auto; font-size: 0.8rem; background-color: #0b0b14; border-color: rgba(255,255,255,0.15) !important;" onchange="changeTvServer(this.value)">
-                        <option value="https://vidsrc.xyz/embed/tv/">Server 1 (Vidsrc.xyz)</option>
-                        <option value="https://vidsrc.to/embed/tv/">Server 2 (Vidsrc.to)</option>
-                        <option value="https://embed.su/embed/tv/">Server 3 (Embed.su)</option>
-                        <option value="https://vidlink.pro/tv/">Server 4 (Vidlink.pro) - Multilingual</option>
-                        <option value="https://www.2embed.cc/embedtv/">Server 5 (2Embed)</option>
-                    </select>
-
-                    <!-- Next Episode Button -->
-                    <button id="ep-next-btn" class="btn btn-outline-light rounded-pill px-3 py-1 btn-sm fw-bold border-secondary" style="font-size: 0.8rem; background-color: rgba(255,255,255,0.05); color: #fff; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="playNextTvEpisode()">
-                        Next Episode <i class="fa-solid fa-forward" style="font-size: 0.72rem;"></i>
-                    </button>
                 </div>
             </div>
             <p id="ep-modal-overview" style="font-size: 0.94rem; color: #c0c0cb; line-height: 1.7; margin-bottom: 0;">
@@ -1463,6 +1550,25 @@ function saveToContinueWatching(item) {
     localStorage.setItem('continue_watching', JSON.stringify(list));
 }
 
+let tvHeaderHideTimeout = null;
+
+function handleTvHeaderMouseMove() {
+    const tvHeader = document.getElementById('tv-player-header');
+    if (!tvHeader) return;
+    
+    tvHeader.classList.remove('header-hidden');
+    if (tvHeaderHideTimeout) clearTimeout(tvHeaderHideTimeout);
+    
+    tvHeaderHideTimeout = setTimeout(() => {
+        const activeSelect = document.activeElement;
+        const isSelectorFocused = activeSelect && (activeSelect.id === 'ep-server-select');
+        const modal = document.getElementById('ep-modal');
+        if (modal && modal.classList.contains('theater-mode') && !isSelectorFocused) {
+            tvHeader.classList.add('header-hidden');
+        }
+    }, 3000);
+}
+
 function startTvEpisodePlay() {
     const showId = "{{ tv_show.id }}";
     const imdbId = "{{ tv_show.imdb_id|default_if_none:'' }}";
@@ -1475,6 +1581,22 @@ function startTvEpisodePlay() {
     const container = document.getElementById('ep-modal-player-container');
     if (container) {
         const iframeUrl = getTvEpisodeUrl(baseServerUrl, showId, imdbId, seasonNumber, episodeNumber);
+        
+        // Toggle theater-mode classes
+        const modal = document.getElementById('ep-modal');
+        if (modal) {
+            modal.classList.add('theater-mode');
+            modal.addEventListener('mousemove', handleTvHeaderMouseMove);
+            handleTvHeaderMouseMove();
+        }
+        
+        // Populate episode info in the custom top header bar
+        const epTitleEl = document.getElementById('ep-modal-title');
+        const episodeTitle = epTitleEl ? epTitleEl.innerText : 'Episode ' + episodeNumber;
+        const tvHeaderInfo = document.getElementById('tv-header-episode-info');
+        if (tvHeaderInfo) {
+            tvHeaderInfo.innerText = `S${seasonNumber} E${episodeNumber}: ${episodeTitle}`;
+        }
         
         // Hide overlay items
         document.getElementById('ep-modal-still').style.display = 'none';
@@ -1492,9 +1614,6 @@ function startTvEpisodePlay() {
         `;
 
         // Save to Continue Watching list
-        const epTitleEl = document.getElementById('ep-modal-title');
-        const episodeTitle = epTitleEl ? epTitleEl.innerText : 'Episode ' + episodeNumber;
-
         saveToContinueWatching({
             id: "{{ tv_show.id }}",
             title: "{{ tv_show.title|escapejs }}",
@@ -1513,6 +1632,21 @@ function resetTvEpisodePlayer() {
     const serverSelect = document.getElementById('ep-server-select');
     if (serverSelect) {
         serverSelect.value = "https://vidsrc.xyz/embed/tv/"; // Reset dropdown selection to Server 1
+    }
+    
+    // Remove theater-mode classes
+    const modal = document.getElementById('ep-modal');
+    const tvHeader = document.getElementById('tv-player-header');
+    if (modal) {
+        modal.classList.remove('theater-mode');
+        modal.removeEventListener('mousemove', handleTvHeaderMouseMove);
+    }
+    if (tvHeader) {
+        tvHeader.classList.remove('header-hidden');
+    }
+    if (tvHeaderHideTimeout) {
+        clearTimeout(tvHeaderHideTimeout);
+        tvHeaderHideTimeout = null;
     }
     
     if (container) {
