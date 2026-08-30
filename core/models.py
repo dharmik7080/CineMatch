@@ -410,3 +410,29 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification to {self.recipient.username}: {self.message[:30]}..."
+
+
+class ContinueWatching(models.Model):
+    """
+    Stores a user's recent watch history for movies and TV episodes.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='continue_watching_history')
+    media_id = models.CharField(max_length=50)
+    media_type = models.CharField(max_length=10, choices=[('movie', 'Movie'), ('tv', 'TV Show')])
+    title = models.CharField(max_length=255)
+    poster_url = models.CharField(max_length=500, blank=True, null=True)
+    season = models.IntegerField(null=True, blank=True)
+    episode = models.IntegerField(null=True, blank=True)
+    episode_title = models.CharField(max_length=255, blank=True, null=True)
+    last_watched = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Continue Watching"
+        verbose_name_plural = "Continue Watching Logs"
+        ordering = ['-last_watched']
+        unique_together = ('user', 'media_id', 'media_type')
+
+    def __str__(self):
+        if self.media_type == 'tv':
+            return f"{self.user.username} is watching {self.title} S{self.season} E{self.episode}"
+        return f"{self.user.username} is watching {self.title}"

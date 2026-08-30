@@ -1126,6 +1126,11 @@
                         <option value="https://vidlink.pro/tv/">Server 4 (Vidlink.pro) - Multilingual</option>
                         <option value="https://www.2embed.cc/embedtv/">Server 5 (2Embed)</option>
                     </select>
+
+                    <!-- Next Episode Button -->
+                    <button id="ep-next-btn" class="btn btn-outline-light rounded-pill px-3 py-1 btn-sm fw-bold border-secondary" style="font-size: 0.8rem; background-color: rgba(255,255,255,0.05); color: #fff; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="playNextTvEpisode()">
+                        Next Episode <i class="fa-solid fa-forward" style="font-size: 0.72rem;"></i>
+                    </button>
                 </div>
             </div>
             <p id="ep-modal-overview" style="font-size: 0.94rem; color: #c0c0cb; line-height: 1.7; margin-bottom: 0;">
@@ -1346,6 +1351,7 @@ function loadSeasonEpisodes(seasonNumber) {
 
 // ── EPISODE DETAIL POPUP MODAL HANDLERS ──
 let currentEpisodeNumber = null;
+let activeEpisodeCard = null;
 
 function openEpisodeModal(card) {
     const title = card.getAttribute('data-title');
@@ -1356,12 +1362,24 @@ function openEpisodeModal(card) {
     const still = card.getAttribute('data-still');
     
     currentEpisodeNumber = number;
+    activeEpisodeCard = card;
     
     const modal = document.getElementById('ep-modal');
     document.getElementById('ep-modal-title').textContent = title;
     document.getElementById('ep-modal-badge').textContent = `Episode ${number}`;
     document.getElementById('ep-modal-overview').textContent = overview;
     document.getElementById('ep-modal-still').src = still;
+    
+    // Handle Next Episode button visibility
+    const nextBtn = document.getElementById('ep-next-btn');
+    if (nextBtn) {
+        const nextCard = card.nextElementSibling;
+        if (nextCard && nextCard.classList.contains('episode-card')) {
+            nextBtn.style.display = 'inline-flex';
+        } else {
+            nextBtn.style.display = 'none';
+        }
+    }
     
     // Handle rating badge display
     const ratingBadge = document.getElementById('ep-modal-rating-badge');
@@ -1386,6 +1404,16 @@ function openEpisodeModal(card) {
     
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
+}
+
+function playNextTvEpisode() {
+    if (!activeEpisodeCard) return;
+    
+    const nextCard = activeEpisodeCard.nextElementSibling;
+    if (nextCard && nextCard.classList.contains('episode-card')) {
+        openEpisodeModal(nextCard);
+        startTvEpisodePlay();
+    }
 }
 
 function closeEpisodeModal() {

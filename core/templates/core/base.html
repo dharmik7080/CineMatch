@@ -965,6 +965,41 @@
                     });
                 });
             }
+
+            // Sync Continue Watching history with Database if logged in
+            {% if request.user.is_authenticated %}
+            try {
+                const localHistory = JSON.parse(localStorage.getItem('continue_watching') || '[]');
+                if (localHistory.length > 0) {
+                    fetch('/watchlist/sync-history/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify(localHistory)
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && data.continue_watching) {
+                            let merged = [...localHistory];
+                            data.continue_watching.forEach(srvItem => {
+                                const exists = merged.some(x => String(x.id) === String(srvItem.id) && x.type === srvItem.type);
+                                if (!exists) {
+                                    merged.push(srvItem);
+                                }
+                            });
+                            merged.sort((a, b) => new Date(b.last_watched || b.timestamp || 0) - new Date(a.last_watched || a.timestamp || 0));
+                            merged = merged.slice(0, 12);
+                            localStorage.setItem('continue_watching', JSON.stringify(merged));
+                        }
+                    })
+                    .catch(err => console.error("[Sync Watch History Error]:", err));
+                }
+            } catch (e) {
+                console.error("[Sync Error]:", e);
+            }
+            {% endif %}
         });
     </script>
     {% block extra_js %}{% endblock %}

@@ -47,6 +47,7 @@ urlpatterns = [
 
     # Watchlist
     path('watchlist/', views.watchlist_hub_view, name='watchlist_hub'),
+    path('watchlist/sync-history/', views.sync_continue_watching_view, name='sync_continue_watching'),
 
     # ── 💎 ADDED: Media Review CRUD Ingestion Channels ──
     path('review/add/<str:media_type>/<int:media_id>/', views.add_media_review, name='add_media_review'),

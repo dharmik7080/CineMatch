@@ -180,3 +180,52 @@ class GenreViewTests(TestCase):
         response = self.client.get(reverse('tv_shows_by_genre', kwargs={'genre_name': 'Sci-Fi'}))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Genre: Sci-Fi &amp; Fantasy")
+
+
+class ContinueWatchingSyncTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='syncuser', password='password')
+
+    def test_sync_unauthenticated_user_rejected(self):
+        response = self.client.post(reverse('sync_continue_watching'), data='[]', content_type='application/json')
+        self.assertEqual(response.status_code, 401)
+
+    def test_sync_creates_and_returns_items(self):
+        self.client.login(username='syncuser', password='password')
+        payload = [
+            {
+                'id': '299534',
+                'type': 'movie',
+                'title': 'Avengers: Endgame',
+                'poster_url': 'https://example.com/endgame.jpg'
+            },
+            {
+                'id': '95350',
+                'type': 'tv',
+                'title': 'Lanterns',
+                'poster_url': 'https://example.com/lanterns.jpg',
+                'season': '1',
+                'episode': '2',
+                'episode_title': 'Trust Fall'
+            }
+        ]
+        import json
+        response = self.client.post(
+            reverse('sync_continue_watching'),
+            data=json.dumps(payload),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(len(data['continue_watching']), 2)
+        
+        # Verify db models exist
+        from core.models import ContinueWatching
+        self.assertEqual(ContinueWatching.objects.filter(user=self.user).count(), 2)
+        
+        tv_log = ContinueWatching.objects.get(user=self.user, media_type='tv')
+        self.assertEqual(tv_log.title, 'Lanterns')
+        self.assertEqual(tv_log.season, 1)
+        self.assertEqual(tv_log.episode, 2)
+        self.assertEqual(tv_log.episode_title, 'Trust Fall')

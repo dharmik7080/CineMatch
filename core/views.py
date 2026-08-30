@@ -3371,3 +3371,71 @@ def temp_load_fixture(request):
         f"<b>Logs from last run:</b><br>{logs_str}<br><br>"
         f"To trigger loading, append ?trigger=true to the URL."
     )
+
+
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+import json
+from core.models import ContinueWatching
+
+@csrf_exempt
+def sync_continue_watching_view(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'User not authenticated'}, status=401)
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            if isinstance(data, list):
+                for item in data:
+                    media_id = str(item.get('id', '')).strip()
+                    media_type = item.get('type', '')
+                    title = item.get('title', '')
+                    poster_url = item.get('poster_url', '')
+                    season = item.get('season')
+                    episode = item.get('episode')
+                    episode_title = item.get('episode_title')
+                    
+                    if not media_id or media_type not in ['movie', 'tv']:
+                        continue
+                    
+                    try:
+                        season = int(season) if season is not None and str(season).isdigit() else None
+                    except (ValueError, TypeError):
+                        season = None
+                        
+                    try:
+                        episode = int(episode) if episode is not None and str(episode).isdigit() else None
+                    except (ValueError, TypeError):
+                        episode = None
+                    
+                    ContinueWatching.objects.update_or_create(
+                        user=request.user,
+                        media_id=media_id,
+                        media_type=media_type,
+                        defaults={
+                            'title': title,
+                            'poster_url': poster_url,
+                            'season': season,
+                            'episode': episode,
+                            'episode_title': episode_title
+                        }
+                    )
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+            
+    db_items = ContinueWatching.objects.filter(user=request.user).order_by('-last_watched')[:12]
+    result = []
+    for item in db_items:
+        result.append({
+            'id': item.media_id,
+            'type': item.media_type,
+            'title': item.title,
+            'poster_url': item.poster_url,
+            'season': item.season,
+            'episode': item.episode,
+            'episode_title': item.episode_title,
+            'last_watched': item.last_watched.isoformat()
+        })
+        
+    return JsonResponse({'success': True, 'continue_watching': result})
