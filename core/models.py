@@ -424,6 +424,7 @@ class ContinueWatching(models.Model):
     season = models.IntegerField(null=True, blank=True)
     episode = models.IntegerField(null=True, blank=True)
     episode_title = models.CharField(max_length=255, blank=True, null=True)
+    total_episodes_in_season = models.IntegerField(null=True, blank=True)
     last_watched = models.DateTimeField(auto_now=True)
 
     class Meta:

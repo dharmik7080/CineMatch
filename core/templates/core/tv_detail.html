@@ -223,6 +223,7 @@
 .similar-strip::-webkit-scrollbar { height: 4px; }
 .similar-strip::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.4); border-radius: 4px; }
 .similar-item {
+    position: relative;
     flex: 0 0 160px;
     scroll-snap-align: start;
     background: rgba(255,255,255,0.03);
@@ -518,6 +519,30 @@
     display: block;
     overflow: visible;
 }
+.btn-dismiss-rec {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(4, 4, 6, 0.75);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 15;
+    transition: all 0.2s ease;
+}
+.btn-dismiss-rec:hover {
+    background: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+    transform: scale(1.1);
+}
 {% endblock %}
 
 {% block content %}
@@ -541,7 +566,7 @@
         <div class="col-auto d-none d-md-block">
             <div class="detail-poster-wrap">
                 {% if tv_show.poster_url %}
-                    <img src="{{ tv_show.poster_url }}" alt="{{ tv_show.title }} poster" loading="lazy">
+                    <img id="detail-poster-img" src="{{ tv_show.poster_url }}" alt="{{ tv_show.title }} poster" crossorigin="anonymous" loading="lazy">
                 {% else %}
                     <div style="width:230px; aspect-ratio:2/3; border-radius:14px;
                                 background:linear-gradient(135deg,rgba(168,85,247,0.15),rgba(59,130,246,0.15));
@@ -1036,6 +1061,11 @@
     <div class="similar-strip" role="list" aria-label="Similar TV show recommendations">
         {% for show in similar_shows %}
         <div class="similar-item" role="listitem">
+            {% if request.user.is_authenticated %}
+                <button class="btn-dismiss-rec" onclick="dismissRecommendation(this, '{{ show.id }}', 'tv')" title="Not Interested" aria-label="Not Interested">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            {% endif %}
             <a href="{% url 'tv_show_detail' show.id %}" style="text-decoration:none; color:inherit;">
                 <img src="{{ show.poster_url }}"
                      alt="{{ show.title }} poster"
@@ -1520,12 +1550,62 @@ function playNextTvEpisode() {
     }
 }
 
+function handleTvPlayerKeys(event) {
+    const modal = document.getElementById('ep-modal');
+    if (!modal || !modal.classList.contains('theater-mode')) return;
+    
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+        return;
+    }
+    
+    const key = event.key.toLowerCase();
+    
+    if (event.key === 'Escape') {
+        closeEpisodeModal();
+        event.preventDefault();
+    } else if (key === 's') {
+        const serverSelect = document.getElementById('ep-server-select');
+        if (serverSelect) {
+            let nextIndex = serverSelect.selectedIndex + 1;
+            if (nextIndex >= serverSelect.options.length) {
+                nextIndex = 0;
+            }
+            serverSelect.selectedIndex = nextIndex;
+            changeTvServer(serverSelect.value);
+            if (typeof showNotification === 'function') {
+                showNotification(`Switched to: ${serverSelect.options[nextIndex].text}`);
+            }
+        }
+        event.preventDefault();
+    } else if (key === 'n') {
+        playNextTvEpisode();
+        event.preventDefault();
+    } else if (key === 'f') {
+        const iframe = document.getElementById('ep-modal-iframe');
+        if (iframe) {
+            if (!document.fullscreenElement) {
+                iframe.requestFullscreen().catch(err => {
+                    console.error("Fullscreen error:", err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        event.preventDefault();
+    } else if (event.key === ' ' || key === 'arrowleft' || key === 'arrowright') {
+        if (typeof showNotification === 'function') {
+            showNotification("💡 Tip: Click inside the video player to use Space / Arrow keys!");
+        }
+    }
+}
+
 function closeEpisodeModal() {
     const modal = document.getElementById('ep-modal');
     modal.classList.remove('active');
     document.body.style.overflow = '';
     // Stop video and reset player container
     resetTvEpisodePlayer();
+    document.removeEventListener('keydown', handleTvPlayerKeys);
 }
 
 function closeEpModalOnOverlay(event) {
@@ -1565,6 +1645,22 @@ function saveToContinueWatching(item) {
     list.unshift(item);
     if (list.length > 12) list.pop();
     localStorage.setItem('continue_watching', JSON.stringify(list));
+}
+
+function getTotalEpisodesInCurrentSeason() {
+    const cards = document.querySelectorAll('#episodes-container .episode-card');
+    if (cards && cards.length > 0) {
+        return cards.length;
+    }
+    const select = document.getElementById('season-select');
+    if (select && select.selectedOptions && select.selectedOptions[0]) {
+        const text = select.selectedOptions[0].text;
+        const match = text.match(/\((\d+)\s*Ep\)/i);
+        if (match) {
+            return parseInt(match[1]);
+        }
+    }
+    return 10;
 }
 
 function startTvEpisodePlay() {
@@ -1621,8 +1717,11 @@ function startTvEpisodePlay() {
             poster_url: "{{ tv_show.poster_url }}",
             season: seasonNumber,
             episode: episodeNumber,
-            episode_title: episodeTitle
+            episode_title: episodeTitle,
+            total_episodes_in_season: getTotalEpisodesInCurrentSeason()
         });
+        
+        document.addEventListener('keydown', handleTvPlayerKeys);
     }
 }
 
@@ -1660,6 +1759,79 @@ function resetTvEpisodePlayer() {
             </div>
         `;
     }
+}
+
+// ── DYNAMIC THEME COLOR EXTRACTION ──
+document.addEventListener('DOMContentLoaded', function() {
+    const img = document.getElementById('detail-poster-img');
+    if (img) {
+        if (img.complete) {
+            applyDynamicTheme(img);
+        } else {
+            img.addEventListener('load', function() {
+                applyDynamicTheme(img);
+            });
+        }
+    }
+});
+
+function applyDynamicTheme(imgEl) {
+    try {
+        const colorThief = new ColorThief();
+        const color = colorThief.getColor(imgEl);
+        if (color) {
+            const r = color[0];
+            const g = color[1];
+            const b = color[2];
+            
+            document.documentElement.style.setProperty('--accent-color', `rgb(${r}, ${g}, ${b})`);
+            document.documentElement.style.setProperty('--accent-glow', `rgba(${r}, ${g}, ${b}, 0.15)`);
+            
+            // Apply ambient lighting/glow to hero section if present
+            const heroSection = document.querySelector('.detail-hero');
+            if (heroSection) {
+                heroSection.style.boxShadow = `inset 0 -120px 120px -100px rgba(${r}, ${g}, ${b}, 0.6)`;
+            }
+        }
+    } catch (e) {
+        console.warn("Failed to extract dynamic theme color:", e);
+    }
+}
+function dismissRecommendation(btn, mediaId, mediaType) {
+    const cardCol = btn.closest('.similar-item');
+    if (!cardCol) return;
+    
+    const formData = new FormData();
+    formData.append('media_id', mediaId);
+    formData.append('media_type', mediaType);
+    
+    fetch('/recommendations/not-interested/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            cardCol.style.transition = "all 0.4s ease";
+            cardCol.style.opacity = "0";
+            cardCol.style.transform = "scale(0.8)";
+            setTimeout(() => {
+                cardCol.remove();
+                if (typeof showNotification === 'function') {
+                    showNotification(data.message);
+                }
+            }, 400);
+        } else {
+            alert("Error: " + (data.error || "Could not save preference"));
+        }
+    })
+    .catch(err => {
+        console.error("Error dismissing recommendation:", err);
+    });
 }
 </script>
 {% endblock %}

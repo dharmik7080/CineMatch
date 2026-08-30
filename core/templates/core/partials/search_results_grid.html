@@ -1,0 +1,130 @@
+<!-- Movies Section -->
+{% if movies %}
+    <h2 class="section-divider fw-bold"><i class="fa-solid fa-film text-primary me-2"></i>Movies ({{ movies|length }})</h2>
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-4">
+        {% for movie in movies %}
+            <div class="col">
+                <div class="show-card">
+                    <div class="movie-poster-container">
+                        <span class="badge-media"><i class="fa-solid fa-film text-warning me-1"></i> Movie</span>
+                        
+                        <!-- Watchlist Action Button -->
+                        <div class="watchlist-btn-overlay">
+                            <button onclick="toggleWatchlist(this, {{ movie.id }}, 'movie')" 
+                                    class="btn btn-circle {% if movie.id in watchlist_movies %}btn-danger{% else %}btn-dark rgba-bg{% endif %}"
+                                    data-saved="{% if movie.id in watchlist_movies %}true{% else %}false{% endif %}"
+                                    title="Watchlist">
+                                {% if movie.id in watchlist_movies %}
+                                    <i class="fa-solid fa-bookmark text-warning"></i>
+                                {% else %}
+                                    <i class="fa-regular fa-bookmark"></i>
+                                {% endif %}
+                            </button>
+                        </div>
+                        
+                        <!-- Movie Poster Image -->
+                        {% if movie.poster_url %}
+                            <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" crossorigin="anonymous" loading="lazy">
+                        {% else %}
+                            <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
+                                <i class="fa-solid fa-film fs-1"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-body-content">
+                        <div>
+                            <h5 class="card-title-custom text-truncate text-white" title="{{ movie.title }}">{{ movie.title }}</h5>
+                            <div class="d-flex align-items-center mt-1">
+                                <span class="badge bg-dark border text-warning"><i class="fa-solid fa-star me-1"></i>{{ movie.vote_average }}</span>
+                                <span class="text-secondary small ms-2">{{ movie.release_date|slice:":4" }}</span>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <span class="small text-secondary">ID: {{ movie.id }}</span>
+                            <a href="{% url 'movie_detail' movie.id %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0">Details <i class="fa-solid fa-chevron-right ms-1 small"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<!-- TV Shows Section -->
+{% if tv_shows %}
+    <h2 class="section-divider fw-bold"><i class="fa-solid fa-tv text-success me-2"></i>TV Shows ({{ tv_shows|length }})</h2>
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-4">
+        {% for show in tv_shows %}
+            <div class="col">
+                <div class="show-card">
+                    <div class="movie-poster-container">
+                        <span class="badge-media"><i class="fa-solid fa-tv text-warning me-1"></i> TV Show</span>
+                        
+                        <!-- Watchlist Action Button -->
+                        <div class="watchlist-btn-overlay">
+                            <button onclick="toggleWatchlist(this, {{ show.id }}, 'tv')" 
+                                    class="btn btn-circle {% if show.id in watchlist_tv %}btn-danger{% else %}btn-dark rgba-bg{% endif %}"
+                                    data-saved="{% if show.id in watchlist_tv %}true{% else %}false{% endif %}"
+                                    title="Watchlist">
+                                {% if show.id in watchlist_tv %}
+                                    <i class="fa-solid fa-bookmark text-warning"></i>
+                                {% else %}
+                                    <i class="fa-regular fa-bookmark"></i>
+                                {% endif %}
+                            </button>
+                        </div>
+                        
+                        <!-- TV Poster Image -->
+                        {% if show.poster_url %}
+                            <img src="{{ show.poster_url }}" alt="{{ show.title }}" crossorigin="anonymous" loading="lazy">
+                        {% else %}
+                            <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
+                                <i class="fa-solid fa-tv fs-1"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-body-content">
+                        <div>
+                            <h5 class="card-title-custom text-truncate text-white" title="{{ show.title }}">{{ show.title }}</h5>
+                            <div class="d-flex align-items-center mt-1">
+                                <span class="badge bg-dark border text-warning"><i class="fa-solid fa-star me-1"></i>{{ show.vote_average }}</span>
+                                <span class="text-secondary small ms-2">{{ show.first_air_date|slice:":4" }}</span>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <span class="small text-secondary">ID: {{ show.id }}</span>
+                            <a href="{% url 'tv_show_detail' show.id %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0">Details <i class="fa-solid fa-chevron-right ms-1 small"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<!-- People Section -->
+{% if people %}
+    <h2 class="section-divider fw-bold"><i class="fa-solid fa-user-group text-info me-2"></i>People ({{ people|length }})</h2>
+    <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-4">
+        {% for person in people %}
+            <div class="col">
+                <div class="show-card text-center p-3 d-flex flex-column align-items-center justify-content-between" style="height: 100%;">
+                    <img src="{{ person.profile_url }}" class="rounded-circle object-fit-cover mb-3" style="width: 100px; height: 100px; border: 2px solid var(--card-border);">
+                    <div>
+                        <h4 class="fw-bold fs-6 text-white mb-1">{{ person.name }}</h4>
+                        <p class="text-secondary small mb-3 text-truncate" style="max-width: 150px;">{{ person.known_for }}</p>
+                    </div>
+                    <a href="{% url 'person_profile' person.id %}" class="btn btn-outline-custom btn-sm w-100">View Profile</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% if not movies and not tv_shows and not people %}
+    <div class="text-center py-5">
+        <i class="fa-solid fa-magnifying-glass fa-4x text-secondary mb-4 opacity-50"></i>
+        <h3 class="fw-bold">No results found</h3>
+        <p class="text-secondary">We couldn't find matches matching the selected filters.</p>
+    </div>
+{% endif %}

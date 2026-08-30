@@ -1559,10 +1559,17 @@ def movie_detail_view(request, movie_id):
                     except Exception as e:
                         print(f"[MOVIE DETAIL] Similar endpoint query failed: {e}")
 
-                for s in raw_similar[:5]:
+                hidden_ids = []
+                if request.user.is_authenticated:
+                    hidden_ids = list(RecommendationFeedback.objects.filter(user=request.user, media_type='movie').values_list('media_id', flat=True))
+
+                for s in raw_similar:
+                    s_id = s.get('id')
+                    if s_id in hidden_ids:
+                        continue
                     s_poster = s.get('poster_path') or ''
                     similar_movies.append({
-                        'id':           s.get('id'),
+                        'id':           s_id,
                         'title':        s.get('title', 'Unknown'),
                         'vote_average': round(s.get('vote_average', 0.0), 1),
                         'poster_url': (
@@ -1571,6 +1578,8 @@ def movie_detail_view(request, movie_id):
                             'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=cover'
                         ),
                     })
+                    if len(similar_movies) >= 5:
+                        break
 
             # Franchise / Collection Fetching
             belongs_to_collection = data.get('belongs_to_collection')
@@ -2033,10 +2042,18 @@ def tv_detail_view(request, series_id):
                 # Fallback: Extract similar shows from TMDB payload
                 similar_payload = data.get('similar', {})
                 raw_similar = similar_payload.get('results', [])
-                for s in raw_similar[:5]:
+                
+                hidden_ids = []
+                if request.user.is_authenticated:
+                    hidden_ids = list(RecommendationFeedback.objects.filter(user=request.user, media_type='tv').values_list('media_id', flat=True))
+
+                for s in raw_similar:
+                    s_id = s.get('id')
+                    if s_id in hidden_ids:
+                        continue
                     s_poster = s.get('poster_path') or ''
                     similar_shows.append({
-                        'id':           s.get('id'),
+                        'id':           s_id,
                         'title':        s.get('name', 'Unknown'),
                         'vote_average': round(s.get('vote_average', 0.0), 1),
                         'poster_url': (
@@ -2045,6 +2062,8 @@ def tv_detail_view(request, series_id):
                             'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
                         ),
                     })
+                    if len(similar_shows) >= 5:
+                        break
 
             # Parse TMDB TV user reviews
             raw_tmdb_reviews = data.get('reviews', {}).get('results', [])
@@ -2680,32 +2699,130 @@ def universal_search(request):
 
 def search_results_view(request):
     """
-    Renders the dedicated search results page using TMDB search/multi query.
+    Renders the dedicated search results page using TMDB search/multi query or discover query.
+    Supports smart filters: genre, year, minimum rating, type, and sort.
     """
     from .tmdb_api import TMDBClient
     import urllib.parse
+    import requests
     
     query = request.GET.get('q', '').strip()
+    genre = request.GET.get('genre', '').strip()
+    year = request.GET.get('year', '').strip()
+    min_rating = request.GET.get('min_rating', '').strip()
+    media_type = request.GET.get('type', 'all').strip()
+    sort_by = request.GET.get('sort_by', 'popularity.desc').strip()
+
+    client = TMDBClient()
+    api_key = settings.TMDB_API_KEY
+    
     movies = []
     tv_shows = []
     people = []
-    
+
+    def matches_filters(item, is_movie=True):
+        if genre:
+            genre_ids = item.get('genre_ids', [])
+            if int(genre) not in genre_ids:
+                return False
+        if year:
+            date_str = item.get('release_date') if is_movie else item.get('first_air_date')
+            if not date_str or not date_str.startswith(year):
+                return False
+        if min_rating:
+            try:
+                if float(item.get('vote_average', 0.0)) < float(min_rating):
+                    return False
+            except ValueError:
+                pass
+        return True
+
     if query:
-        client = TMDBClient()
-        url = f"{client.base_url}/search/multi"
-        params = {
-            'query': query,
-            'language': 'en-US',
-            'page': 1,
-            'include_adult': 'false'
-        }
-        try:
-            response = get_resilient_session().get(url, headers=client.headers, params=params, timeout=10.0)
-            if response.status_code == 200:
-                results = response.json().get('results', [])
-                for item in results:
-                    media_type = item.get('media_type')
-                    if media_type == 'movie':
+        # We query multi-search or separate search endpoints based on media_type
+        # To get more candidate items to filter, we query pages 1 and 2
+        for page in (1, 2):
+            if media_type == 'movie':
+                url = f"{client.base_url}/search/movie"
+            elif media_type == 'tv':
+                url = f"{client.base_url}/search/tv"
+            else:
+                url = f"{client.base_url}/search/multi"
+                
+            params = {
+                'api_key': api_key,
+                'query': query,
+                'language': 'en-US',
+                'page': page,
+                'include_adult': 'false'
+            }
+            try:
+                response = get_resilient_session().get(url, params=params, timeout=10.0)
+                if response.status_code == 200:
+                    results = response.json().get('results', [])
+                    for item in results:
+                        item_type = item.get('media_type', media_type)
+                        if item_type == 'movie' and (media_type == 'all' or media_type == 'movie'):
+                            if matches_filters(item, is_movie=True):
+                                poster_path = item.get('poster_path')
+                                movies.append({
+                                    'id': item.get('id'),
+                                    'title': item.get('title') or item.get('original_title') or 'Unknown Movie',
+                                    'release_date': item.get('release_date', 'N/A'),
+                                    'poster_url': f"https://image.tmdb.org/t/p/w300{poster_path}" if poster_path else client.movie_fallback,
+                                    'vote_average': round(item.get('vote_average', 0.0), 1),
+                                    'overview': item.get('overview', '')
+                                })
+                        elif item_type == 'tv' and (media_type == 'all' or media_type == 'tv'):
+                            if matches_filters(item, is_movie=False):
+                                poster_path = item.get('poster_path')
+                                tv_shows.append({
+                                    'id': item.get('id'),
+                                    'title': item.get('name') or item.get('original_name') or 'Unknown TV Show',
+                                    'first_air_date': item.get('first_air_date', 'N/A'),
+                                    'poster_url': f"https://image.tmdb.org/t/p/w300{poster_path}" if poster_path else client.tv_fallback,
+                                    'vote_average': round(item.get('vote_average', 0.0), 1),
+                                    'overview': item.get('overview', '')
+                                })
+                        elif item_type == 'person' and media_type == 'all':
+                            profile_path = item.get('profile_path')
+                            known_for = [work.get('title') or work.get('name') for work in item.get('known_for', []) if work.get('title') or work.get('name')]
+                            people.append({
+                                'id': item.get('id'),
+                                'name': item.get('name') or 'Unknown Person',
+                                'profile_url': f"https://image.tmdb.org/t/p/w300{profile_path}" if profile_path else f"https://ui-avatars.com/api/?name={urllib.parse.quote_plus(item.get('name', 'Actor'))}",
+                                'known_for': ", ".join(known_for[:3])
+                            })
+            except Exception as e:
+                print(f"[SEARCH VIEW] Error in page {page} query: {e}")
+                
+        # Remove duplicate records by ID
+        seen_movies = set()
+        movies = [m for m in movies if not (m['id'] in seen_movies or seen_movies.add(m['id']))]
+        seen_tv = set()
+        tv_shows = [t for t in tv_shows if not (t['id'] in seen_tv or seen_tv.add(t['id']))]
+
+    elif genre or year or min_rating:
+        # Discover Mode (filters active but no search text query)
+        if media_type == 'all' or media_type == 'movie':
+            url = f"{client.base_url}/discover/movie"
+            params = {
+                'api_key': api_key,
+                'language': 'en-US',
+                'sort_by': sort_by,
+                'include_adult': 'false',
+                'page': 1
+            }
+            if genre:
+                params['with_genres'] = genre
+            if year:
+                params['primary_release_year'] = year
+            if min_rating:
+                params['vote_average.gte'] = min_rating
+            try:
+                response = get_resilient_session().get(url, params=params, timeout=10.0)
+                if response.status_code == 200:
+                    results = response.json().get('results', [])
+                    for item in results:
                         poster_path = item.get('poster_path')
                         movies.append({
                             'id': item.get('id'),
@@ -2715,7 +2832,29 @@ def search_results_view(request):
                             'vote_average': round(item.get('vote_average', 0.0), 1),
                             'overview': item.get('overview', '')
                         })
-                    elif media_type == 'tv':
+            except Exception as e:
+                print(f"[DISCOVER MOVIES] Error: {e}")
+
+        if media_type == 'all' or media_type == 'tv':
+            url = f"{client.base_url}/discover/tv"
+            params = {
+                'api_key': api_key,
+                'language': 'en-US',
+                'sort_by': sort_by,
+                'include_adult': 'false',
+                'page': 1
+            }
+            if genre:
+                params['with_genres'] = genre
+            if year:
+                params['first_air_date_year'] = year
+            if min_rating:
+                params['vote_average.gte'] = min_rating
+            try:
+                response = get_resilient_session().get(url, params=params, timeout=10.0)
+                if response.status_code == 200:
+                    results = response.json().get('results', [])
+                    for item in results:
                         poster_path = item.get('poster_path')
                         tv_shows.append({
                             'id': item.get('id'),
@@ -2725,17 +2864,8 @@ def search_results_view(request):
                             'vote_average': round(item.get('vote_average', 0.0), 1),
                             'overview': item.get('overview', '')
                         })
-                    elif media_type == 'person':
-                        profile_path = item.get('profile_path')
-                        known_for = [work.get('title') or work.get('name') for work in item.get('known_for', []) if work.get('title') or work.get('name')]
-                        people.append({
-                            'id': item.get('id'),
-                            'name': item.get('name') or 'Unknown Person',
-                            'profile_url': f"https://image.tmdb.org/t/p/w300{profile_path}" if profile_path else f"https://ui-avatars.com/api/?name={urllib.parse.quote_plus(item.get('name', 'Actor'))}",
-                            'known_for': ", ".join(known_for[:3])
-                        })
-        except Exception as e:
-            print(f"[SEARCH VIEW] Error querying TMDB API: {e}")
+            except Exception as e:
+                print(f"[DISCOVER TV] Error: {e}")
 
     watchlist_movies = []
     watchlist_tv = []
@@ -2749,12 +2879,21 @@ def search_results_view(request):
 
     context = {
         'query':            query,
+        'genre':            genre,
+        'year':             year,
+        'min_rating':       min_rating,
+        'type':             media_type,
+        'sort_by':          sort_by,
         'movies':           movies,
         'tv_shows':         tv_shows,
         'people':           people,
         'watchlist_movies': watchlist_movies,
         'watchlist_tv':     watchlist_tv,
     }
+    
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return render(request, 'core/partials/search_results_grid.html', context)
+        
     return render(request, 'core/search_results.html', context)
 
 
@@ -3395,6 +3534,7 @@ def sync_continue_watching_view(request):
                     season = item.get('season')
                     episode = item.get('episode')
                     episode_title = item.get('episode_title')
+                    total_episodes = item.get('total_episodes_in_season')
                     
                     if not media_id or media_type not in ['movie', 'tv']:
                         continue
@@ -3408,6 +3548,11 @@ def sync_continue_watching_view(request):
                         episode = int(episode) if episode is not None and str(episode).isdigit() else None
                     except (ValueError, TypeError):
                         episode = None
+
+                    try:
+                        total_episodes = int(total_episodes) if total_episodes is not None and str(total_episodes).isdigit() else None
+                    except (ValueError, TypeError):
+                        total_episodes = None
                     
                     ContinueWatching.objects.update_or_create(
                         user=request.user,
@@ -3418,7 +3563,8 @@ def sync_continue_watching_view(request):
                             'poster_url': poster_url,
                             'season': season,
                             'episode': episode,
-                            'episode_title': episode_title
+                            'episode_title': episode_title,
+                            'total_episodes_in_season': total_episodes
                         }
                     )
         except Exception as e:
@@ -3435,6 +3581,7 @@ def sync_continue_watching_view(request):
             'season': item.season,
             'episode': item.episode,
             'episode_title': item.episode_title,
+            'total_episodes_in_season': item.total_episodes_in_season,
             'last_watched': item.last_watched.isoformat()
         })
         
