@@ -397,23 +397,20 @@
 
 /* ── Immersive Fullscreen Video Player Overlay (Theater Mode) ── */
 .cinema-player-header {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: 70px;
-    z-index: 10000;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
+    height: 60px;
+    z-index: 2147483647;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 2.5rem;
-    transition: transform 0.3s ease, opacity 0.3s ease;
-}
-.cinema-player-header.header-hidden {
-    opacity: 0;
-    transform: translateY(-10px);
-    pointer-events: none;
+    padding: 0 2rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .cinema-player-back-btn {
@@ -1550,25 +1547,6 @@ function saveToContinueWatching(item) {
     localStorage.setItem('continue_watching', JSON.stringify(list));
 }
 
-let tvHeaderHideTimeout = null;
-
-function handleTvHeaderMouseMove() {
-    const tvHeader = document.getElementById('tv-player-header');
-    if (!tvHeader) return;
-    
-    tvHeader.classList.remove('header-hidden');
-    if (tvHeaderHideTimeout) clearTimeout(tvHeaderHideTimeout);
-    
-    tvHeaderHideTimeout = setTimeout(() => {
-        const activeSelect = document.activeElement;
-        const isSelectorFocused = activeSelect && (activeSelect.id === 'ep-server-select');
-        const modal = document.getElementById('ep-modal');
-        if (modal && modal.classList.contains('theater-mode') && !isSelectorFocused) {
-            tvHeader.classList.add('header-hidden');
-        }
-    }, 3000);
-}
-
 function startTvEpisodePlay() {
     const showId = "{{ tv_show.id }}";
     const imdbId = "{{ tv_show.imdb_id|default_if_none:'' }}";
@@ -1586,8 +1564,6 @@ function startTvEpisodePlay() {
         const modal = document.getElementById('ep-modal');
         if (modal) {
             modal.classList.add('theater-mode');
-            modal.addEventListener('mousemove', handleTvHeaderMouseMove);
-            handleTvHeaderMouseMove();
         }
         
         // Populate episode info in the custom top header bar
@@ -1636,17 +1612,8 @@ function resetTvEpisodePlayer() {
     
     // Remove theater-mode classes
     const modal = document.getElementById('ep-modal');
-    const tvHeader = document.getElementById('tv-player-header');
     if (modal) {
         modal.classList.remove('theater-mode');
-        modal.removeEventListener('mousemove', handleTvHeaderMouseMove);
-    }
-    if (tvHeader) {
-        tvHeader.classList.remove('header-hidden');
-    }
-    if (tvHeaderHideTimeout) {
-        clearTimeout(tvHeaderHideTimeout);
-        tvHeaderHideTimeout = null;
     }
     
     if (container) {
