@@ -598,7 +598,7 @@ function exportWatchlistAsImage() {
     
     html2canvas(wrapper, {
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: '#07070b',
         scale: 2,
         ignoreElements: (element) => element.classList.contains('no-export')
@@ -638,7 +638,7 @@ function exportWatchlistAsPDF() {
     
     html2canvas(wrapper, {
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: '#07070b',
         scale: 2,
         ignoreElements: (element) => element.classList.contains('no-export')
