@@ -1117,6 +1117,15 @@
                     <span id="ep-modal-runtime-badge" class="text-secondary small fw-bold" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 0.25rem 0.75rem;">
                         <i class="fa-regular fa-clock me-1"></i><span id="ep-modal-runtime"></span> min
                     </span>
+                    
+                    <!-- Server Dropdown Selector -->
+                    <select id="ep-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-2 py-1" style="width: auto; font-size: 0.8rem; background-color: #0b0b14; border-color: rgba(255,255,255,0.15) !important;" onchange="changeTvServer(this.value)">
+                        <option value="https://vidsrc.xyz/embed/tv/">Server 1 (Vidsrc.xyz)</option>
+                        <option value="https://vidsrc.to/embed/tv/">Server 2 (Vidsrc.to)</option>
+                        <option value="https://embed.su/embed/tv/">Server 3 (Embed.su)</option>
+                        <option value="https://vidlink.pro/tv/">Server 4 (Vidlink.pro) - Multilingual</option>
+                        <option value="https://www.2embed.cc/embedtv/">Server 5 (2Embed)</option>
+                    </select>
                 </div>
             </div>
             <p id="ep-modal-overview" style="font-size: 0.94rem; color: #c0c0cb; line-height: 1.7; margin-bottom: 0;">
@@ -1394,15 +1403,36 @@ function closeEpModalOnOverlay(event) {
 }
 
 // ── TV STREAMS HANDLERS ──
-function startTvEpisodePlay() {
+function getTvEpisodeUrl(baseServerUrl, showId, seasonNumber, episodeNumber) {
+    if (baseServerUrl.includes('2embed.cc')) {
+        return `https://www.2embed.cc/embedtv/${showId}&s=${seasonNumber}&e=${episodeNumber}`;
+    }
+    return `${baseServerUrl}${showId}/${seasonNumber}/${episodeNumber}`;
+}
+
+function changeTvServer(baseServerUrl) {
     const showId = "{{ tv_show.id }}";
     const seasonSelect = document.getElementById('season-select');
     const seasonNumber = seasonSelect ? seasonSelect.value : "1";
     const episodeNumber = currentEpisodeNumber || "1";
     
+    const iframe = document.getElementById('ep-modal-iframe');
+    if (iframe) {
+        iframe.src = getTvEpisodeUrl(baseServerUrl, showId, seasonNumber, episodeNumber);
+    }
+}
+
+function startTvEpisodePlay() {
+    const showId = "{{ tv_show.id }}";
+    const seasonSelect = document.getElementById('season-select');
+    const seasonNumber = seasonSelect ? seasonSelect.value : "1";
+    const episodeNumber = currentEpisodeNumber || "1";
+    const serverSelect = document.getElementById('ep-server-select');
+    const baseServerUrl = serverSelect ? serverSelect.value : "https://vidsrc.xyz/embed/tv/";
+    
     const container = document.getElementById('ep-modal-player-container');
     if (container) {
-        const iframeUrl = `https://vidsrc.xyz/embed/tv/${showId}/${seasonNumber}/${episodeNumber}`;
+        const iframeUrl = getTvEpisodeUrl(baseServerUrl, showId, seasonNumber, episodeNumber);
         
         // Hide overlay items
         document.getElementById('ep-modal-still').style.display = 'none';
@@ -1424,6 +1454,10 @@ function startTvEpisodePlay() {
 function resetTvEpisodePlayer() {
     const container = document.getElementById('ep-modal-player-container');
     const stillImg = document.getElementById('ep-modal-still');
+    const serverSelect = document.getElementById('ep-server-select');
+    if (serverSelect) {
+        serverSelect.value = "https://vidsrc.xyz/embed/tv/"; // Reset dropdown selection to Server 1
+    }
     
     if (container) {
         // If iframe is loaded, destroy it and reconstruct default layout

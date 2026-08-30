@@ -577,6 +577,11 @@
                     <i class="fa-solid fa-play me-2"></i> Watch Trailer
                 </button>
                 {% endif %}
+                <button onclick="openMoviePlayerModal()"
+                        class="btn rounded-pill px-4 py-2 ms-2 btn-watchlist-add"
+                        style="font-size:0.88rem; transition:all 0.3s ease; border-color: rgba(168,85,247,0.4); color: #c084fc;">
+                    <i class="fa-solid fa-tv me-2"></i> Watch Movie
+                </button>
 
             </div>
         </div>
@@ -698,17 +703,7 @@
             </div>
             {% endif %}
 
-            <div class="mb-5">
-                <h2 class="section-heading">Watch Movie</h2>
-                <div class="trailer-wrapper mb-4" style="box-shadow: 0 0 30px rgba(168, 85, 247, 0.25); border: 1px solid rgba(168, 85, 247, 0.35);">
-                    <iframe src="https://vidsrc.xyz/embed/movie/{{ movie.id }}"
-                            title="Watch {{ movie.title }}"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowfullscreen
-                            referrerpolicy="origin"
-                            loading="lazy"></iframe>
-                </div>
-            </div>
+
 
             <div class="mb-5">
                 <h2 class="section-heading">Official Trailer</h2>
@@ -837,6 +832,13 @@
                             <i class="fa-brands fa-youtube me-2"></i> Search Trailer on YouTube
                         </a>
                         {% endif %}
+
+                        <button onclick="openMoviePlayerModal()"
+                           class="btn rounded-pill py-2 mt-1"
+                           style="background:rgba(168,85,247,0.10); border:1px solid rgba(168,85,247,0.28);
+                                  color:#c084fc; font-size:0.84rem; font-weight:600; text-align: center; display: block; width: 100%;">
+                            <i class="fa-solid fa-tv me-2"></i> Watch Movie
+                        </button>
                     </div>
                 </div>
 
@@ -1178,6 +1180,44 @@
     </div>
 </div>
 
+<!-- IMMERSIVE CINEMATIC MOVIE PLAYER MODAL OVERLAY -->
+<div id="movie-player-modal" class="trailer-modal-overlay" onclick="closeMoviePlayerModalOnOverlay(event)">
+    <button class="trailer-modal-close" onclick="closeMoviePlayerModal()" aria-label="Close modal">
+        <i class="fa-solid fa-xmark"></i>
+    </button>
+    <div class="trailer-modal-glow"></div>
+    
+    <!-- Structured Wrapper for Header and Video Container -->
+    <div class="d-flex flex-column gap-3" style="width: 100%; max-width: 960px; z-index: 10;">
+        <!-- Top bar containing Title and Server select -->
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <h3 class="text-white mb-0" style="font-size: 1.25rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                {{ movie.title }}
+            </h3>
+            <div class="d-flex align-items-center gap-2">
+                <label for="modal-movie-server-select" class="text-muted small fw-bold text-uppercase mb-0" style="letter-spacing: 0.5px; font-size: 0.72rem; color: rgba(255,255,255,0.7) !important;">Server:</label>
+                <select id="modal-movie-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-3 py-1" style="width: auto; font-size: 0.82rem; min-width: 150px; background-color: #0b0b14; border-color: rgba(255,255,255,0.2) !important;" onchange="changeMoviePlayerServer(this.value)">
+                    <option value="https://vidsrc.xyz/embed/movie/{{ movie.id }}">Server 1 (Vidsrc.xyz)</option>
+                    <option value="https://vidsrc.to/embed/movie/{{ movie.id }}">Server 2 (Vidsrc.to)</option>
+                    <option value="https://embed.su/embed/movie/{{ movie.id }}">Server 3 (Embed.su)</option>
+                    <option value="https://vidlink.pro/movie/{{ movie.id }}">Server 4 (Vidlink.pro) - Multilingual</option>
+                    <option value="https://www.2embed.cc/embed/{{ movie.id }}">Server 5 (2Embed)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="trailer-modal-container" style="margin: 0; max-width: 100%;">
+            <iframe id="movie-player-iframe"
+                    src=""
+                    title="Watch {{ movie.title }}"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen
+                    referrerpolicy="origin"
+                    style="width: 100%; height: 100%; border: none;"></iframe>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -1336,6 +1376,53 @@ function closeTrailerModal() {
 function closeTrailerModalOnOverlay(event) {
     if (event.target.id === 'trailer-modal') {
         closeTrailerModal();
+    }
+}
+
+// ── CINEMATIC MOVIE PLAYER MODAL LOGIC ──
+const movieStreamBaseUrls = {
+    server1: "https://vidsrc.xyz/embed/movie/{{ movie.id }}",
+    server2: "https://vidsrc.to/embed/movie/{{ movie.id }}",
+    server3: "https://embed.su/embed/movie/{{ movie.id }}",
+    server4: "https://vidlink.pro/movie/{{ movie.id }}",
+    server5: "https://www.2embed.cc/embed/{{ movie.id }}"
+};
+
+function openMoviePlayerModal() {
+    const modal = document.getElementById('movie-player-modal');
+    const iframe = document.getElementById('movie-player-iframe');
+    const serverSelect = document.getElementById('modal-movie-server-select');
+    
+    const selectedUrl = serverSelect ? serverSelect.value : movieStreamBaseUrls.server1;
+    iframe.src = selectedUrl;
+    
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeMoviePlayerModal() {
+    const modal = document.getElementById('movie-player-modal');
+    const iframe = document.getElementById('movie-player-iframe');
+    const serverSelect = document.getElementById('modal-movie-server-select');
+    
+    modal.classList.remove('active');
+    iframe.src = '';
+    if (serverSelect) {
+        serverSelect.value = movieStreamBaseUrls.server1; // Reset to Server 1 on close
+    }
+    document.body.style.overflow = '';
+}
+
+function closeMoviePlayerModalOnOverlay(event) {
+    if (event.target.id === 'movie-player-modal') {
+        closeMoviePlayerModal();
+    }
+}
+
+function changeMoviePlayerServer(url) {
+    const iframe = document.getElementById('movie-player-iframe');
+    if (iframe) {
+        iframe.src = url;
     }
 }
 </script>
