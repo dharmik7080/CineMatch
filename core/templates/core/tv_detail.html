@@ -464,6 +464,26 @@
     display: none !important;
 }
 
+/* ── Next Episode Button Hover Animation ── */
+#ep-next-btn {
+    transition: background-color 0.25s ease, border-color 0.25s ease,
+                box-shadow 0.25s ease, transform 0.25s ease !important;
+}
+#ep-next-btn:hover {
+    background-color: rgba(168, 85, 247, 0.25) !important;
+    border-color: rgba(168, 85, 247, 0.6) !important;
+    box-shadow: 0 0 16px rgba(168, 85, 247, 0.35) !important;
+    transform: translateX(3px) !important;
+    color: #fff !important;
+}
+#ep-next-btn:hover .fa-forward {
+    animation: nextBtnArrow 0.45s ease-in-out infinite alternate;
+}
+@keyframes nextBtnArrow {
+    from { transform: translateX(0px); }
+    to   { transform: translateX(5px); }
+}
+
 /* TMDB Reviews list layout */
 #tmdbReviewsContainer::-webkit-scrollbar {
     width: 4px;
