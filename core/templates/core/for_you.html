@@ -616,7 +616,7 @@
     </div>
     
     <!-- Color extraction bridge -->
-    <img id="spotlight-color-source" src="{{ spotlight_movie.backdrop_path }}" crossorigin="anonymous" style="display: none;" onload="extractSpotlightGlowColor()">
+    <img id="spotlight-color-source" data-src="{{ spotlight_movie.backdrop_path }}" style="display: none;" onload="extractSpotlightGlowColor()">
 
     <!-- ══════════════════════════════════════════════════════════════════ -->
     <!-- 1.5 TALK OF THE TOWN & MOST INTERESTED (SIDE BY SIDE)             -->
@@ -1391,7 +1391,8 @@ function rotateSpotlight() {
 
         // Trigger dynamic color extraction on next slide image load
         if (colorSource) {
-            colorSource.src = nextMovie.backdrop_path;
+            colorSource.setAttribute('data-src', nextMovie.backdrop_path);
+            initSpotlightGlow();
         }
         
         if (container) container.style.opacity = '1';
@@ -1403,6 +1404,21 @@ function rotateSpotlight() {
 setInterval(rotateSpotlight, 10000);
 
 // Ambient glow and dynamic play action helpers
+function initSpotlightGlow() {
+    const img = document.getElementById('spotlight-color-source');
+    if (!img) return;
+    const path = img.getAttribute('data-src');
+    if (!path) return;
+    
+    // Add crossorigin only if loading from an external domain to prevent local CORS blocks
+    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('//')) {
+        img.crossOrigin = 'anonymous';
+    } else {
+        img.removeAttribute('crossorigin');
+    }
+    img.src = path;
+}
+
 function extractSpotlightGlowColor() {
     const img = document.getElementById('spotlight-color-source');
     if (!img || !img.src) return;
@@ -1446,5 +1462,8 @@ function closeSpotlightTrailer() {
         player.classList.add('d-none');
     }
 }
+
+// Guarantee execution once DOM is fully built
+document.addEventListener("DOMContentLoaded", initSpotlightGlow);
 </script>
 {% endblock %}
