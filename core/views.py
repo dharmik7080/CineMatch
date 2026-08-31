@@ -687,13 +687,48 @@ def get_tmdb_trailer_key(media_id, media_type):
         response = get_resilient_session().get(url, headers=client.headers, timeout=5.0)
         if response.status_code == 200:
             results = response.json().get('results', [])
-            trailers = [r for r in results if r.get('site') == 'YouTube' and r.get('type') == 'Trailer']
-            if trailers:
-                official = [t for t in trailers if t.get('official')]
-                return official[0].get('key') if official else trailers[0].get('key')
-            fallbacks = [r for r in results if r.get('site') == 'YouTube']
-            if fallbacks:
-                return fallbacks[0].get('key')
+            youtube_vids = [r for r in results if r.get('site') == 'YouTube']
+            if not youtube_vids:
+                return None
+            
+            def score_video(vid):
+                name = vid.get('name', '').lower()
+                vtype = vid.get('type', '').lower()
+                score = 0
+                
+                if vid.get('official'):
+                    score += 10
+                
+                if vtype == 'trailer':
+                    score += 50
+                elif vtype == 'teaser':
+                    score += 30
+                elif vtype == 'promo':
+                    score += 20
+                
+                if 'trailer' in name:
+                    score += 40
+                if 'official' in name:
+                    score += 15
+                if 'teaser' in name:
+                    score += 20
+                if 'promo' in name:
+                    score += 10
+                if 'season' in name or 'series' in name:
+                    score += 5
+                
+                # Heavy penalty for bloopers, behind the scenes, interviews, etc.
+                penalties = ['blooper', 'behind the scene', 'interview', 'bts', 'cast', 'clip', 'scene', 'featurette', 'preview clip', 'review', 'deleted scene']
+                for penalty in penalties:
+                    if penalty in name or penalty in vtype:
+                        score -= 100
+                
+                return score
+            
+            youtube_vids.sort(key=score_video, reverse=True)
+            best_vid = youtube_vids[0]
+            if score_video(best_vid) > -50:
+                return best_vid.get('key')
     except Exception as e:
         print(f"[SPOTLIGHT TRAILER SEARCH ERROR] ID {media_id}: {e}")
     return None
@@ -759,7 +794,7 @@ def for_you_feed(request):
     
     from django.core.cache import cache
     for m in spotlight_movies:
-        cache_key = f"spotlight_trailer_{m['media_type']}_{m['movie_id']}"
+        cache_key = f"spotlight_trailer_v2_{m['media_type']}_{m['movie_id']}"
         key = cache.get(cache_key)
         if not key:
             key = get_tmdb_trailer_key(m['movie_id'], m['media_type'])
