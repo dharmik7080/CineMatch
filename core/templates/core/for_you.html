@@ -1440,16 +1440,78 @@ function extractSpotlightGlowColor() {
     
     try {
         const colorThief = new ColorThief();
+        let color = [168, 85, 247]; // Default fallback purple
+        
         if (img.complete) {
-            applyGlow(colorThief.getColor(img));
+            color = pickVibrantColor(colorThief, img);
+            applyGlow(color);
         } else {
             img.onload = function() {
-                applyGlow(colorThief.getColor(img));
+                color = pickVibrantColor(colorThief, img);
+                applyGlow(color);
             };
         }
     } catch (e) {
         console.warn("[SPOTLIGHT GLOW COLOR] Fallback applied:", e);
         applyGlow([168, 85, 247]); // Revert to standard CineMatch purple accent
+    }
+}
+
+function pickVibrantColor(colorThief, img) {
+    try {
+        const palette = colorThief.getPalette(img, 8);
+        if (!palette || palette.length === 0) {
+            return colorThief.getColor(img);
+        }
+        
+        let bestColor = palette[0];
+        let maxScore = -9999;
+        
+        for (let i = 0; i < palette.length; i++) {
+            const r = palette[i][0];
+            const g = palette[i][1];
+            const b = palette[i][2];
+            
+            // Calculate relative perceived brightness
+            const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+            
+            // Calculate saturation approximation
+            const maxVal = Math.max(r, g, b);
+            const minVal = Math.min(r, g, b);
+            const saturation = maxVal === 0 ? 0 : (maxVal - minVal) / maxVal;
+            
+            // High priority on high saturation/vibrancy, penalty on pure black/dark grey
+            let score = saturation * 120;
+            
+            if (brightness < 40) {
+                score -= 100;
+            } else if (brightness > 220) {
+                score -= 60;
+            } else {
+                score += 30; // Sweet spot of mid-brightness
+            }
+            
+            if (score > maxScore) {
+                maxScore = score;
+                bestColor = palette[i];
+            }
+        }
+        
+        // If the best color is still too dark to glow, boost its brightness
+        const br = 0.299 * bestColor[0] + 0.587 * bestColor[1] + 0.114 * bestColor[2];
+        if (br < 80) {
+            const factor = 80 / Math.max(br, 1);
+            bestColor = [
+                Math.min(Math.round(bestColor[0] * factor), 255),
+                Math.min(Math.round(bestColor[1] * factor), 255),
+                Math.min(Math.round(bestColor[2] * factor), 255)
+            ];
+        }
+        
+        return bestColor;
+    } catch (err) {
+        console.warn("pickVibrantColor failed:", err);
+        return colorThief.getColor(img);
     }
 }
 
