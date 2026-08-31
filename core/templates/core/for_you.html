@@ -1327,7 +1327,6 @@ function rotateSpotlight() {
     const container = document.getElementById('spotlight-container');
     const content = document.getElementById('spotlight-content');
     
-    if (container) container.style.opacity = '0';
     if (content) content.style.opacity = '0';
     
     setTimeout(() => {
@@ -1395,9 +1394,8 @@ function rotateSpotlight() {
             initSpotlightGlow();
         }
         
-        if (container) container.style.opacity = '1';
         if (content) content.style.opacity = '1';
-    }, 1000);
+    }, 250);
 }
 
 // Auto-rotate every 10 seconds
