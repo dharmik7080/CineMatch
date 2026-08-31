@@ -160,20 +160,17 @@
         overflow: hidden;
     }
 
-    .hero-spotlight::before {
-        content: '';
+    .spotlight-bg-layer {
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background-image: inherit;
-        background-position: center;
-        background-size: cover;
-        background-repeat: no-repeat;
-        z-index: 1;
+        background-position: center !important;
+        background-size: cover !important;
+        background-repeat: no-repeat !important;
         animation: kenBurns 35s ease-in-out infinite alternate;
-        transition: background-image 1s ease-in-out;
+        transition: opacity 1s ease-in-out;
     }
 
     .hero-spotlight > * {
@@ -557,10 +554,13 @@
         <!-- Dynamic ambient glow background circle -->
         <div id="spotlight-ambient-glow" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scale(1.15); filter: blur(80px); opacity: 0.9; z-index: 0; pointer-events: none; transition: background 1.5s ease; border-radius: 40px;"></div>
         
-        <div class="hero-spotlight transition-opacity" id="spotlight-container"
-             style="background: linear-gradient(to right, rgba(7, 7, 11, 0.90) 0%, rgba(7, 7, 11, 0.82) 30%, rgba(7, 7, 11, 0.35) 65%, rgba(7, 7, 11, 0.05) 100%),
-                    url('{{ spotlight_movie.backdrop_path }}')
-                    center/cover no-repeat; opacity: 1; z-index: 1; margin-bottom: 0;">
+        <div class="hero-spotlight" id="spotlight-container" style="background: #07070b; z-index: 1; margin-bottom: 0; position: relative;">
+            <!-- Background crossfade layers -->
+            <div id="spotlight-bg-back" class="spotlight-bg-layer" style="background-image: url('{{ spotlight_movie.backdrop_path }}'); z-index: 1;"></div>
+            <div id="spotlight-bg-front" class="spotlight-bg-layer" style="background-image: url('{{ spotlight_movie.backdrop_path }}'); z-index: 2; opacity: 1;"></div>
+            
+            <!-- Dark Vignette Overlay -->
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to right, rgba(7, 7, 11, 0.95) 0%, rgba(7, 7, 11, 0.85) 30%, rgba(7, 7, 11, 0.4) 65%, rgba(7, 7, 11, 0.05) 100%); z-index: 3; pointer-events: none;"></div>
             
             <!-- Trailer Inline Player -->
             <div id="spotlight-trailer-player" class="d-none" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; background: #000;">
@@ -1324,10 +1324,18 @@ function rotateSpotlight() {
     // Close trailer if active before rotating
     closeSpotlightTrailer();
     
-    const container = document.getElementById('spotlight-container');
     const content = document.getElementById('spotlight-content');
+    const backBg = document.getElementById('spotlight-bg-back');
+    const frontBg = document.getElementById('spotlight-bg-front');
     
     if (content) content.style.opacity = '0';
+    
+    // Set background of back layer to the current active image
+    const currentMovie = spotlightMovies[currentSpotlightIndex];
+    if (backBg) {
+        backBg.style.backgroundImage = `url('${currentMovie.backdrop_path}')`;
+        backBg.style.opacity = '1';
+    }
     
     setTimeout(() => {
         currentSpotlightIndex = (currentSpotlightIndex + 1) % spotlightMovies.length;
@@ -1339,8 +1347,17 @@ function rotateSpotlight() {
         const detailsLink = document.getElementById('spotlight-details-link');
         const colorSource = document.getElementById('spotlight-color-source');
 
-        if (container) {
-            container.style.backgroundImage = 'linear-gradient(to right, rgba(7, 7, 11, 0.90) 0%, rgba(7, 7, 11, 0.82) 30%, rgba(7, 7, 11, 0.35) 65%, rgba(7, 7, 11, 0.05) 100%), url(' + nextMovie.backdrop_path + ')';
+        // Swap layers: set front layer to new image instantly at 0 opacity, then fade it in
+        if (frontBg) {
+            frontBg.style.transition = 'none';
+            frontBg.style.opacity = '0';
+            frontBg.style.backgroundImage = `url('${nextMovie.backdrop_path}')`;
+            
+            // Force browser reflow to apply transition settings
+            frontBg.offsetHeight;
+            
+            frontBg.style.transition = 'opacity 1s ease-in-out';
+            frontBg.style.opacity = '1';
         }
         
         if (titleEl) {
