@@ -437,3 +437,38 @@ class ContinueWatching(models.Model):
         if self.media_type == 'tv':
             return f"{self.user.username} is watching {self.title} S{self.season} E{self.episode}"
         return f"{self.user.username} is watching {self.title}"
+
+
+# -----------------------------------------------------------------------------
+# AUTOMATED ML RE-TRAINING SIGNAL
+# -----------------------------------------------------------------------------
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+import threading
+
+_training_lock = threading.Lock()
+
+@receiver(post_save, sender=CachedMedia)
+def automate_similarity_training(sender, instance, created, **kwargs):
+    # Only trigger similarity training if a new media item is cached for the first time
+    if not created:
+        return
+        
+    if _training_lock.locked():
+        return  # Already training in progress, skip starting another one to prevent lockups
+        
+    def run_training():
+        if not _training_lock.acquire(blocking=False):
+            return
+        try:
+            from django.core.management import call_command
+            call_command('train_similarity')
+        except Exception as ex:
+            import sys
+            print(f"[AUTO-TRAINING EXCEPTION] {ex}", file=sys.stderr)
+        finally:
+            _training_lock.release()
+
+    t = threading.Thread(target=run_training)
+    t.daemon = True
+    t.start()
