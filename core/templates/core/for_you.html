@@ -554,23 +554,23 @@
         <!-- Dynamic ambient glow background circle -->
         <div id="spotlight-ambient-glow" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scale(1.15); filter: blur(80px); opacity: 0.9; z-index: 0; pointer-events: none; transition: background 1.5s ease; border-radius: 40px;"></div>
         
-        <div class="hero-spotlight" id="spotlight-container" style="background: #07070b; z-index: 1; margin-bottom: 0; position: relative;">
+        <div class="hero-spotlight" id="spotlight-container" style="background: #07070b; z-index: 1 !important; margin-bottom: 0; position: relative;">
             <!-- Background crossfade layers -->
-            <div id="spotlight-bg-back" class="spotlight-bg-layer" style="background-image: url('{{ spotlight_movie.backdrop_path }}'); z-index: 1;"></div>
-            <div id="spotlight-bg-front" class="spotlight-bg-layer" style="background-image: url('{{ spotlight_movie.backdrop_path }}'); z-index: 2; opacity: 1;"></div>
+            <div id="spotlight-bg-back" class="spotlight-bg-layer" style="background-image: url('{{ spotlight_movie.backdrop_path }}'); z-index: 1 !important; position: absolute !important;"></div>
+            <div id="spotlight-bg-front" class="spotlight-bg-layer" style="background-image: url('{{ spotlight_movie.backdrop_path }}'); z-index: 2 !important; position: absolute !important;"></div>
             
             <!-- Dark Vignette Overlay -->
-            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to right, rgba(7, 7, 11, 0.95) 0%, rgba(7, 7, 11, 0.85) 30%, rgba(7, 7, 11, 0.4) 65%, rgba(7, 7, 11, 0.05) 100%); z-index: 3; pointer-events: none;"></div>
+            <div style="position: absolute !important; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to right, rgba(7, 7, 11, 0.95) 0%, rgba(7, 7, 11, 0.85) 30%, rgba(7, 7, 11, 0.4) 65%, rgba(7, 7, 11, 0.05) 100%); z-index: 3 !important; pointer-events: none;"></div>
             
             <!-- Trailer Inline Player -->
-            <div id="spotlight-trailer-player" class="d-none" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; background: #000;">
-                <button onclick="closeSpotlightTrailer()" class="btn btn-circle" style="position: absolute; top: 20px; right: 20px; z-index: 12; background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.15); color: #fff; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <div id="spotlight-trailer-player" class="d-none" style="position: absolute !important; top: 0; left: 0; width: 100%; height: 100%; z-index: 10 !important; background: #000;">
+                <button onclick="closeSpotlightTrailer()" class="btn btn-circle" style="position: absolute !important; top: 20px; right: 20px; z-index: 12 !important; background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.15); color: #fff; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
                 <iframe id="spotlight-trailer-iframe" src="" style="width: 100%; height: 100%; border: none;" allow="autoplay; encrypted-media" allowfullscreen></iframe>
             </div>
 
-            <div id="spotlight-content" class="transition-opacity" style="opacity: 1; width: 100%;">
+            <div id="spotlight-content" class="transition-opacity" style="opacity: 1; width: 100%; position: relative !important; z-index: 4 !important;">
                 <span class="hero-badge"><i class="fa-solid fa-fire me-1"></i> Today's Spotlight</span>
                 <h1 class="hero-title" id="spotlight-title">{{ spotlight_movie.title }}</h1>
                 <p class="hero-overview" id="spotlight-overview">{{ spotlight_movie.overview }}</p>
