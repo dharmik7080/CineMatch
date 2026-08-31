@@ -1223,6 +1223,10 @@
             <option value="https://embed.su/embed/tv/">Server 3 — Embed.su</option>
             <option value="https://vidlink.pro/tv/" selected>Server 4 — Vidlink.pro ✦ Multi-Audio+Subs</option>
             <option value="https://www.2embed.cc/embedtv/">Server 5 — 2Embed</option>
+            <option value="https://vidsrc.me/embed/tv/">Server 6 — VidSrc.me</option>
+            <option value="https://player.autoembed.to/tv/">Server 7 — AutoEmbed</option>
+            <option value="https://multiembed.eu/?video_id=">Server 8 — MultiEmbed</option>
+            <option value="https://moviesapi.club/tv/">Server 9 — MoviesAPI.club</option>
         </select>
 
         <!-- Next Episode Button -->
@@ -1622,6 +1626,12 @@ function getTvEpisodeUrl(baseServerUrl, showId, imdbId, seasonNumber, episodeNum
     if (baseServerUrl.includes('vidlink.pro')) {
         const idToUse = imdbId && imdbId !== 'None' ? imdbId : showId;
         return `${baseServerUrl}${idToUse}/${seasonNumber}/${episodeNumber}?sub=1&ds_lang=en&autostart=true`;
+    }
+    if (baseServerUrl.includes('multiembed.eu')) {
+        return `https://multiembed.eu/?video_id=${showId}&tmdb=1&s=${seasonNumber}&e=${episodeNumber}`;
+    }
+    if (baseServerUrl.includes('moviesapi.club')) {
+        return `https://moviesapi.club/tv/${showId}-${seasonNumber}-${episodeNumber}`;
     }
     return `${baseServerUrl}${showId}/${seasonNumber}/${episodeNumber}`;
 }
