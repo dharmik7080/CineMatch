@@ -1401,7 +1401,7 @@ function rotateSpotlight() {
 }
 
 // Auto-rotate every 10 seconds
-setInterval(rotateSpotlight, 10000);
+let spotlightInterval = setInterval(rotateSpotlight, 10000);
 
 // Ambient glow and dynamic play action helpers
 function initSpotlightGlow() {
@@ -1446,6 +1446,12 @@ function applyGlow(rgb) {
 }
 
 function playSpotlightTrailer(key) {
+    // Clear auto-rotation interval so slide doesn't transition while watching
+    if (spotlightInterval) {
+        clearInterval(spotlightInterval);
+        spotlightInterval = null;
+    }
+
     const player = document.getElementById('spotlight-trailer-player');
     const iframe = document.getElementById('spotlight-trailer-iframe');
     if (player && iframe) {
@@ -1460,6 +1466,11 @@ function closeSpotlightTrailer() {
     if (player && iframe) {
         iframe.src = '';
         player.classList.add('d-none');
+    }
+
+    // Resume auto-rotation timer
+    if (!spotlightInterval) {
+        spotlightInterval = setInterval(rotateSpotlight, 10000);
     }
 }
 
