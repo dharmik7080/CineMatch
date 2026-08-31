@@ -679,6 +679,25 @@ def get_personalized_recommendations(user):
 # ======================================================================
 # Home / "For You" Feed Loader (Read & Recommend)
 # ======================================================================
+def get_tmdb_trailer_key(media_id, media_type):
+    from .tmdb_api import TMDBClient
+    client = TMDBClient()
+    url = f"{client.base_url}/{media_type}/{media_id}/videos"
+    try:
+        response = get_resilient_session().get(url, headers=client.headers, timeout=5.0)
+        if response.status_code == 200:
+            results = response.json().get('results', [])
+            trailers = [r for r in results if r.get('site') == 'YouTube' and r.get('type') == 'Trailer']
+            if trailers:
+                official = [t for t in trailers if t.get('official')]
+                return official[0].get('key') if official else trailers[0].get('key')
+            fallbacks = [r for r in results if r.get('site') == 'YouTube']
+            if fallbacks:
+                return fallbacks[0].get('key')
+    except Exception as e:
+        print(f"[SPOTLIGHT TRAILER SEARCH ERROR] ID {media_id}: {e}")
+    return None
+
 def for_you_feed(request):
     user = request.user
     client = TMDBClient()
@@ -737,6 +756,17 @@ def for_you_feed(request):
             'media_type': 'tv'
         }
     ]
+    
+    from django.core.cache import cache
+    for m in spotlight_movies:
+        cache_key = f"spotlight_trailer_{m['media_type']}_{m['movie_id']}"
+        key = cache.get(cache_key)
+        if not key:
+            key = get_tmdb_trailer_key(m['movie_id'], m['media_type'])
+            if key:
+                cache.set(cache_key, key, 86400)
+        m['trailer_key'] = key
+        
     spotlight_movie = spotlight_movies[0]
     
     now_showing = []

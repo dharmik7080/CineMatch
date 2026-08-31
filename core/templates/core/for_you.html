@@ -553,45 +553,70 @@
     <!-- ══════════════════════════════════════════════════════════════════ -->
    {% load static %}
 
-<div class="hero-spotlight transition-opacity" id="spotlight-container"
-     style="background: linear-gradient(to right, rgba(7, 7, 11, 0.90) 0%, rgba(7, 7, 11, 0.82) 30%, rgba(7, 7, 11, 0.35) 65%, rgba(7, 7, 11, 0.05) 100%),
-            url('{{ spotlight_movie.backdrop_path }}')
-            center/cover no-repeat; opacity: 1;">
-    <div id="spotlight-content" class="transition-opacity" style="opacity: 1; width: 100%;">
-            <span class="hero-badge"><i class="fa-solid fa-fire me-1"></i> Today's Spotlight</span>
-            <h1 class="hero-title" id="spotlight-title">{{ spotlight_movie.title }}</h1>
-            <p class="hero-overview" id="spotlight-overview">{{ spotlight_movie.overview }}</p>
-            <div class="d-flex gap-3 flex-wrap">
-                {% if user.is_authenticated %}
-                <button onclick="toggleWatchlist(this, {{ spotlight_movie.movie_id }}, 'movie')"
-                        id="spotlight-bookmark-btn"
-                        class="btn btn-glow"
-                        data-saved="{% if spotlight_movie.movie_id in saved_ids %}true{% else %}false{% endif %}">
-                    {% if spotlight_movie.movie_id in saved_ids %}
-                        <i class="fa-solid fa-bookmark text-warning me-1"></i> Saved to Watchlist
-                    {% else %}
-                        <i class="fa-regular fa-bookmark me-1"></i> Add to Watchlist
-                    {% endif %}
+    <div style="position: relative; margin-bottom: 3rem;">
+        <!-- Dynamic ambient glow background circle -->
+        <div id="spotlight-ambient-glow" style="position: absolute; top: -10%; left: 5%; right: 5%; bottom: -10%; filter: blur(100px); opacity: 0.25; z-index: 0; pointer-events: none; transition: background 1s ease, opacity 0.5s ease; border-radius: 40px;"></div>
+        
+        <div class="hero-spotlight transition-opacity" id="spotlight-container"
+             style="background: linear-gradient(to right, rgba(7, 7, 11, 0.90) 0%, rgba(7, 7, 11, 0.82) 30%, rgba(7, 7, 11, 0.35) 65%, rgba(7, 7, 11, 0.05) 100%),
+                    url('{{ spotlight_movie.backdrop_path }}')
+                    center/cover no-repeat; opacity: 1; z-index: 1; margin-bottom: 0;">
+            
+            <!-- Trailer Inline Player -->
+            <div id="spotlight-trailer-player" class="d-none" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; background: #000;">
+                <button onclick="closeSpotlightTrailer()" class="btn btn-circle" style="position: absolute; top: 20px; right: 20px; z-index: 12; background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.15); color: #fff; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa-solid fa-xmark"></i>
                 </button>
-                {% else %}
-                <a href="{% url 'login' %}?next={{ request.path }}"
-                   class="btn btn-glow d-inline-flex align-items-center justify-content-center text-decoration-none">
-                    <i class="fa-solid fa-right-to-bracket me-2"></i> Sign In to Add to Watchlist
-                </a>
-                {% endif %}
-                <a href="https://www.youtube.com/results?search_query={{ spotlight_movie.title }}+official+trailer"
-                   id="spotlight-trailer-link"
-                   target="_blank" class="btn btn-outline-custom">
-                    <i class="fa-solid fa-play me-1 text-accent"></i> Watch Trailer
-                </a>
+                <iframe id="spotlight-trailer-iframe" src="" style="width: 100%; height: 100%; border: none;" allow="autoplay; encrypted-media" allowfullscreen></iframe>
             </div>
+
+            <div id="spotlight-content" class="transition-opacity" style="opacity: 1; width: 100%;">
+                <span class="hero-badge"><i class="fa-solid fa-fire me-1"></i> Today's Spotlight</span>
+                <h1 class="hero-title" id="spotlight-title">{{ spotlight_movie.title }}</h1>
+                <p class="hero-overview" id="spotlight-overview">{{ spotlight_movie.overview }}</p>
+                <div class="d-flex gap-3 flex-wrap">
+                    {% if user.is_authenticated %}
+                    <button onclick="toggleWatchlist(this, {{ spotlight_movie.movie_id }}, 'movie')"
+                            id="spotlight-bookmark-btn"
+                            class="btn btn-glow"
+                            data-saved="{% if spotlight_movie.movie_id in saved_ids %}true{% else %}false{% endif %}">
+                        {% if spotlight_movie.movie_id in saved_ids %}
+                            <i class="fa-solid fa-bookmark text-warning me-1"></i> Saved to Watchlist
+                        {% else %}
+                            <i class="fa-regular fa-bookmark me-1"></i> Add to Watchlist
+                        {% endif %}
+                    </button>
+                    {% else %}
+                    <a href="{% url 'login' %}?next={{ request.path }}"
+                       class="btn btn-glow d-inline-flex align-items-center justify-content-center text-decoration-none">
+                        <i class="fa-solid fa-right-to-bracket me-2"></i> Sign In to Add to Watchlist
+                    </a>
+                    {% endif %}
+                    
+                    {% if spotlight_movie.trailer_key %}
+                    <button onclick="playSpotlightTrailer('{{ spotlight_movie.trailer_key }}')" class="btn btn-outline-custom" id="spotlight-trailer-btn">
+                        <i class="fa-solid fa-play me-1 text-accent"></i> Watch Trailer
+                    </button>
+                    {% else %}
+                    <a href="https://www.youtube.com/results?search_query={{ spotlight_movie.title }}+official+trailer"
+                       id="spotlight-trailer-link"
+                       target="_blank" class="btn btn-outline-custom">
+                        <i class="fa-solid fa-play me-1 text-accent"></i> Watch Trailer
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if spotlight_movie.movie_id %}
+            <a href="{% if spotlight_movie.media_type == 'tv' %}{% url 'tv_show_detail' spotlight_movie.movie_id %}{% else %}{% url 'movie_detail' spotlight_movie.movie_id %}{% endif %}" id="spotlight-details-link" class="platform-details-float" style="position: absolute; bottom: 1.5rem; right: 1.5rem; margin-top: 0;">
+                <i class="fa-solid fa-circle-info me-1"></i> View Details
+            </a>
+            {% endif %}
         </div>
-        {% if spotlight_movie.movie_id %}
-        <a href="{% if spotlight_movie.media_type == 'tv' %}{% url 'tv_show_detail' spotlight_movie.movie_id %}{% else %}{% url 'movie_detail' spotlight_movie.movie_id %}{% endif %}" id="spotlight-details-link" class="platform-details-float" style="position: absolute; bottom: 1.5rem; right: 1.5rem; margin-top: 0;">
-            <i class="fa-solid fa-circle-info me-1"></i> View Details
-        </a>
-        {% endif %}
     </div>
+    
+    <!-- Color extraction bridge -->
+    <img id="spotlight-color-source" src="{{ spotlight_movie.backdrop_path }}" crossorigin="anonymous" style="display: none;" onload="extractSpotlightGlowColor()">
 
     <!-- ══════════════════════════════════════════════════════════════════ -->
     <!-- 1.5 TALK OF THE TOWN & MOST INTERESTED (SIDE BY SIDE)             -->
@@ -1285,7 +1310,8 @@ const spotlightMovies = [
         title: "{{ movie.title|escapejs }}",
         overview: "{{ movie.overview|escapejs }}",
         backdrop_path: "{{ movie.backdrop_path|escapejs }}",
-        media_type: "{{ movie.media_type|escapejs }}"
+        media_type: "{{ movie.media_type|escapejs }}",
+        trailer_key: "{{ movie.trailer_key|escapejs }}"
     },
     {% endfor %}
 ];
@@ -1294,6 +1320,9 @@ let currentSpotlightIndex = 0;
 
 function rotateSpotlight() {
     if (spotlightMovies.length <= 1) return;
+    
+    // Close trailer if active before rotating
+    closeSpotlightTrailer();
     
     const container = document.getElementById('spotlight-container');
     const content = document.getElementById('spotlight-content');
@@ -1309,7 +1338,7 @@ function rotateSpotlight() {
         const overviewEl = document.getElementById('spotlight-overview');
         const bookmarkBtn = document.getElementById('spotlight-bookmark-btn');
         const detailsLink = document.getElementById('spotlight-details-link');
-        const trailerLink = document.getElementById('spotlight-trailer-link');
+        const colorSource = document.getElementById('spotlight-color-source');
 
         if (container) {
             container.style.backgroundImage = 'linear-gradient(to right, rgba(7, 7, 11, 0.90) 0%, rgba(7, 7, 11, 0.82) 30%, rgba(7, 7, 11, 0.35) 65%, rgba(7, 7, 11, 0.05) 100%), url(' + nextMovie.backdrop_path + ')';
@@ -1345,9 +1374,24 @@ function rotateSpotlight() {
             }
         }
         
-        if (trailerLink) {
+        // Dynamically rebuild "Watch Trailer" button based on trailer_key presence
+        const currentTrailerBtn = document.getElementById('spotlight-trailer-btn');
+        const currentTrailerLink = document.getElementById('spotlight-trailer-link');
+        
+        if (nextMovie.trailer_key) {
+            const newBtn = `<button onclick="playSpotlightTrailer('${nextMovie.trailer_key}')" class="btn btn-outline-custom" id="spotlight-trailer-btn"><i class="fa-solid fa-play me-1 text-accent"></i> Watch Trailer</button>`;
+            if (currentTrailerBtn) currentTrailerBtn.outerHTML = newBtn;
+            else if (currentTrailerLink) currentTrailerLink.outerHTML = newBtn;
+        } else {
             const query = encodeURIComponent(nextMovie.title);
-            trailerLink.setAttribute('href', `https://www.youtube.com/results?search_query=${query}+official+trailer`);
+            const newLink = `<a href="https://www.youtube.com/results?search_query=${query}+official+trailer" id="spotlight-trailer-link" target="_blank" class="btn btn-outline-custom"><i class="fa-solid fa-play me-1 text-accent"></i> Watch Trailer</a>`;
+            if (currentTrailerBtn) currentTrailerBtn.outerHTML = newLink;
+            else if (currentTrailerLink) currentTrailerLink.outerHTML = newLink;
+        }
+
+        // Trigger dynamic color extraction on next slide image load
+        if (colorSource) {
+            colorSource.src = nextMovie.backdrop_path;
         }
         
         if (container) container.style.opacity = '1';
@@ -1355,7 +1399,52 @@ function rotateSpotlight() {
     }, 1000);
 }
 
-// Auto-rotate every 10 seconds (10000ms)
+// Auto-rotate every 10 seconds
 setInterval(rotateSpotlight, 10000);
+
+// Ambient glow and dynamic play action helpers
+function extractSpotlightGlowColor() {
+    const img = document.getElementById('spotlight-color-source');
+    if (!img || !img.src) return;
+    
+    try {
+        const colorThief = new ColorThief();
+        if (img.complete) {
+            applyGlow(colorThief.getColor(img));
+        } else {
+            img.onload = function() {
+                applyGlow(colorThief.getColor(img));
+            };
+        }
+    } catch (e) {
+        console.warn("[SPOTLIGHT GLOW COLOR] Fallback applied:", e);
+        applyGlow([168, 85, 247]); // Revert to standard CineMatch purple accent
+    }
+}
+
+function applyGlow(rgb) {
+    const glowEl = document.getElementById('spotlight-ambient-glow');
+    if (glowEl) {
+        glowEl.style.background = `radial-gradient(circle, rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.4) 0%, rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.15) 45%, transparent 70%)`;
+    }
+}
+
+function playSpotlightTrailer(key) {
+    const player = document.getElementById('spotlight-trailer-player');
+    const iframe = document.getElementById('spotlight-trailer-iframe');
+    if (player && iframe) {
+        iframe.src = `https://www.youtube.com/embed/${key}?autoplay=1&mute=0&rel=0&enablejsapi=1`;
+        player.classList.remove('d-none');
+    }
+}
+
+function closeSpotlightTrailer() {
+    const player = document.getElementById('spotlight-trailer-player');
+    const iframe = document.getElementById('spotlight-trailer-iframe');
+    if (player && iframe) {
+        iframe.src = '';
+        player.classList.add('d-none');
+    }
+}
 </script>
 {% endblock %}
