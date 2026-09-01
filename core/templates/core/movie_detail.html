@@ -1289,19 +1289,19 @@
     <div class="d-flex align-items-center gap-3">
         <label for="modal-movie-server-select" class="text-muted small fw-bold text-uppercase mb-0" style="letter-spacing: 0.5px; font-size: 0.72rem; color: rgba(255,255,255,0.7) !important;">Server:</label>
         <select id="modal-movie-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-3 py-1" style="width: auto; font-size: 0.82rem; min-width: 180px; background-color: #0b0b14; border-color: rgba(255,255,255,0.2) !important;" onchange="changeMoviePlayerServer(this.value)">
-            <option value="https://vidsrc.xyz/embed/movie/{{ movie.id }}">Server 1 — Vidsrc.xyz</option>
-            <option value="https://vidsrc.to/embed/movie/{{ movie.id }}">Server 2 — Vidsrc.to ✦ Subs</option>
-            <option value="https://embed.su/embed/movie/{{ movie.id }}">Server 3 — Embed.su</option>
             {% if movie.imdb_id %}
-            <option value="https://vidlink.pro/movie/{{ movie.imdb_id }}?sub=1&ds_lang=en&autostart=true" selected>Server 4 — Vidlink.pro ✦ Multi-Audio+Subs</option>
+            <option value="https://vidlink.pro/movie/{{ movie.imdb_id }}?sub=1&ds_lang=en&autostart=true" selected>Server 1 — Vidlink.pro ✦ Multi-Audio+Subs</option>
             {% else %}
-            <option value="https://vidlink.pro/movie/{{ movie.id }}?sub=1&ds_lang=en&autostart=true" selected>Server 4 — Vidlink.pro ✦ Multi-Audio+Subs</option>
+            <option value="https://vidlink.pro/movie/{{ movie.id }}?sub=1&ds_lang=en&autostart=true" selected>Server 1 — Vidlink.pro ✦ Multi-Audio+Subs</option>
             {% endif %}
-            <option value="https://www.2embed.cc/embed/{{ movie.id }}">Server 5 — 2Embed</option>
-            <option value="https://vidsrc.me/embed/movie/{{ movie.id }}">Server 6 — VidSrc.me</option>
-            <option value="https://player.autoembed.to/movie/{{ movie.id }}">Server 7 — AutoEmbed</option>
-            <option value="https://multiembed.eu/?video_id={{ movie.id }}&tmdb=1">Server 8 — MultiEmbed</option>
-            <option value="https://moviesapi.club/movie/{{ movie.id }}">Server 9 — MoviesAPI.club</option>
+            <option value="https://vidbinge.dev/embed/movie/{{ movie.id }}">Server 2 — VidBinge (Fast HD)</option>
+            <option value="https://vidsrc.pm/embed/movie/{{ movie.id }}">Server 3 — VidSrc.pm (Mirror 1)</option>
+            <option value="https://vidsrc.rip/embed/movie/{{ movie.id }}">Server 4 — VidSrc.rip (Mirror 2)</option>
+            <option value="https://autoembed.co/movie/tmdb/{{ movie.id }}">Server 5 — AutoEmbed</option>
+            <option value="https://www.2embed.cc/embed/{{ movie.id }}">Server 6 — 2Embed</option>
+            <option value="https://vidsrc.xyz/embed/movie/{{ movie.id }}">Server 7 — Vidsrc.xyz</option>
+            <option value="https://vidsrc.to/embed/movie/{{ movie.id }}">Server 8 — Vidsrc.to ✦ Subs</option>
+            <option value="https://vidsrc.me/embed/movie/{{ movie.id }}">Server 9 — VidSrc.me</option>
         </select>
     </div>
 </div>

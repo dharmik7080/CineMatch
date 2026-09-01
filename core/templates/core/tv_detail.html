@@ -1218,15 +1218,15 @@
     <div class="d-flex align-items-center gap-3">
         <!-- Server Dropdown Selector -->
         <select id="ep-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-2 py-1" style="width: auto; font-size: 0.8rem; background-color: #0b0b14; border-color: rgba(255,255,255,0.15) !important;" onchange="changeTvServer(this.value)">
-            <option value="https://vidsrc.xyz/embed/tv/">Server 1 — Vidsrc.xyz</option>
-            <option value="https://vidsrc.to/embed/tv/">Server 2 — Vidsrc.to ✦ Subs</option>
-            <option value="https://embed.su/embed/tv/">Server 3 — Embed.su</option>
-            <option value="https://vidlink.pro/tv/" selected>Server 4 — Vidlink.pro ✦ Multi-Audio+Subs</option>
-            <option value="https://www.2embed.cc/embedtv/">Server 5 — 2Embed</option>
-            <option value="https://vidsrc.me/embed/tv/">Server 6 — VidSrc.me</option>
-            <option value="https://player.autoembed.to/tv/">Server 7 — AutoEmbed</option>
-            <option value="https://multiembed.eu/?video_id=">Server 8 — MultiEmbed</option>
-            <option value="https://moviesapi.club/tv/">Server 9 — MoviesAPI.club</option>
+            <option value="https://vidlink.pro/tv/" selected>Server 1 — Vidlink.pro ✦ Multi-Audio+Subs</option>
+            <option value="https://vidbinge.dev/embed/tv/">Server 2 — VidBinge (Fast HD)</option>
+            <option value="https://vidsrc.pm/embed/tv/">Server 3 — VidSrc.pm (Mirror 1)</option>
+            <option value="https://vidsrc.rip/embed/tv/">Server 4 — VidSrc.rip (Mirror 2)</option>
+            <option value="https://autoembed.co/tv/tmdb/">Server 5 — AutoEmbed</option>
+            <option value="https://www.2embed.cc/embedtv/">Server 6 — 2Embed</option>
+            <option value="https://vidsrc.xyz/embed/tv/">Server 7 — Vidsrc.xyz</option>
+            <option value="https://vidsrc.to/embed/tv/">Server 8 — Vidsrc.to ✦ Subs</option>
+            <option value="https://vidsrc.me/embed/tv/">Server 9 — VidSrc.me</option>
         </select>
 
         <!-- Next Episode Button -->
@@ -1627,11 +1627,8 @@ function getTvEpisodeUrl(baseServerUrl, showId, imdbId, seasonNumber, episodeNum
         const idToUse = imdbId && imdbId !== 'None' ? imdbId : showId;
         return `${baseServerUrl}${idToUse}/${seasonNumber}/${episodeNumber}?sub=1&ds_lang=en&autostart=true`;
     }
-    if (baseServerUrl.includes('multiembed.eu')) {
-        return `https://multiembed.eu/?video_id=${showId}&tmdb=1&s=${seasonNumber}&e=${episodeNumber}`;
-    }
-    if (baseServerUrl.includes('moviesapi.club')) {
-        return `https://moviesapi.club/tv/${showId}-${seasonNumber}-${episodeNumber}`;
+    if (baseServerUrl.includes('autoembed.co')) {
+        return `https://autoembed.co/tv/tmdb/${showId}-${seasonNumber}-${episodeNumber}`;
     }
     return `${baseServerUrl}${showId}/${seasonNumber}/${episodeNumber}`;
 }
