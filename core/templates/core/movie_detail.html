@@ -100,35 +100,42 @@
     transform: scale(1.1);
 }
 
-/* ── Hero Backdrop ── */
+/* ── Hero Backdrop & Integrated Detail Section ── */
 .detail-hero {
     position: relative;
-    height: 65vh;
-    min-height: 450px;
-    max-height: 600px;
-    overflow: hidden;
+    min-height: 520px;
     background: #08080c;
     margin-top: -3.5rem;
-    padding-top: 3.5rem;
+    padding-top: 5rem;
+    padding-bottom: 3.5rem;
+    overflow: hidden;
 }
 .detail-hero__bg {
     position: absolute;
     inset: 0;
     background-size: cover;
-    background-position: center 25%;
-    filter: brightness(0.65) contrast(1.05);
+    background-position: center 20%;
+    filter: brightness(0.50) contrast(1.05);
     transform: scale(1.04);
     transition: opacity 0.6s ease;
 }
 .detail-hero__fade {
     position: absolute;
     inset: 0;
-    background: 
-        linear-gradient(to bottom, rgba(8,8,12,0.15) 0%, rgba(8,8,12,0.35) 45%, rgba(8,8,12,0.85) 75%, #08080c 100%),
-        linear-gradient(to right, rgba(8,8,12,0.75) 0%, rgba(8,8,12,0.15) 40%, transparent 60%, rgba(8,8,12,0.75) 100%);
+    background: linear-gradient(
+        to bottom,
+        rgba(8,8,12,0.2) 0%,
+        rgba(8,8,12,0.6) 50%,
+        rgba(8,8,12,0.95) 85%,
+        #08080c 100%
+    );
 }
-/* ── Poster overlap ── */
-.detail-poster-wrap { margin-top: -180px; position: relative; z-index: 10; }
+.detail-hero .container {
+    position: relative;
+    z-index: 10;
+}
+/* ── Poster wrap ── */
+.detail-poster-wrap { margin-top: 0 !important; position: relative; z-index: 10; }
 .detail-poster-wrap img, .detail-poster-fallback {
     width: 100%;
     max-width: 230px;
@@ -536,7 +543,7 @@
 
 {% block content %}
 
-<section class="detail-hero" aria-label="Movie backdrop banner">
+<section class="detail-hero position-relative" aria-label="Movie backdrop banner">
     {% if movie.backdrop_url %}
         <div class="detail-hero__bg"
              style="background-image: url('{{ movie.backdrop_url }}');"
@@ -547,147 +554,147 @@
              style="background: linear-gradient(135deg, #1a0533 0%, #0c1445 100%);"></div>
     {% endif %}
     <div class="detail-hero__fade"></div>
-</section>
 
-<section class="container" style="position:relative; z-index:5; margin-top:-2rem;">
-    <div class="row g-4 align-items-start">
+    <div class="container position-relative" style="z-index: 10;">
+        <div class="row g-4 align-items-end">
 
-        <div class="col-4 col-sm-3 col-md-auto text-start">
-            <div class="detail-poster-wrap">
-                {% if movie.poster_url %}
-                    <img id="detail-poster-img" src="{{ movie.poster_url }}?co=1" alt="{{ movie.title }} poster" crossorigin="anonymous" loading="lazy" onerror="this.removeAttribute('crossorigin'); this.src='{{ movie.poster_url }}';">
-                {% else %}
-                    <div class="detail-poster-fallback" style="width:230px; aspect-ratio:2/3; border-radius:14px;
-                                background:linear-gradient(135deg,rgba(168,85,247,0.15),rgba(59,130,246,0.15));
-                                border:3px solid rgba(168,85,247,0.3);
-                                display:flex; align-items:center; justify-content:center;">
-                        <i class="fa-solid fa-film" style="font-size:3rem; opacity:0.3;"></i>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="col-8 col-sm-9 col-md">
-            <div style="padding-top:0.25rem;">
-
-                <h1 style="font-size:clamp(1.6rem,4vw,2.8rem); font-weight:800;
-                            line-height:1.15; margin-bottom:0.5rem; letter-spacing:-0.02em;">
-                    {{ movie.title }}
-                </h1>
-
-                <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-                    {% if movie.release_date %}
-                    <span class="meta-pill">
-                        <i class="fa-regular fa-calendar"></i>
-                        {{ movie.release_date|slice:":4" }}
-                    </span>
-                    {% endif %}
-                    {% if movie.runtime and movie.runtime > 0 %}
-                    <span class="meta-pill">
-                        <i class="fa-regular fa-clock"></i>
-                        {{ movie.runtime }} min
-                    </span>
-                    {% endif %}
-                    {% if omdb_data %}
-                        <div class="d-inline-flex flex-wrap align-items-center gap-3 px-3 py-1.5 rounded-pill bg-dark bg-opacity-50" style="border: 1px solid rgba(255, 255, 255, 0.08);">
-                            {% if omdb_data.age_rating and omdb_data.age_rating != 'N/A' %}
-                                {% if omdb_data.age_rating == 'G' or omdb_data.age_rating == 'U' or omdb_data.age_rating == 'TV-G' or omdb_data.age_rating == 'TV-Y' %}
-                                <span class="badge bg-success text-white fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
-                                    {{ omdb_data.age_rating }}
-                                </span>
-                                {% elif omdb_data.age_rating == 'PG' or omdb_data.age_rating == 'PG-13' or omdb_data.age_rating == 'U/A' or omdb_data.age_rating == 'TV-PG' or omdb_data.age_rating == 'TV-14' %}
-                                <span class="badge bg-warning text-dark fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
-                                    {{ omdb_data.age_rating }}
-                                </span>
-                                {% elif omdb_data.age_rating == 'R' or omdb_data.age_rating == 'A' or omdb_data.age_rating == 'NC-17' or omdb_data.age_rating == 'TV-MA' %}
-                                <span class="badge bg-danger text-white fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
-                                    {{ omdb_data.age_rating }}
-                                </span>
-                                {% else %}
-                                <span class="badge bg-secondary text-white fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
-                                    {{ omdb_data.age_rating }}
-                                </span>
-                                {% endif %}
-                            {% endif %}
-                            
-                            {% if omdb_data.imdb_rating and omdb_data.imdb_rating != 'N/A' %}
-                            <span class="d-inline-flex align-items-center gap-1 text-warning fw-bold" style="font-size: 0.85rem;">
-                                <i class="fa-brands fa-imdb fs-5"></i>
-                                {{ omdb_data.imdb_rating }}
-                            </span>
-                            {% endif %}
-                            
-                            {% if omdb_data.rotten_tomatoes and omdb_data.rotten_tomatoes != 'N/A' %}
-                            <span class="d-inline-flex align-items-center gap-1 text-danger fw-bold" style="font-size: 0.85rem;">
-                                <i class="fa-solid fa-apple-whole"></i>
-                                {{ omdb_data.rotten_tomatoes }}
-                            </span>
-                            {% endif %}
+            <div class="col-4 col-sm-3 col-md-auto text-start">
+                <div class="detail-poster-wrap">
+                    {% if movie.poster_url %}
+                        <img id="detail-poster-img" src="{{ movie.poster_url }}?co=1" alt="{{ movie.title }} poster" crossorigin="anonymous" loading="lazy" onerror="this.removeAttribute('crossorigin'); this.src='{{ movie.poster_url }}';">
+                    {% else %}
+                        <div class="detail-poster-fallback" style="width:230px; aspect-ratio:2/3; border-radius:14px;
+                                    background:linear-gradient(135deg,rgba(168,85,247,0.15),rgba(59,130,246,0.15));
+                                    border:3px solid rgba(168,85,247,0.3);
+                                    display:flex; align-items:center; justify-content:center;">
+                            <i class="fa-solid fa-film" style="font-size:3rem; opacity:0.3;"></i>
                         </div>
                     {% endif %}
-                    {% if movie.vote_average and movie.vote_average > 0 %}
-                    <span class="rating-badge">
-                        <i class="fa-solid fa-star"></i>
-                        {{ movie.vote_average }} / 10
-                    </span>
-                    {% endif %}
                 </div>
+            </div>
 
-                {% if movie.genres %}
-                <div class="d-flex flex-wrap gap-2 mb-4">
-                    {% for genre in movie.genres %}
-                        {% if genre %}
-                        <a href="{% url 'movies_by_genre' genre_name=genre %}" class="text-decoration-none">
-                            <span class="genre-badge">{{ genre }}</span>
+            <div class="col-8 col-sm-9 col-md">
+                <div style="padding-top:0.25rem;">
+
+                    <h1 style="font-size:clamp(1.6rem,4vw,2.8rem); font-weight:800;
+                                line-height:1.15; margin-bottom:0.5rem; letter-spacing:-0.02em;">
+                        {{ movie.title }}
+                    </h1>
+
+                    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+                        {% if movie.release_date %}
+                        <span class="meta-pill">
+                            <i class="fa-regular fa-calendar"></i>
+                            {{ movie.release_date|slice:":4" }}
+                        </span>
+                        {% endif %}
+                        {% if movie.runtime and movie.runtime > 0 %}
+                        <span class="meta-pill">
+                            <i class="fa-regular fa-clock"></i>
+                            {{ movie.runtime }} min
+                        </span>
+                        {% endif %}
+                        {% if omdb_data %}
+                            <div class="d-inline-flex flex-wrap align-items-center gap-3 px-3 py-1.5 rounded-pill bg-dark bg-opacity-50" style="border: 1px solid rgba(255, 255, 255, 0.08);">
+                                {% if omdb_data.age_rating and omdb_data.age_rating != 'N/A' %}
+                                    {% if omdb_data.age_rating == 'G' or omdb_data.age_rating == 'U' or omdb_data.age_rating == 'TV-G' or omdb_data.age_rating == 'TV-Y' %}
+                                    <span class="badge bg-success text-white fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
+                                        {{ omdb_data.age_rating }}
+                                    </span>
+                                    {% elif omdb_data.age_rating == 'PG' or omdb_data.age_rating == 'PG-13' or omdb_data.age_rating == 'U/A' or omdb_data.age_rating == 'TV-PG' or omdb_data.age_rating == 'TV-14' %}
+                                    <span class="badge bg-warning text-dark fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
+                                        {{ omdb_data.age_rating }}
+                                    </span>
+                                    {% elif omdb_data.age_rating == 'R' or omdb_data.age_rating == 'A' or omdb_data.age_rating == 'NC-17' or omdb_data.age_rating == 'TV-MA' %}
+                                    <span class="badge bg-danger text-white fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
+                                        {{ omdb_data.age_rating }}
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-secondary text-white fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
+                                        {{ omdb_data.age_rating }}
+                                    </span>
+                                    {% endif %}
+                                {% endif %}
+                                
+                                {% if omdb_data.imdb_rating and omdb_data.imdb_rating != 'N/A' %}
+                                <span class="d-inline-flex align-items-center gap-1 text-warning fw-bold" style="font-size: 0.85rem;">
+                                    <i class="fa-brands fa-imdb fs-5"></i>
+                                    {{ omdb_data.imdb_rating }}
+                                </span>
+                                {% endif %}
+                                
+                                {% if omdb_data.rotten_tomatoes and omdb_data.rotten_tomatoes != 'N/A' %}
+                                <span class="d-inline-flex align-items-center gap-1 text-danger fw-bold" style="font-size: 0.85rem;">
+                                    <i class="fa-solid fa-apple-whole"></i>
+                                    {{ omdb_data.rotten_tomatoes }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                        {% if movie.vote_average and movie.vote_average > 0 %}
+                        <span class="rating-badge">
+                            <i class="fa-solid fa-star"></i>
+                            {{ movie.vote_average }} / 10
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    {% if movie.genres %}
+                    <div class="d-flex flex-wrap gap-2 mb-4">
+                        {% for genre in movie.genres %}
+                            {% if genre %}
+                            <a href="{% url 'movies_by_genre' genre_name=genre %}" class="text-decoration-none">
+                                <span class="genre-badge">{{ genre }}</span>
+                            </a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if tagline and tagline != "" %}
+                    <p class="text-muted fst-italic mb-4" style="font-size: 1.15rem; color: #a1a1aa !important; letter-spacing: 0.3px; max-width:620px; line-height:1.6;">
+                        "{{ tagline }}"
+                    </p>
+                    {% else %}
+                    <div class="mb-3"></div>
+                    {% endif %}
+
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                        {% if user.is_authenticated %}
+                        <button id="detail-watchlist-btn"
+                                class="btn rounded-pill px-3.5 py-2 {% if is_in_watchlist %}btn-watchlist-saved{% else %}btn-watchlist-add{% endif %}"
+                                data-saved="{{ is_in_watchlist|lower }}"
+                                data-media-id="{{ movie.id }}"
+                                onclick="toggleDetailWatchlist(this)"
+                                style="font-size:0.85rem; transition:all 0.3s ease;">
+                            {% if is_in_watchlist %}
+                                <i class="fa-solid fa-bookmark me-1.5"></i> Saved
+                            {% else %}
+                                <i class="fa-regular fa-bookmark me-1.5"></i> Add to Watchlist
+                            {% endif %}
+                        </button>
+                        {% else %}
+                        <a href="{% url 'login' %}?next={{ request.path }}"
+                           class="btn rounded-pill px-3.5 py-2 btn-watchlist-add d-inline-flex align-items-center justify-content-center text-decoration-none"
+                           style="font-size:0.85rem; transition:all 0.3s ease;">
+                            <i class="fa-solid fa-right-to-bracket me-1.5"></i> Sign In to Add
                         </a>
                         {% endif %}
-                    {% endfor %}
-                </div>
-                {% endif %}
-
-                {% if tagline and tagline != "" %}
-                <p class="text-muted fst-italic mb-4" style="font-size: 1.15rem; color: #a1a1aa !important; letter-spacing: 0.3px; max-width:620px; line-height:1.6;">
-                    "{{ tagline }}"
-                </p>
-                {% else %}
-                <div class="mb-3"></div>
-                {% endif %}
-
-                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-                    {% if user.is_authenticated %}
-                    <button id="detail-watchlist-btn"
-                            class="btn rounded-pill px-3.5 py-2 {% if is_in_watchlist %}btn-watchlist-saved{% else %}btn-watchlist-add{% endif %}"
-                            data-saved="{{ is_in_watchlist|lower }}"
-                            data-media-id="{{ movie.id }}"
-                            onclick="toggleDetailWatchlist(this)"
-                            style="font-size:0.85rem; transition:all 0.3s ease;">
-                        {% if is_in_watchlist %}
-                            <i class="fa-solid fa-bookmark me-1.5"></i> Saved
-                        {% else %}
-                            <i class="fa-regular fa-bookmark me-1.5"></i> Add to Watchlist
+                        {% if trailer_url %}
+                        <button onclick="openTrailerModal()"
+                                class="btn rounded-pill px-3.5 py-2 btn-watchlist-add"
+                                style="font-size:0.85rem; transition:all 0.3s ease; border-color: rgba(168,85,247,0.4); color: #c084fc;">
+                            <i class="fa-solid fa-play me-1.5"></i> Watch Trailer
+                        </button>
                         {% endif %}
-                    </button>
-                    {% else %}
-                    <a href="{% url 'login' %}?next={{ request.path }}"
-                       class="btn rounded-pill px-3.5 py-2 btn-watchlist-add d-inline-flex align-items-center justify-content-center text-decoration-none"
-                       style="font-size:0.85rem; transition:all 0.3s ease;">
-                        <i class="fa-solid fa-right-to-bracket me-1.5"></i> Sign In to Add
-                    </a>
-                    {% endif %}
-                    {% if trailer_url %}
-                    <button onclick="openTrailerModal()"
-                            class="btn rounded-pill px-3.5 py-2 btn-watchlist-add"
-                            style="font-size:0.85rem; transition:all 0.3s ease; border-color: rgba(168,85,247,0.4); color: #c084fc;">
-                        <i class="fa-solid fa-play me-1.5"></i> Watch Trailer
-                    </button>
-                    {% endif %}
-                    <button onclick="openMoviePlayerModal()"
-                            class="btn rounded-pill px-3.5 py-2 btn-watchlist-add"
-                            style="font-size:0.85rem; transition:all 0.3s ease; border-color: rgba(168,85,247,0.4); color: #c084fc;">
-                        <i class="fa-solid fa-tv me-1.5"></i> Watch Movie
-                    </button>
-                </div>
+                        <button onclick="openMoviePlayerModal()"
+                                class="btn rounded-pill px-3.5 py-2 btn-watchlist-add"
+                                style="font-size:0.85rem; transition:all 0.3s ease; border-color: rgba(168,85,247,0.4); color: #c084fc;">
+                            <i class="fa-solid fa-tv me-1.5"></i> Watch Movie
+                        </button>
+                    </div>
 
+                </div>
             </div>
         </div>
     </div>

@@ -335,12 +335,14 @@
 </head>
 <body>
 
-    <!-- 🌌 Concept 1: Ambient Mesh Glow Background -->
+    {% if request.resolver_match.url_name == 'for_you_feed' or request.resolver_match.url_name == 'home' %}
+    <!-- 🌌 Ambient Mesh Glow Background (Home Page Only) -->
     <div class="ambient-mesh-container">
         <div class="ambient-blob-1"></div>
         <div class="ambient-blob-2"></div>
         <div class="ambient-blob-3"></div>
     </div>
+    {% endif %}
 
     <!-- Cinematic Fullscreen Loader Overlay -->
     <div id="cinematic-loader" class="d-none">
