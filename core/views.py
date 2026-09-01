@@ -1342,7 +1342,7 @@ def movie_detail_view(request, movie_id):
         f"https://api.themoviedb.org/3/movie/{movie_id}"
         f"?api_key={api_key}"
         f"&language=en-US"
-        f"&append_to_response=credits,videos,watch/providers,similar,reviews,images,external_ids"
+        f"&append_to_response=credits,videos,watch/providers,similar,reviews,images,external_ids,keywords"
     )
 
     movie = {}
@@ -1776,6 +1776,8 @@ def movie_detail_view(request, movie_id):
                     'url': f"https://www.wikidata.org/wiki/{wikidata_id_val}",
                     'color': '#999999'
                 })
+            raw_keywords = data.get('keywords', {}).get('keywords', [])
+            keywords = [k.get('name') for k in raw_keywords if k.get('name')][:6]
         except Exception as e:
             print(f"[MOVIE DETAIL] Unexpected parsing error for movie_id={movie_id}: {e}")
             data = None
@@ -1928,6 +1930,7 @@ def movie_detail_view(request, movie_id):
         'omdb_data':             omdb_data,
         'gallery_images':        gallery_images,
         'external_links':        external_links,
+        'keywords':              keywords,
     }
 
     return render(request, 'core/movie_detail.html', context)
@@ -1962,7 +1965,7 @@ def tv_detail_view(request, series_id):
         f"https://api.themoviedb.org/3/tv/{series_id}"
         f"?api_key={api_key}"
         f"&language=en-US"
-        f"&append_to_response=credits,videos,watch/providers,similar,external_ids,reviews,images"
+        f"&append_to_response=credits,videos,watch/providers,similar,external_ids,reviews,images,keywords"
     )
 
     tv_show = {}
@@ -2327,6 +2330,8 @@ def tv_detail_view(request, series_id):
                     'url': f"https://www.wikidata.org/wiki/{wikidata_id_val}",
                     'color': '#999999'
                 })
+            raw_keywords = data.get('keywords', {}).get('results', []) or data.get('keywords', {}).get('keywords', [])
+            keywords = [k.get('name') for k in raw_keywords if k.get('name')][:6]
         except Exception as e:
             print(f"[TV DETAIL] Unexpected parsing error for series_id={series_id}: {e}")
             data = None
@@ -2496,6 +2501,7 @@ def tv_detail_view(request, series_id):
         'omdb_data':       omdb_data,
         'gallery_images':  gallery_images,
         'external_links':  external_links,
+        'keywords':        keywords,
     }
 
     return render(request, 'core/tv_detail.html', context)
