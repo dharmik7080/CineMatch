@@ -613,7 +613,7 @@
                     {% if movie.runtime and movie.runtime > 0 %}
                     <span class="meta-pill">
                         <i class="fa-regular fa-clock"></i>
-                        {{ movie.runtime }} min
+                        {% if movie.formatted_runtime %}{{ movie.formatted_runtime }}{% else %}{{ movie.runtime }} min{% endif %}
                     </span>
                     {% endif %}
                     {% if omdb_data %}

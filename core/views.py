@@ -1485,13 +1485,22 @@ def movie_detail_view(request, movie_id):
             usd_revenue = data.get('revenue', 0)
             inr_conversion_rate = 95.21
             
+            raw_runtime = data.get('runtime', 0) or 0
+            if raw_runtime > 0:
+                h = raw_runtime // 60
+                m = raw_runtime % 60
+                formatted_runtime = f"{h}h {m}m" if h > 0 and m > 0 else (f"{h}h" if h > 0 else f"{m}m")
+            else:
+                formatted_runtime = ""
+
             movie = {
                 'id':            data.get('id', movie_id),
                 'imdb_id':       data.get('imdb_id'),
                 'title':         data.get('title', 'Unknown Title'),
                 'overview':      data.get('overview', ''),
                 'release_date':  data.get('release_date', ''),
-                'runtime':       data.get('runtime', 0),
+                'runtime':       raw_runtime,
+                'formatted_runtime': formatted_runtime,
                 'vote_average':  round(data.get('vote_average', 0.0), 1),
                 'genres':        [g.get('name', '') for g in data.get('genres', [])],
                 'tagline':       data.get('tagline', ''),
