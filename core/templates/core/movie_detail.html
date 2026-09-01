@@ -619,6 +619,37 @@
 
 {% block content %}
 
+{% if "harry potter" in movie.title|lower %}
+<!-- 📜 Marauder's Map Parchment Intro Animation -->
+<div id="marauders-map-overlay" style="position: fixed; inset: 0; z-index: 99999; background: radial-gradient(circle, #f9f4e6 0%, #ebdcb9 70%, #d8c295 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; color: #2c1a0e; border: 12px solid #5a3c1e; box-shadow: inset 0 0 80px rgba(74, 44, 18, 0.6), 0 0 100px rgba(0, 0, 0, 0.9); opacity: 1; transition: opacity 0.65s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: auto;">
+    <div style="max-width: 640px; border: 2px solid #7a552c; padding: 2.5rem 2rem; border-radius: 12px; background: rgba(255, 253, 245, 0.5); box-shadow: 0 4px 24px rgba(90, 60, 30, 0.18); position: relative;">
+        <div style="font-size: 1.6rem; color: #7a552c; margin-bottom: 0.8rem;">⚡ ⚡ ⚡</div>
+        <h2 style="font-family: 'Georgia', 'Times New Roman', serif; font-size: 1.85rem; font-weight: 700; font-style: italic; letter-spacing: 0.8px; color: #3b220c; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); margin-bottom: 1rem; line-height: 1.4;">
+            "I solemnly swear that I am up to no good."
+        </h2>
+        <div style="font-family: 'Courier New', monospace; font-size: 0.82rem; letter-spacing: 2px; text-transform: uppercase; color: #8c6239; font-weight: 700;">
+            Messrs Moony, Wormtail, Padfoot, & Prongs
+        </div>
+        <div style="margin-top: 1.2rem; font-size: 1.2rem; color: #7a552c; opacity: 0.85;">
+            🐾 🐾 🐾
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    const overlay = document.getElementById('marauders-map-overlay');
+    if (overlay) {
+        setTimeout(function() {
+            overlay.style.opacity = '0';
+            setTimeout(function() {
+                overlay.remove();
+            }, 650);
+        }, 2200);
+    }
+})();
+</script>
+{% endif %}
+
 <!-- 🌌 Dynamic Ambient Background Glow Wrapper -->
 <div id="ambient-glow-background" aria-hidden="true" style="position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;">
     {% if movie.backdrop_url %}
