@@ -1352,6 +1352,8 @@ def movie_detail_view(request, movie_id):
     watch_providers = []
     similar_movies = []
     tmdb_reviews = []
+    tastedive_recs = []
+    tastedive_active = False
     belongs_to_collection = None
     collection_movies = []
     collection_name = ""
@@ -1893,6 +1895,7 @@ def tv_detail_view(request, series_id):
     watch_providers = []
     similar_shows = []
     tastedive_recs = []
+    tastedive_active = False
     omdb_data = None
     tmdb_reviews = []
 
