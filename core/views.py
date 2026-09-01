@@ -1356,6 +1356,8 @@ def movie_detail_view(request, movie_id):
     tastedive_active = False
     gallery_images = []
     external_links = []
+    keywords = []
+    director = None
     belongs_to_collection = None
     collection_movies = []
     collection_name = ""
@@ -1977,6 +1979,7 @@ def tv_detail_view(request, series_id):
     tastedive_active = False
     gallery_images = []
     external_links = []
+    keywords = []
     omdb_data = None
     tmdb_reviews = []
 
