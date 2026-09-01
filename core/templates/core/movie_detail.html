@@ -621,7 +621,7 @@
 
 {% if "harry potter" in movie.title|lower %}
 <!-- 📜 Marauder's Map Parchment Intro Animation -->
-<div id="marauders-map-overlay" style="position: fixed; inset: 0; z-index: 99999; background: radial-gradient(circle at 50% 50%, #f7f0df 0%, #dfcea8 45%, #9e7b56 80%, #6b4f31 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; color: #2e1503; border: 14px solid #4a331c; box-shadow: inset 0 0 120px rgba(45, 30, 15, 0.85), 0 0 100px rgba(0, 0, 0, 0.95); opacity: 1; transition: opacity 0.65s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: auto;">
+<div id="marauders-map-overlay" style="position: fixed; inset: 0; z-index: 99999; background: radial-gradient(circle at 50% 50%, #f7f0df 0%, #dfcea8 45%, #9e7b56 80%, #6b4f31 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; color: #2e1503; border: 14px solid #4a331c; box-shadow: inset 0 0 120px rgba(45, 30, 15, 0.85), 0 0 100px rgba(0, 0, 0, 0.95); opacity: 1; transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: auto;">
     <div style="max-width: 660px; width: 90%; border: 4px double rgba(92, 64, 51, 0.8); padding: 2.8rem 2.2rem; border-radius: 16px; background: rgba(255, 252, 242, 0.65); backdrop-filter: blur(4px); box-shadow: 0 10px 40px rgba(60, 40, 20, 0.3), inset 0 0 20px rgba(120, 85, 45, 0.15); position: relative;">
         <div style="font-size: 1.7rem; color: #b45309; text-shadow: 0 1px 2px rgba(255,255,255,0.6); margin-bottom: 0.8rem; letter-spacing: 4px;">⚡ ⚡ ⚡</div>
         <h2 style="font-family: 'Georgia', 'Times New Roman', serif; font-size: 2.05rem; font-weight: 800; font-style: italic; letter-spacing: 1.2px; color: #2e1503; text-shadow: 1px 1px 2px rgba(255, 248, 230, 0.9); margin-bottom: 1.2rem; line-height: 1.38;">
@@ -643,8 +643,8 @@
             overlay.style.opacity = '0';
             setTimeout(function() {
                 overlay.remove();
-            }, 650);
-        }, 2200);
+            }, 800);
+        }, 4200);
     }
 })();
 </script>
@@ -662,7 +662,7 @@
 }
 </style>
 <!-- 🩸 Stranger Things "Upside Down" Red Neon Intro Animation -->
-<div id="upside-down-overlay" style="position: fixed; inset: 0; z-index: 99999; background: radial-gradient(ellipse at center, rgba(153, 27, 27, 0.78) 0%, rgba(12, 2, 2, 0.96) 60%, rgba(0, 0, 0, 1) 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; color: #fee2e2; border: 4px solid rgba(220, 38, 38, 0.5); box-shadow: inset 0 0 120px rgba(185, 28, 28, 0.6), 0 0 100px rgba(0, 0, 0, 0.95); opacity: 1; transition: opacity 0.65s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: auto;">
+<div id="upside-down-overlay" style="position: fixed; inset: 0; z-index: 99999; background: radial-gradient(ellipse at center, rgba(153, 27, 27, 0.78) 0%, rgba(12, 2, 2, 0.96) 60%, rgba(0, 0, 0, 1) 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; color: #fee2e2; border: 4px solid rgba(220, 38, 38, 0.5); box-shadow: inset 0 0 120px rgba(185, 28, 28, 0.6), 0 0 100px rgba(0, 0, 0, 0.95); opacity: 1; transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: auto;">
     <div style="max-width: 720px; width: 90%; border: 2px solid rgba(220, 38, 38, 0.45); padding: 3rem 2rem; border-radius: 16px; background: rgba(10, 0, 0, 0.65); backdrop-filter: blur(6px); box-shadow: 0 0 40px rgba(220, 38, 38, 0.35), inset 0 0 25px rgba(185, 28, 28, 0.2); position: relative;">
         <div style="font-size: 0.8rem; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; color: #ef4444; margin-bottom: 1rem; text-shadow: 0 0 10px rgba(239, 68, 68, 0.6);">
             ✦ HAWKINS, INDIANA — 1983 ✦
@@ -684,8 +684,8 @@
             overlay.style.opacity = '0';
             setTimeout(function() {
                 overlay.remove();
-            }, 650);
-        }, 2200);
+            }, 800);
+        }, 4200);
     }
 })();
 </script>
