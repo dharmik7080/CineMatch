@@ -809,6 +809,52 @@
 </script>
 {% endif %}
 
+{% if movie.id == 299534 or "endgame" in movie.title|lower %}
+<style>
+@keyframes quantumVortexSpin {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.08); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+@keyframes quantumPurpleGlow {
+    0%, 100% { opacity: 1; text-shadow: 0 0 20px rgba(168, 85, 247, 0.95), 0 0 45px rgba(147, 51, 234, 0.8), 0 0 70px rgba(126, 34, 206, 0.6); transform: scale(1); }
+    50% { opacity: 0.9; text-shadow: 0 0 35px rgba(192, 132, 252, 1), 0 0 70px rgba(168, 85, 247, 0.9), 0 0 100px rgba(147, 51, 234, 0.75); transform: scale(1.02); }
+}
+</style>
+<!-- 🛡️ Avengers: Endgame Quantum Realm Intro Animation -->
+<div id="endgame-overlay" style="position: fixed; inset: 0; z-index: 99999; background: radial-gradient(circle at center, rgba(147, 51, 234, 0.35) 0%, rgba(59, 130, 246, 0.25) 45%, rgba(15, 23, 42, 0.85) 75%, rgba(0, 0, 0, 0.98) 100%); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; color: #f3e8ff; opacity: 1; transition: opacity 0.85s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: auto; overflow: hidden;">
+    <!-- 🌀 Quantum Realm Vortex Tunnel Background -->
+    <div style="position: absolute; width: 660px; height: 660px; border-radius: 50%; background: radial-gradient(circle, rgba(168, 85, 247, 0.18) 0%, rgba(59, 130, 246, 0.15) 55%, transparent 75%); border: 2px dashed rgba(168, 85, 247, 0.35); animation: quantumVortexSpin 22s linear infinite; pointer-events: none;"></div>
+    
+    <!-- 🛡️ Avengers Endgame Glassmorphic Card Frame -->
+    <div style="max-width: 740px; width: 90%; border: 4px double rgba(168, 85, 247, 0.6); padding: 3rem 2.2rem; border-radius: 20px; background: rgba(15, 10, 30, 0.75); backdrop-filter: blur(16px); box-shadow: 0 0 50px rgba(168, 85, 247, 0.4), inset 0 0 30px rgba(147, 51, 234, 0.3), 0 20px 50px rgba(0, 0, 0, 0.8); position: relative; z-index: 2;">
+        <div style="font-size: 0.82rem; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; color: #c084fc; margin-bottom: 1.1rem; text-shadow: 0 0 12px rgba(192, 132, 252, 0.6);">
+            ✦ QUANTUM REALM • TIME TRAVEL PROTOCOL ✦
+        </div>
+        <h1 style="font-family: 'Georgia', 'Times New Roman', serif; font-size: 2.35rem; font-weight: 900; letter-spacing: 2.5px; text-transform: uppercase; color: #e9d5ff; margin-bottom: 1.2rem; line-height: 1.35; animation: quantumPurpleGlow 2.4s infinite ease-in-out;">
+            "WHATEVER IT TAKES."
+        </h1>
+        <div style="width: 150px; height: 3px; background: #a855f7; margin: 1.4rem auto; box-shadow: 0 0 15px #c084fc, 0 0 30px #a855f7;"></div>
+        <div style="font-family: 'Courier New', monospace; font-size: 0.85rem; letter-spacing: 3px; text-transform: uppercase; color: #d8b4fe; font-weight: 700; opacity: 0.95;">
+            AVENGERS • THE INFINITY SAGA FINALE
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    const overlay = document.getElementById('endgame-overlay');
+    if (overlay) {
+        setTimeout(function() {
+            overlay.style.opacity = '0';
+            setTimeout(function() {
+                overlay.remove();
+            }, 850);
+        }, 2200);
+    }
+})();
+</script>
+{% endif %}
+
 <!-- 🌌 Dynamic Ambient Background Glow Wrapper -->
 <div id="ambient-glow-background" aria-hidden="true" style="position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;">
     {% if movie.backdrop_url %}
