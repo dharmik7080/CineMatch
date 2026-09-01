@@ -105,6 +105,8 @@
     position: relative;
     height: 52vh;
     min-height: 360px;
+    margin-top: 0;
+    padding-top: 0;
     overflow: hidden;
     background: #08080c;
     -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 85%, rgba(0,0,0,0) 100%);
@@ -136,12 +138,17 @@
 .detail-poster-wrap img, .detail-poster-fallback {
     width: 100%;
     max-width: 230px;
-    border-radius: 14px;
-    border: 3px solid rgba(168,85,247,0.35);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+    border-radius: 16px;
+    border: 2px solid rgba(168,85,247,0.4);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.9), 0 0 30px rgba(168,85,247,0.25), 0 0 0 1px rgba(255,255,255,0.1);
     object-fit: cover;
     aspect-ratio: 2 / 3;
     display: block;
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+.detail-poster-wrap img:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 20px 55px rgba(0,0,0,0.95), 0 0 40px rgba(168,85,247,0.4);
 }
 @media (max-width: 767.98px) {
     .detail-poster-wrap {
@@ -151,10 +158,43 @@
     }
     .detail-poster-wrap img, .detail-poster-fallback {
         max-width: 100%;
-        border-radius: 10px;
+        border-radius: 12px;
         border-width: 2px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.85), 0 0 15px rgba(168,85,247,0.25);
+        box-shadow: 0 12px 32px rgba(0,0,0,0.9), 0 0 20px rgba(168,85,247,0.3);
     }
+}
+/* ── Frosted Metadata Pill Container ── */
+.metadata-bar-glass {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.45rem 1rem;
+    background: rgba(15, 10, 25, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 50px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    margin-bottom: 1.25rem;
+}
+.detail-title-heading {
+    font-size: clamp(1.8rem, 4.5vw, 3rem);
+    font-weight: 800;
+    line-height: 1.12;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.02em;
+    color: #ffffff !important;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.7), 0 4px 20px rgba(0,0,0,0.5);
+}
+.detail-tagline {
+    font-size: 1.15rem;
+    color: #e4e4e7 !important;
+    font-style: italic;
+    letter-spacing: 0.3px;
+    max-width: 650px;
+    line-height: 1.6;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.65);
 }
 /* ── Badges ── */
 .genre-badge {
@@ -622,12 +662,11 @@
         <div class="col-8 col-sm-9 col-md">
             <div style="padding-top:0.25rem;">
 
-                <h1 style="font-size:clamp(1.6rem,4vw,2.8rem); font-weight:800;
-                            line-height:1.15; margin-bottom:0.5rem; letter-spacing:-0.02em; color: #ffffff !important;">
+                <h1 class="detail-title-heading">
                     {{ movie.title }}
                 </h1>
 
-                <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+                <div class="metadata-bar-glass">
                     {% if movie.release_date %}
                     <span class="meta-pill">
                         <i class="fa-regular fa-calendar"></i>
@@ -641,44 +680,42 @@
                     </span>
                     {% endif %}
                     {% if omdb_data %}
-                        <div class="d-inline-flex flex-wrap align-items-center gap-3 px-3 py-1.5 rounded-pill bg-dark bg-opacity-50" style="border: 1px solid rgba(255, 255, 255, 0.08);">
-                            {% if omdb_data.age_rating and omdb_data.age_rating != 'N/A' %}
-                                {% if omdb_data.age_rating == 'G' or omdb_data.age_rating == 'U' or omdb_data.age_rating == 'TV-G' or omdb_data.age_rating == 'TV-Y' %}
-                                <span class="badge bg-success text-white fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
-                                    {{ omdb_data.age_rating }}
-                                </span>
-                                {% elif omdb_data.age_rating == 'PG' or omdb_data.age_rating == 'PG-13' or omdb_data.age_rating == 'U/A' or omdb_data.age_rating == 'TV-PG' or omdb_data.age_rating == 'TV-14' %}
-                                <span class="badge bg-warning text-dark fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
-                                    {{ omdb_data.age_rating }}
-                                </span>
-                                {% elif omdb_data.age_rating == 'R' or omdb_data.age_rating == 'A' or omdb_data.age_rating == 'NC-17' or omdb_data.age_rating == 'TV-MA' %}
-                                <span class="badge bg-danger text-white fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
-                                    {{ omdb_data.age_rating }}
-                                </span>
-                                {% else %}
-                                <span class="badge bg-secondary text-white fw-bold px-2 py-1 rounded" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.72rem;">
-                                    {{ omdb_data.age_rating }}
-                                </span>
-                                {% endif %}
-                            {% endif %}
-                            
-                            {% if omdb_data.imdb_rating and omdb_data.imdb_rating != 'N/A' %}
-                            <span class="d-inline-flex align-items-center gap-1 text-warning fw-bold" style="font-size: 0.85rem;">
-                                <i class="fa-brands fa-imdb fs-5"></i>
-                                {{ omdb_data.imdb_rating }}
+                        {% if omdb_data.age_rating and omdb_data.age_rating != 'N/A' %}
+                            {% if omdb_data.age_rating == 'G' or omdb_data.age_rating == 'U' or omdb_data.age_rating == 'TV-G' or omdb_data.age_rating == 'TV-Y' %}
+                            <span class="badge bg-success text-white fw-bold px-2.5 py-1 rounded-pill" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.75rem;">
+                                {{ omdb_data.age_rating }}
+                            </span>
+                            {% elif omdb_data.age_rating == 'PG' or omdb_data.age_rating == 'PG-13' or omdb_data.age_rating == 'U/A' or omdb_data.age_rating == 'TV-PG' or omdb_data.age_rating == 'TV-14' %}
+                            <span class="badge bg-warning text-dark fw-bold px-2.5 py-1 rounded-pill" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.75rem;">
+                                {{ omdb_data.age_rating }}
+                            </span>
+                            {% elif omdb_data.age_rating == 'R' or omdb_data.age_rating == 'A' or omdb_data.age_rating == 'NC-17' or omdb_data.age_rating == 'TV-MA' %}
+                            <span class="badge bg-danger text-white fw-bold px-2.5 py-1 rounded-pill" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.75rem;">
+                                {{ omdb_data.age_rating }}
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary text-white fw-bold px-2.5 py-1 rounded-pill" aria-label="Content rated {{ omdb_data.age_rating }}" style="font-size: 0.75rem;">
+                                {{ omdb_data.age_rating }}
                             </span>
                             {% endif %}
-                            
-                            {% if omdb_data.rotten_tomatoes and omdb_data.rotten_tomatoes != 'N/A' %}
-                            <span class="d-inline-flex align-items-center gap-1 text-danger fw-bold" style="font-size: 0.85rem;">
-                                <i class="fa-solid fa-apple-whole"></i>
-                                {{ omdb_data.rotten_tomatoes }}
-                            </span>
-                            {% endif %}
-                        </div>
+                        {% endif %}
+                        
+                        {% if omdb_data.imdb_rating and omdb_data.imdb_rating != 'N/A' %}
+                        <span class="d-inline-flex align-items-center gap-1 text-warning fw-bold" style="font-size: 0.85rem;">
+                            <i class="fa-brands fa-imdb fs-5"></i>
+                            {{ omdb_data.imdb_rating }}
+                        </span>
+                        {% endif %}
+                        
+                        {% if omdb_data.rotten_tomatoes and omdb_data.rotten_tomatoes != 'N/A' %}
+                        <span class="d-inline-flex align-items-center gap-1 text-danger fw-bold" style="font-size: 0.85rem;">
+                            <i class="fa-solid fa-apple-whole"></i>
+                            {{ omdb_data.rotten_tomatoes }}
+                        </span>
+                        {% endif %}
                     {% endif %}
                     {% if movie.vote_average and movie.vote_average > 0 %}
-                    <span class="rating-badge">
+                    <span class="rating-badge m-0">
                         <i class="fa-solid fa-star"></i>
                         {{ movie.vote_average }} / 10
                     </span>
@@ -698,7 +735,7 @@
                 {% endif %}
 
                 {% if tagline and tagline != "" %}
-                <p class="text-muted fst-italic mb-4" style="font-size: 1.15rem; color: #a1a1aa !important; letter-spacing: 0.3px; max-width:620px; line-height:1.6;">
+                <p class="detail-tagline mb-4">
                     "{{ tagline }}"
                 </p>
                 {% else %}
