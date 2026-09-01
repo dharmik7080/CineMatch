@@ -763,52 +763,6 @@
 </script>
 {% endif %}
 
-{% if movie.id == 157336 or "interstellar" in movie.title|lower %}
-<style>
-@keyframes wormholeSpin {
-    0% { transform: rotate(0deg) scale(1); }
-    50% { transform: rotate(180deg) scale(1.04); }
-    100% { transform: rotate(360deg) scale(1); }
-}
-@keyframes interstellarAmberGlow {
-    0%, 100% { opacity: 1; text-shadow: 0 0 20px rgba(245, 158, 11, 0.85), 0 0 45px rgba(217, 119, 6, 0.75), 0 0 70px rgba(180, 83, 9, 0.5); transform: scale(1); }
-    50% { opacity: 0.9; text-shadow: 0 0 35px rgba(251, 191, 36, 1), 0 0 70px rgba(245, 158, 11, 0.9), 0 0 100px rgba(217, 119, 6, 0.75); transform: scale(1.01); }
-}
-</style>
-<!-- 🚀 Interstellar High-Tech Translucent HUD Wormhole Intro Animation -->
-<div id="interstellar-overlay" style="position: fixed; inset: 0; z-index: 99999; background: radial-gradient(circle at center, rgba(30, 58, 138, 0.3) 0%, rgba(15, 23, 42, 0.55) 50%, rgba(0, 0, 0, 0.75) 100%); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; color: #fffbeb; opacity: 1; transition: opacity 0.85s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: auto; overflow: hidden;">
-    <!-- 🌀 Wormhole Accretion Ring Overlay -->
-    <div style="position: absolute; width: 640px; height: 640px; border-radius: 50%; background: radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, rgba(30, 58, 138, 0.15) 55%, transparent 75%); border: 2px dashed rgba(30, 58, 138, 0.35); animation: wormholeSpin 24s linear infinite; pointer-events: none;"></div>
-    
-    <!-- 🚀 Cold Blue-Gray Viewport HUD Frame -->
-    <div style="max-width: 740px; width: 90%; border: 4px double rgba(30, 58, 138, 0.55); padding: 3rem 2.2rem; border-radius: 20px; background: rgba(5, 12, 28, 0.65); backdrop-filter: blur(16px); box-shadow: 0 0 50px rgba(30, 58, 138, 0.4), inset 0 0 30px rgba(15, 23, 42, 0.6), 0 20px 50px rgba(0, 0, 0, 0.8); position: relative; z-index: 2;">
-        <div style="font-size: 0.8rem; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; color: #60a5fa; margin-bottom: 1.1rem; text-shadow: 0 0 10px rgba(96, 165, 250, 0.6);">
-            ✦ ENDURANCE MISSION • CRITICAL TELEMETRY ✦
-        </div>
-        <h1 style="font-family: 'Georgia', 'Times New Roman', serif; font-size: 2.15rem; font-weight: 900; font-style: italic; letter-spacing: 1.5px; text-transform: uppercase; color: #fbbf24; margin-bottom: 1.2rem; line-height: 1.35; animation: interstellarAmberGlow 2.5s infinite ease-in-out;">
-            "MANKIND WAS BORN ON EARTH.<br>IT WAS NEVER MEANT TO DIE HERE."
-        </h1>
-        <div style="width: 140px; height: 2px; background: #f59e0b; margin: 1.4rem auto; box-shadow: 0 0 15px #fbbf24, 0 0 30px #f59e0b;"></div>
-        <div style="font-family: 'Courier New', monospace; font-size: 0.82rem; letter-spacing: 2.8px; text-transform: uppercase; color: #fcd34d; font-weight: 700; opacity: 0.95;">
-            1 HOUR HERE IS 7 YEARS ON EARTH • MILLER'S PLANET
-        </div>
-    </div>
-</div>
-<script>
-(function() {
-    const overlay = document.getElementById('interstellar-overlay');
-    if (overlay) {
-        setTimeout(function() {
-            overlay.style.opacity = '0';
-            setTimeout(function() {
-                overlay.remove();
-            }, 850);
-        }, 2200);
-    }
-})();
-</script>
-{% endif %}
-
 {% if movie.id == 299534 or "endgame" in movie.title|lower %}
 <style>
 @keyframes quantumVortexSpin {
