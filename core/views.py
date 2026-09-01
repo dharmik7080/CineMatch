@@ -1378,12 +1378,16 @@ def movie_detail_view(request, movie_id):
         cached_record = CachedMedia.objects.get(media_id=movie_id_val, media_type='movie')
         is_manual_override = cached_record.is_manual_override
         manual_providers = cached_record.manual_providers or []
-        is_stale = (timezone.now() - cached_record.updated_at) > timedelta(days=7)
+        cached_data = cached_record.data or {}
+        
+        # 100% Automatic Sync: Auto-refresh if cache > 24 hours or if missing backdrop image
+        has_no_backdrop = not cached_data.get('backdrop_path')
+        is_stale = (timezone.now() - cached_record.updated_at) > timedelta(hours=24) or has_no_backdrop
 
-        if force_refresh or (is_stale and not is_manual_override):
+        if (is_stale and not is_manual_override) or force_refresh:
             data = None
         else:
-            data = cached_record.data
+            data = cached_data
     except CachedMedia.DoesNotExist:
         data = None
 
@@ -2007,11 +2011,13 @@ def tv_detail_view(request, series_id):
 
     try:
         cached_record = CachedMedia.objects.get(media_id=series_id_val, media_type='tv')
-        is_stale = (timezone.now() - cached_record.updated_at) > timedelta(days=7)
+        cached_data = cached_record.data or {}
+        has_no_backdrop = not cached_data.get('backdrop_path')
+        is_stale = (timezone.now() - cached_record.updated_at) > timedelta(hours=24) or has_no_backdrop
         if force_refresh or is_stale:
             data = None
         else:
-            data = cached_record.data
+            data = cached_data
     except CachedMedia.DoesNotExist:
         data = None
 
