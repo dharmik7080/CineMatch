@@ -754,6 +754,46 @@
                 <div class="mb-3"></div>
                 {% endif %}
 
+                {% if movie.id == 1003596 or not is_released %}
+                <!-- ⏳ Glassmorphic Theatrical Release Countdown Banner -->
+                <div id="release-countdown-card" class="mb-4 p-3 rounded-4" style="background: rgba(18, 12, 38, 0.65); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(168, 85, 247, 0.35); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1); max-width: 480px; position: relative; overflow: hidden;">
+                    <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.12), transparent 70%); pointer-events: none;"></div>
+                    
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge rounded-pill px-2.5 py-1" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px;">
+                                <i class="fa-solid fa-film me-1"></i> THEATRICAL RELEASE (INDIA)
+                            </span>
+                        </div>
+                        <span class="small text-secondary" style="font-size: 0.75rem; letter-spacing: 0.2px;">
+                            <i class="fa-solid fa-calendar-day text-accent me-1"></i> {% if movie.id == 1003596 %}Dec 18, 2026{% else %}{{ movie.release_date }}{% endif %}
+                        </span>
+                    </div>
+
+                    <div id="countdown-timer-display" class="d-flex align-items-center justify-content-between gap-2 mt-2 pt-1">
+                        <div class="text-center flex-fill py-2 px-1 rounded-3" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08);">
+                            <div id="cd-days" class="fw-bold text-white fs-4" style="line-height: 1; font-family: 'Space Grotesk', system-ui, sans-serif; text-shadow: 0 0 12px rgba(168, 85, 247, 0.6);">00</div>
+                            <div class="text-uppercase text-secondary mt-1" style="font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">Days</div>
+                        </div>
+                        <div class="text-secondary fw-bold fs-5">:</div>
+                        <div class="text-center flex-fill py-2 px-1 rounded-3" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08);">
+                            <div id="cd-hours" class="fw-bold text-white fs-4" style="line-height: 1; font-family: 'Space Grotesk', system-ui, sans-serif; text-shadow: 0 0 12px rgba(168, 85, 247, 0.6);">00</div>
+                            <div class="text-uppercase text-secondary mt-1" style="font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">Hours</div>
+                        </div>
+                        <div class="text-secondary fw-bold fs-5">:</div>
+                        <div class="text-center flex-fill py-2 px-1 rounded-3" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08);">
+                            <div id="cd-minutes" class="fw-bold text-white fs-4" style="line-height: 1; font-family: 'Space Grotesk', system-ui, sans-serif; text-shadow: 0 0 12px rgba(168, 85, 247, 0.6);">00</div>
+                            <div class="text-uppercase text-secondary mt-1" style="font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">Mins</div>
+                        </div>
+                        <div class="text-secondary fw-bold fs-5">:</div>
+                        <div class="text-center flex-fill py-2 px-1 rounded-3" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(168, 85, 247, 0.3);">
+                            <div id="cd-seconds" class="fw-bold text-accent fs-4" style="line-height: 1; font-family: 'Space Grotesk', system-ui, sans-serif; text-shadow: 0 0 12px rgba(168, 85, 247, 0.8);">00</div>
+                            <div class="text-uppercase text-accent mt-1" style="font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">Secs</div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <div class="d-flex flex-wrap align-items-center gap-3 mt-3">
                     {% if user.is_authenticated %}
                     <button id="detail-watchlist-btn"
@@ -1851,12 +1891,56 @@ function applyDynamicTheme(imgEl) {
             const g = color[1];
             const b = color[2];
             // Only update background ambient glow, NEVER text or accent-color variables
-            glowBg.style.background = `radial-gradient(circle at 35% 25%, rgba(${r}, ${g}, ${b}, 0.25) 0%, rgba(8, 8, 12, 1) 75%)`;
         }
     } catch (e) {
         console.warn("Dynamic theme extraction note:", e);
     }
 }
+
+// ── ⏳ LIVE THEATRICAL RELEASE COUNTDOWN LOGIC ──
+document.addEventListener('DOMContentLoaded', function() {
+    const cdContainer = document.getElementById('release-countdown-card');
+    if (!cdContainer) return;
+
+    const targetDateStr = "{% if movie.id == 1003596 %}2026-12-18T00:00:00+05:30{% else %}{{ movie.release_date }}T00:00:00{% endif %}";
+    const targetDate = new Date(targetDateStr).getTime();
+    if (isNaN(targetDate)) return;
+
+    const daysEl = document.getElementById('cd-days');
+    const hoursEl = document.getElementById('cd-hours');
+    const minutesEl = document.getElementById('cd-minutes');
+    const secondsEl = document.getElementById('cd-seconds');
+    const displayEl = document.getElementById('countdown-timer-display');
+
+    function updateReleaseTimer() {
+        const now = new Date().getTime();
+        const distance = targetDate - now;
+
+        if (distance <= 0) {
+            if (displayEl) {
+                displayEl.innerHTML = `
+                    <div class="w-100 text-center py-2 px-3 rounded-3" style="background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); color: #4ade80; font-size: 0.9rem; letter-spacing: 0.5px;">
+                        <i class="fa-solid fa-clapperboard me-2"></i> <strong>NOW SHOWING IN CINEMAS</strong>
+                    </div>
+                `;
+            }
+            return;
+        }
+
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        if (daysEl) daysEl.innerText = String(days).padStart(2, '0');
+        if (hoursEl) hoursEl.innerText = String(hours).padStart(2, '0');
+        if (minutesEl) minutesEl.innerText = String(minutes).padStart(2, '0');
+        if (secondsEl) secondsEl.innerText = String(seconds).padStart(2, '0');
+    }
+
+    updateReleaseTimer();
+    setInterval(updateReleaseTimer, 1000);
+});
 function dismissRecommendation(btn, mediaId, mediaType) {
     const cardCol = btn.closest('.col');
     if (!cardCol) return;
