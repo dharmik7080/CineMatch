@@ -870,25 +870,51 @@
             </div>
             {% endif %}
 
+            {% if creators %}
+            <div class="mb-5">
+                <h2 class="section-heading">Created & Directed By</h2>
+                <div class="d-flex flex-wrap gap-3">
+                    {% for creator in creators %}
+                        {% if creator.id %}
+                        <a href="{% url 'person_profile' creator.id %}" class="text-decoration-none" style="display: block; min-width: 250px;">
+                            <div class="cast-card d-flex align-items-center justify-content-start text-start p-3 rounded-3" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); transition: all 0.3s ease;">
+                                <img src="{{ creator.profile_url }}" 
+                                    alt="{{ creator.name }}" 
+                                    style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(168,85,247,0.35); margin-right: 1rem;">
+                                <div>
+                                    <div class="cast-name text-accent" style="margin-bottom: 0.15rem; font-weight: 700;">{{ creator.name }}</div>
+                                    <div class="cast-char" style="font-size: 0.82rem; color: #a1a1aa;">{{ creator.role }} <i class="fa-solid fa-chevron-right ms-1 small text-secondary"></i></div>
+                                </div>
+                            </div>
+                        </a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             {% if cast %}
             <div class="mb-5">
                 <h2 class="section-heading">Top Cast</h2>
-                <div class="cast-grid">
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4" style="max-width: 896px; margin: 0;">
                     {% for member in cast %}
-                    {% if member.id %}
-                    <a href="{% url 'person_profile' member.id %}" class="text-decoration-none" style="display: block;">
-                        <div class="cast-card h-100" style="transition: all 0.3s ease;">
-                            <img src="{{ member.profile_url }}"
-                                 alt="{{ member.name }}"
-                                 loading="lazy"
-                                 onerror="this.src='https://ui-avatars.com/api/?name={{ member.name|urlencode }}&background=2d1b4e&color=c084fc&size=72'">
-                            <div class="cast-name text-accent" title="{{ member.name }}" style="font-weight: 600;">{{ member.name }}</div>
-                            {% if member.character %}
-                                <div class="cast-char" title="{{ member.character }}">{{ member.character }}</div>
+                    <div class="col" style="padding: 0.5rem;">
+                        <div class="cast-card h-100 position-relative p-3 rounded-3" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; align-items: center; text-align: center; transition: all 0.3s ease;">
+                            {% if member.id %}
+                            <a href="{% url 'person_profile' member.id %}" class="text-decoration-none stretch-link w-100 d-flex flex-column align-items-center" style="color: inherit;">
+                                <img src="{{ member.profile_url }}" 
+                                     alt="{{ member.name }}" 
+                                     loading="lazy"
+                                     style="width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(168,85,247,0.35); margin-bottom: 0.75rem;"
+                                     onerror="this.src='https://ui-avatars.com/api/?name={{ member.name|urlencode }}&background=2d1b4e&color=c084fc&size=72'">
+                                <div class="cast-name text-accent fw-bold" style="font-size: 0.95rem; line-height: 1.25; margin-bottom: 0.25rem;">{{ member.name }}</div>
+                                {% if member.character %}
+                                    <div class="cast-char text-secondary small" style="font-size: 0.8rem; line-height: 1.2;">{{ member.character }}</div>
+                                {% endif %}
+                            </a>
                             {% endif %}
                         </div>
-                    </a>
-                    {% endif %}
+                    </div>
                     {% endfor %}
                 </div>
             </div>

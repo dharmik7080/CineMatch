@@ -2094,9 +2094,41 @@ def tv_detail_view(request, series_id):
                 ),
             }
 
+            creators = []
+            for c in data.get('created_by', []):
+                profile_path = c.get('profile_path') or ''
+                creators.append({
+                    'id': c.get('id'),
+                    'name': c.get('name', ''),
+                    'profile_url': (
+                        f"https://image.tmdb.org/t/p/w185{profile_path}"
+                        if profile_path else
+                        'https://ui-avatars.com/api/?name=' + urllib.parse.quote_plus(c.get('name', 'Creator')) + '&background=2d1b4e&color=c084fc&size=72'
+                    ),
+                    'role': 'Creator / Showrunner'
+                })
+
             credits_payload = data.get('credits', {})
+            if not creators:
+                crew = credits_payload.get('crew', [])
+                for member in crew:
+                    if member.get('job') in ['Executive Producer', 'Director', 'Series Director', 'Showrunner']:
+                        profile_path = member.get('profile_path') or ''
+                        creators.append({
+                            'id': member.get('id'),
+                            'name': member.get('name', ''),
+                            'profile_url': (
+                                f"https://image.tmdb.org/t/p/w185{profile_path}"
+                                if profile_path else
+                                'https://ui-avatars.com/api/?name=' + urllib.parse.quote_plus(member.get('name', 'Director')) + '&background=2d1b4e&color=c084fc&size=72'
+                            ),
+                            'role': member.get('job', 'Director')
+                        })
+                        if len(creators) >= 2:
+                            break
+
             raw_cast = credits_payload.get('cast', [])
-            for member in raw_cast[:6]:
+            for member in raw_cast[:12]:
                 profile_path = member.get('profile_path') or ''
                 cast.append({
                     'id':         member.get('id'),
@@ -2446,6 +2478,7 @@ def tv_detail_view(request, series_id):
         'tv_show':         tv_show,
         'tagline':         tv_show.get('tagline', ''),
         'storyline':       storyline,
+        'creators':        creators,
         'cast':            cast,
         'trailer_key':     trailer_key,
         'watch_providers': watch_providers,
