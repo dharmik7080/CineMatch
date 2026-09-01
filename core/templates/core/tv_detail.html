@@ -766,7 +766,7 @@
                 {% if keywords %}
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
                     {% for kw in keywords %}
-                    <a href="{% url 'search' %}?q={{ kw|urlencode }}" class="text-decoration-none">
+                    <a href="{% url 'search_results' %}?q={{ kw|urlencode }}" class="text-decoration-none">
                         <span class="badge rounded-pill px-2.5 py-1" style="background: rgba(168, 85, 247, 0.12); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.3); font-size: 0.74rem; font-weight: 500; letter-spacing: 0.2px; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(168,85,247,0.3)'; this.style.borderColor='rgba(168,85,247,0.6)';" onmouseout="this.style.background='rgba(168,85,247,0.12)'; this.style.borderColor='rgba(168,85,247,0.3)';">
                             #{{ kw }}
                         </span>

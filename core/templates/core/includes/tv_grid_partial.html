@@ -30,7 +30,7 @@
                         
                         <!-- Dynamic variable image with fallback check -->
                         {% if tv.poster_url %}
-                            <img src="{{ tv.poster_url }}" alt="{{ tv.title }}">
+                            <img src="{{ tv.poster_url }}" alt="{{ tv.title }}" loading="lazy" decoding="async">
                         {% else %}
                             <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
                                 <i class="fa-solid fa-tv fs-1"></i>

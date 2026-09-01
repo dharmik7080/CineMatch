@@ -31,7 +31,7 @@ class TMDBClient:
             "Authorization": f"Bearer {self.api_token}"
         }
         self.image_base_url = "https://image.tmdb.org/t/p/w500"
-        self.logo_base_url = "https://image.tmdb.org/t/p/original"
+        self.logo_base_url = "https://image.tmdb.org/t/p/w1280"
         
         # Fallback image links (Unsplash) to handle cases where no poster is returned
         self.movie_fallback = "https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop"
