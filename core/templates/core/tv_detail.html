@@ -642,6 +642,47 @@
 
 {% block content %}
 
+{% if "stranger things" in tv_show.title|lower or tv_show.id == 66732 %}
+<style>
+@keyframes upsideDownFlicker {
+    0%, 100% { opacity: 1; text-shadow: 0 0 20px rgba(239, 68, 68, 0.9), 0 0 40px rgba(185, 28, 28, 0.7), 0 0 60px rgba(153, 27, 27, 0.5); }
+    33% { opacity: 0.85; text-shadow: 0 0 10px rgba(239, 68, 68, 0.6), 0 0 20px rgba(185, 28, 28, 0.4); }
+    36% { opacity: 1; text-shadow: 0 0 25px rgba(239, 68, 68, 1), 0 0 50px rgba(185, 28, 28, 0.8); }
+    70% { opacity: 0.9; text-shadow: 0 0 15px rgba(239, 68, 68, 0.7), 0 0 30px rgba(185, 28, 28, 0.5); }
+    72% { opacity: 0.4; text-shadow: none; }
+    75% { opacity: 1; text-shadow: 0 0 20px rgba(239, 68, 68, 0.9), 0 0 40px rgba(185, 28, 28, 0.7); }
+}
+</style>
+<!-- 🩸 Stranger Things "Upside Down" Red Neon Intro Animation -->
+<div id="upside-down-overlay" style="position: fixed; inset: 0; z-index: 99999; background: radial-gradient(ellipse at center, rgba(153, 27, 27, 0.78) 0%, rgba(12, 2, 2, 0.96) 60%, rgba(0, 0, 0, 1) 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; color: #fee2e2; border: 4px solid rgba(220, 38, 38, 0.5); box-shadow: inset 0 0 120px rgba(185, 28, 28, 0.6), 0 0 100px rgba(0, 0, 0, 0.95); opacity: 1; transition: opacity 0.65s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: auto;">
+    <div style="max-width: 720px; width: 90%; border: 2px solid rgba(220, 38, 38, 0.45); padding: 3rem 2rem; border-radius: 16px; background: rgba(10, 0, 0, 0.65); backdrop-filter: blur(6px); box-shadow: 0 0 40px rgba(220, 38, 38, 0.35), inset 0 0 25px rgba(185, 28, 28, 0.2); position: relative;">
+        <div style="font-size: 0.8rem; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; color: #ef4444; margin-bottom: 1rem; text-shadow: 0 0 10px rgba(239, 68, 68, 0.6);">
+            ✦ HAWKINS, INDIANA — 1983 ✦
+        </div>
+        <h1 style="font-family: 'Times New Roman', 'Georgia', serif; font-size: 2.3rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #ef4444; margin-bottom: 1rem; line-height: 1.25; animation: upsideDownFlicker 2s infinite ease-in-out;">
+            WELCOME TO THE UPSIDE DOWN
+        </h1>
+        <div style="width: 140px; height: 3px; background: #ef4444; margin: 1.2rem auto; box-shadow: 0 0 15px #ef4444, 0 0 30px #dc2626;"></div>
+        <div style="font-family: monospace; font-size: 0.85rem; letter-spacing: 3px; text-transform: uppercase; color: #fca5a5; font-weight: 600; opacity: 0.9;">
+            STRANGER THINGS • CHAPTER ONE
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    const overlay = document.getElementById('upside-down-overlay');
+    if (overlay) {
+        setTimeout(function() {
+            overlay.style.opacity = '0';
+            setTimeout(function() {
+                overlay.remove();
+            }, 650);
+        }, 2200);
+    }
+})();
+</script>
+{% endif %}
+
 <!-- 🌌 Dynamic Ambient Background Glow Wrapper -->
 <div id="ambient-glow-background" aria-hidden="true" style="position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;">
     {% if tv_show.backdrop_url %}
