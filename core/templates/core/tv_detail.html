@@ -1897,18 +1897,35 @@ function closeEpModalOnOverlay(event) {
 }
 
 // ── TV STREAMS HANDLERS ──
+function applyLanguageFallbackParams(url) {
+    if (!url) return url;
+    if (url.includes('vidlink.pro')) {
+        if (!url.includes('audio=')) {
+            url += (url.includes('?') ? '&' : '?') + 'audio=hi';
+        }
+        return url;
+    }
+    const hasQuery = url.includes('?');
+    const paramString = hasQuery ? '&audio=hi&sub=1&ds_lang=en' : '?audio=hi&sub=1&ds_lang=en';
+    if (!url.includes('audio=') && !url.includes('ds_lang=')) {
+        return url + paramString;
+    }
+    return url;
+}
+
 function getTvEpisodeUrl(baseServerUrl, showId, imdbId, seasonNumber, episodeNumber) {
+    let rawUrl = '';
     if (baseServerUrl.includes('2embed.cc')) {
-        return `https://www.2embed.cc/embedtv/${showId}&s=${seasonNumber}&e=${episodeNumber}`;
-    }
-    if (baseServerUrl.includes('vidlink.pro')) {
+        rawUrl = `https://www.2embed.cc/embedtv/${showId}&s=${seasonNumber}&e=${episodeNumber}`;
+    } else if (baseServerUrl.includes('vidlink.pro')) {
         const idToUse = imdbId && imdbId !== 'None' ? imdbId : showId;
-        return `${baseServerUrl}${idToUse}/${seasonNumber}/${episodeNumber}?sub=1&ds_lang=en&autostart=true`;
+        rawUrl = `${baseServerUrl}${idToUse}/${seasonNumber}/${episodeNumber}?sub=1&ds_lang=en&autostart=true`;
+    } else if (baseServerUrl.includes('autoembed.co')) {
+        rawUrl = `https://autoembed.co/tv/tmdb/${showId}-${seasonNumber}-${episodeNumber}`;
+    } else {
+        rawUrl = `${baseServerUrl}${showId}/${seasonNumber}/${episodeNumber}`;
     }
-    if (baseServerUrl.includes('autoembed.co')) {
-        return `https://autoembed.co/tv/tmdb/${showId}-${seasonNumber}-${episodeNumber}`;
-    }
-    return `${baseServerUrl}${showId}/${seasonNumber}/${episodeNumber}`;
+    return applyLanguageFallbackParams(rawUrl);
 }
 
 function changeTvServer(baseServerUrl) {

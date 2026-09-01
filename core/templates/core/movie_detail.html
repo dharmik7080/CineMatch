@@ -1756,6 +1756,22 @@ function handleMoviePlayerKeys(event) {
     }
 }
 
+function applyLanguageFallbackParams(url) {
+    if (!url) return url;
+    if (url.includes('vidlink.pro')) {
+        if (!url.includes('audio=')) {
+            url += (url.includes('?') ? '&' : '?') + 'audio=hi';
+        }
+        return url;
+    }
+    const hasQuery = url.includes('?');
+    const paramString = hasQuery ? '&audio=hi&sub=1&ds_lang=en' : '?audio=hi&sub=1&ds_lang=en';
+    if (!url.includes('audio=') && !url.includes('ds_lang=')) {
+        return url + paramString;
+    }
+    return url;
+}
+
 function openMoviePlayerModal() {
     const modal = document.getElementById('movie-player-modal');
     const iframe = document.getElementById('movie-player-iframe');
@@ -1763,7 +1779,7 @@ function openMoviePlayerModal() {
     const header = document.getElementById('cinema-player-header');
     
     const selectedUrl = serverSelect ? serverSelect.value : movieStreamBaseUrls.server4;
-    iframe.src = selectedUrl;
+    iframe.src = applyLanguageFallbackParams(selectedUrl);
     
     modal.classList.add('active');
     if (header) header.style.display = 'flex';
@@ -1806,7 +1822,7 @@ function closeMoviePlayerModalOnOverlay(event) {
 function changeMoviePlayerServer(url) {
     const iframe = document.getElementById('movie-player-iframe');
     if (iframe) {
-        iframe.src = url;
+        iframe.src = applyLanguageFallbackParams(url);
     }
 }
 
