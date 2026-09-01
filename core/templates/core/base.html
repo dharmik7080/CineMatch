@@ -45,65 +45,75 @@
         .ambient-mesh-container {
             position: fixed;
             inset: 0;
-            z-index: -1;
+            z-index: 0;
             pointer-events: none;
             overflow: hidden;
         }
         .ambient-blob-1 {
             position: absolute;
-            top: -15%;
-            left: 20%;
-            width: 650px;
-            height: 650px;
-            background: radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, rgba(99, 102, 241, 0.04) 50%, transparent 70%);
-            filter: blur(80px);
-            animation: meshPulse1 18s ease-in-out infinite alternate;
+            top: -10%;
+            left: 15%;
+            width: 750px;
+            height: 750px;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.22) 0%, rgba(99, 102, 241, 0.12) 45%, transparent 70%);
+            filter: blur(75px);
+            animation: meshPulse1 16s ease-in-out infinite alternate;
         }
         .ambient-blob-2 {
             position: absolute;
-            bottom: 10%;
-            right: 15%;
+            top: 45%;
+            right: 5%;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.18) 0%, rgba(236, 72, 153, 0.10) 50%, transparent 70%);
+            filter: blur(85px);
+            animation: meshPulse2 20s ease-in-out infinite alternate;
+        }
+        .ambient-blob-3 {
+            position: absolute;
+            bottom: -15%;
+            left: 10%;
             width: 700px;
             height: 700px;
-            background: radial-gradient(circle, rgba(59, 130, 246, 0.10) 0%, rgba(168, 85, 247, 0.03) 50%, transparent 70%);
-            filter: blur(90px);
-            animation: meshPulse2 22s ease-in-out infinite alternate;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.18) 0%, rgba(59, 130, 246, 0.08) 50%, transparent 70%);
+            filter: blur(80px);
+            animation: meshPulse3 24s ease-in-out infinite alternate;
         }
         @keyframes meshPulse1 {
-            0% { transform: translate(0, 0) scale(1); opacity: 0.7; }
-            100% { transform: translate(60px, 40px) scale(1.15); opacity: 1; }
+            0% { transform: translate(0, 0) scale(1); opacity: 0.85; }
+            100% { transform: translate(80px, 50px) scale(1.2); opacity: 1; }
         }
         @keyframes meshPulse2 {
-            0% { transform: translate(0, 0) scale(1); opacity: 0.6; }
-            100% { transform: translate(-50px, -30px) scale(1.1); opacity: 0.9; }
+            0% { transform: translate(0, 0) scale(1); opacity: 0.8; }
+            100% { transform: translate(-70px, -40px) scale(1.15); opacity: 1; }
+        }
+        @keyframes meshPulse3 {
+            0% { transform: translate(0, 0) scale(1); opacity: 0.75; }
+            100% { transform: translate(50px, -60px) scale(1.18); opacity: 0.95; }
         }
 
-        /* 🥏 Concept 2: Apple TV+ Floating Glass Pill Navbar */
-        .navbar-floating-wrapper {
-            position: sticky;
-            top: 14px;
-            z-index: 1050;
-            padding: 0 1rem;
-            max-width: 1320px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
+        /* 🎬 Option A: Full-Bleed Top Glass Header (HBO Max / Netflix / Cinejoy Style) */
         .navbar-custom {
-            background: rgba(12, 12, 18, 0.78) !important;
+            background: rgba(8, 8, 14, 0.85) !important;
             backdrop-filter: blur(24px) !important;
             -webkit-backdrop-filter: blur(24px) !important;
-            border: 1px solid rgba(255, 255, 255, 0.12) !important;
-            border-radius: 50px !important;
-            padding: 0.45rem 1.25rem !important;
-            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
-            transition: all 0.3s ease;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-top: none !important;
+            border-left: none !important;
+            border-right: none !important;
+            border-radius: 0 !important;
+            padding: 0.75rem 0 !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            position: sticky;
+            top: 0;
+            z-index: 1050;
+            transition: background 0.3s ease, border-color 0.3s ease;
         }
 
         .navbar-brand {
             font-family: 'Plus Jakarta Sans', sans-serif;
             font-weight: 800;
-            font-size: 1.35rem;
+            font-size: 1.45rem;
             background: var(--primary-glow);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -116,10 +126,10 @@
         .nav-link {
             font-family: 'Plus Jakarta Sans', sans-serif;
             font-weight: 600;
-            font-size: 0.86rem;
-            color: rgba(255, 255, 255, 0.7) !important;
-            padding: 0.45rem 0.95rem !important;
-            border-radius: 30px;
+            font-size: 0.88rem;
+            color: rgba(255, 255, 255, 0.75) !important;
+            padding: 0.45rem 1rem !important;
+            border-radius: 20px;
             transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
             margin: 0 0.15rem;
         }
@@ -131,15 +141,15 @@
 
         .nav-link.active {
             color: #ffffff !important;
-            background: rgba(168, 85, 247, 0.25) !important;
+            background: rgba(168, 85, 247, 0.22) !important;
             border: 1px solid rgba(168, 85, 247, 0.4) !important;
             box-shadow: 0 4px 15px rgba(168, 85, 247, 0.2);
         }
 
         /* Nav Icon Button (Search / Bell) */
         .nav-icon-btn {
-            width: 36px;
-            height: 36px;
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -154,7 +164,7 @@
         .nav-icon-btn:hover {
             background: rgba(168, 85, 247, 0.3);
             border-color: rgba(168, 85, 247, 0.5);
-            transform: scale(1.08);
+            transform: scale(1.06);
         }
 
         /* Custom Interactive Components */
@@ -329,6 +339,7 @@
     <div class="ambient-mesh-container">
         <div class="ambient-blob-1"></div>
         <div class="ambient-blob-2"></div>
+        <div class="ambient-blob-3"></div>
     </div>
 
     <!-- Cinematic Fullscreen Loader Overlay -->
@@ -340,79 +351,77 @@
         </div>
     </div>
 
-    <!-- 🥏 Concept 2: Floating Apple TV+ Style Glass Pill Navbar -->
-    <header class="navbar-floating-wrapper">
-        <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
-            <div class="container-fluid px-1">
-                <a class="navbar-brand me-3" href="{% url 'home' %}">
-                    <i class="fa-solid fa-wand-magic-sparkles text-accent"></i>CineMatch
-                </a>
-                <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center">
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'for_you_feed' or request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'for_you_feed' %}">
-                                Home Feed
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'explore_movies' %}active{% endif %}" href="{% url 'explore_movies' %}">
-                                Explore Movies
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'explore_tv' %}active{% endif %}" href="{% url 'explore_tv' %}">
-                                Explore TV Shows
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'watchlist_hub' %}active{% endif %}" href="{% url 'watchlist_hub' %}">
-                                Watchlist
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'analytics_dashboard' %}active{% endif %}" href="{% url 'analytics_dashboard' %}">
-                                Analytics
-                            </a>
-                        </li>
-                    </ul>
-                    <div class="d-flex align-items-center gap-2 mt-3 mt-lg-0 pt-2 pt-lg-0 border-top border-lg-0 border-secondary-subtle">
-                        <!-- Search Icon Pill -->
-                        <a href="#" class="nav-icon-btn" id="searchTrigger" title="Search (Cmd+K)">
-                            <i class="fa-solid fa-magnifying-glass fs-6"></i>
+    <!-- 🎬 Option A: Full-Bleed Top Glass Header (HBO Max / Netflix / Cinejoy Style) -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+        <div class="container-xl">
+            <a class="navbar-brand me-4" href="{% url 'home' %}">
+                <i class="fa-solid fa-wand-magic-sparkles text-accent"></i>CineMatch
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'for_you_feed' or request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'for_you_feed' %}">
+                            Home Feed
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'explore_movies' %}active{% endif %}" href="{% url 'explore_movies' %}">
+                            Explore Movies
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'explore_tv' %}active{% endif %}" href="{% url 'explore_tv' %}">
+                            Explore TV Shows
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'watchlist_hub' %}active{% endif %}" href="{% url 'watchlist_hub' %}">
+                            Watchlist
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'analytics_dashboard' %}active{% endif %}" href="{% url 'analytics_dashboard' %}">
+                            Analytics
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center gap-2 mt-3 mt-lg-0 pt-2 pt-lg-0">
+                    <!-- Search Icon Pill -->
+                    <a href="#" class="nav-icon-btn" id="searchTrigger" title="Search (Cmd+K)">
+                        <i class="fa-solid fa-magnifying-glass fs-6"></i>
+                    </a>
+
+                    {% if user.is_authenticated %}
+                        <!-- Notification Bell Icon -->
+                        <a href="{% url 'notifications_list' %}" class="nav-icon-btn position-relative" title="Notifications">
+                            <i class="fa-regular fa-bell fs-6"></i>
+                            {% if unread_notifications_count > 0 %}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.55rem; padding: 0.25em 0.4em; box-shadow: 0 0 5px #ef4444;">
+                                    {{ unread_notifications_count }}
+                                </span>
+                            {% endif %}
                         </a>
 
-                        {% if user.is_authenticated %}
-                            <!-- Notification Bell Icon -->
-                            <a href="{% url 'notifications_list' %}" class="nav-icon-btn position-relative" title="Notifications">
-                                <i class="fa-regular fa-bell fs-6"></i>
-                                {% if unread_notifications_count > 0 %}
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.55rem; padding: 0.25em 0.4em; box-shadow: 0 0 5px #ef4444;">
-                                        {{ unread_notifications_count }}
-                                    </span>
-                                {% endif %}
-                            </a>
+                        <span class="text-secondary d-none d-xl-inline fs-6 ms-1 me-1">
+                            <i class="fa-solid fa-circle-user text-accent me-1"></i> Hello, <strong class="text-white">{{ user.username }}</strong>
+                        </span>
 
-                            <span class="text-secondary d-none d-xl-inline fs-6 ms-1 me-1">
-                                <i class="fa-solid fa-circle-user text-accent me-1"></i> <strong class="text-white">{{ user.username }}</strong>
-                            </span>
-
-                            <a href="{% url 'logout' %}" class="btn btn-outline-custom btn-sm ms-1">
-                                <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
-                            </a>
-                        {% else %}
-                            <a href="{% url 'login' %}" class="text-light text-decoration-none px-3 py-1 me-1" style="font-size:0.88rem; font-weight:600;">Sign In</a>
-                            <a href="{% url 'signup' %}" class="btn btn-glow btn-sm">Register</a>
-                        {% endif %}
-                    </div>
+                        <a href="{% url 'logout' %}" class="btn btn-outline-custom btn-sm ms-1">
+                            <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
+                        </a>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="text-light text-decoration-none px-3 py-1 me-1" style="font-size:0.88rem; font-weight:600;">Sign In</a>
+                        <a href="{% url 'signup' %}" class="btn btn-glow btn-sm">Register</a>
+                    {% endif %}
                 </div>
             </div>
-        </nav>
-    </header>
+        </div>
+    </nav>
 
-    <main class="flex-grow-1">
+    <main class="flex-grow-1 pt-3">
         {% if messages %}
             <div class="container mt-3">
                 {% for message in messages %}
