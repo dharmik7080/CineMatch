@@ -3051,6 +3051,61 @@ def search_results_view(request):
         seen_tv = set()
         tv_shows = [t for t in tv_shows if not (t['id'] in seen_tv or seen_tv.add(t['id']))]
 
+        # 2. TMDB Keyword Search & Keyword Discover (for Trope/Hashtag Micro-Keywords)
+        try:
+            kw_url = f"{client.base_url}/search/keyword"
+            kw_params = {'api_key': api_key, 'query': query}
+            kw_resp = get_resilient_session().get(kw_url, params=kw_params, timeout=5.0)
+            if kw_resp.status_code == 200:
+                kw_results = kw_resp.json().get('results', [])
+                if kw_results:
+                    # Match exact or first keyword ID
+                    matched_kw = next((k for k in kw_results if k.get('name', '').lower() == query.lower()), kw_results[0])
+                    kw_id = matched_kw.get('id')
+                    
+                    if kw_id:
+                        # Discover movies by keyword
+                        if media_type == 'all' or media_type == 'movie':
+                            disc_m_url = f"{client.base_url}/discover/movie"
+                            disc_m_resp = get_resilient_session().get(disc_m_url, params={'api_key': api_key, 'with_keywords': kw_id, 'sort_by': 'popularity.desc', 'language': 'en-US'}, timeout=5.0)
+                            if disc_m_resp.status_code == 200:
+                                for item in disc_m_resp.json().get('results', []):
+                                    if matches_filters(item, is_movie=True):
+                                        poster_path = item.get('poster_path')
+                                        movies.append({
+                                            'id': item.get('id'),
+                                            'title': item.get('title') or item.get('original_title') or 'Unknown Movie',
+                                            'release_date': item.get('release_date', 'N/A'),
+                                            'poster_url': f"https://image.tmdb.org/t/p/w300{poster_path}" if poster_path else client.movie_fallback,
+                                            'vote_average': round(item.get('vote_average', 0.0), 1),
+                                            'overview': item.get('overview', '')
+                                        })
+                        
+                        # Discover TV by keyword
+                        if media_type == 'all' or media_type == 'tv':
+                            disc_tv_url = f"{client.base_url}/discover/tv"
+                            disc_tv_resp = get_resilient_session().get(disc_tv_url, params={'api_key': api_key, 'with_keywords': kw_id, 'sort_by': 'popularity.desc', 'language': 'en-US'}, timeout=5.0)
+                            if disc_tv_resp.status_code == 200:
+                                for item in disc_tv_resp.json().get('results', []):
+                                    if matches_filters(item, is_movie=False):
+                                        poster_path = item.get('poster_path')
+                                        tv_shows.append({
+                                            'id': item.get('id'),
+                                            'title': item.get('name') or item.get('original_name') or 'Unknown TV Show',
+                                            'first_air_date': item.get('first_air_date', 'N/A'),
+                                            'poster_url': f"https://image.tmdb.org/t/p/w300{poster_path}" if poster_path else client.tv_fallback,
+                                            'vote_average': round(item.get('vote_average', 0.0), 1),
+                                            'overview': item.get('overview', '')
+                                        })
+        except Exception as e:
+            print(f"[SEARCH VIEW KEYWORD DISCOVER] Error: {e}")
+
+        # Deduplicate final merged list
+        seen_movies = set()
+        movies = [m for m in movies if not (m['id'] in seen_movies or seen_movies.add(m['id']))]
+        seen_tv = set()
+        tv_shows = [t for t in tv_shows if not (t['id'] in seen_tv or seen_tv.add(t['id']))]
+
     elif genre or year or min_rating:
         # Discover Mode (filters active but no search text query)
         if media_type == 'all' or media_type == 'movie':
