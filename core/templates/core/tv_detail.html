@@ -583,6 +583,18 @@
     border-color: #ef4444;
     transform: scale(1.1);
 }
+/* ── Gallery Card Lightbox Styling ── */
+.gallery-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(168,85,247,0.5) !important;
+    box-shadow: 0 8px 25px rgba(168,85,247,0.25);
+}
+.gallery-card:hover img {
+    transform: scale(1.08);
+}
+.gallery-card:hover .gallery-hover-overlay {
+    opacity: 1 !important;
+}
 {% endblock %}
 
 {% block content %}
@@ -926,6 +938,28 @@
                 {% endif %}
             </div>
 
+            {% if gallery_images %}
+            <div class="mb-5">
+                <h2 class="section-heading">Stills & HD Wallpapers</h2>
+                <div class="row g-3">
+                    {% for img in gallery_images %}
+                    <div class="col-6 col-sm-4 col-md-3">
+                        <div class="gallery-card" 
+                             onclick="openLightboxModal('{{ img.full_url }}', '{{ tv_show.title|escapejs }} Still #{{ forloop.counter }}')"
+                             style="position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 16/9; background: #0f0f15; cursor: pointer; border: 1px solid rgba(255,255,255,0.08); transition: all 0.3s ease;">
+                            <img src="{{ img.thumb_url }}" alt="{{ tv_show.title }} Still" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease;">
+                            <div class="gallery-hover-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease;">
+                                <span class="badge bg-dark bg-opacity-75 text-white rounded-pill px-2.5 py-1.5" style="border: 1px solid rgba(255,255,255,0.2); font-size: 0.75rem;">
+                                    <i class="fa-solid fa-expand me-1" style="color: #c084fc;"></i> View HD
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
         </div>
 
         <div class="col-lg-4">
@@ -1044,6 +1078,25 @@
         <p class="text-muted small mb-0">No reviews available from TMDB for this TV show yet.</p>
     {% endif %}
 </div>
+
+                {% if external_links %}
+                <div class="sidebar-card mb-4">
+                    <h2 class="section-heading mb-3" style="border-left-color: #38bdf8;">Official Links & Socials</h2>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for link in external_links %}
+                        <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer" 
+                           class="btn rounded-pill text-decoration-none d-inline-flex align-items-center gap-2 px-3 py-1.5"
+                           style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.09); color: #ffffff; font-size: 0.82rem; font-weight: 600; transition: all 0.3s ease;"
+                           onmouseover="this.style.borderColor='{{ link.color }}'; this.style.background='rgba(255,255,255,0.08)';"
+                           onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.09)'; this.style.background='rgba(255, 255, 255, 0.04)';">
+                            <i class="{{ link.icon }}" style="color: {{ link.color }}; font-size: 1rem;"></i>
+                            {{ link.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
             </div>
         </div>
     </div>
@@ -1330,10 +1383,40 @@
     </div>
 </div>
 
+<!-- 🖼️ HD Wallpaper Lightbox Modal -->
+<div class="modal fade" id="lightboxModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content" style="background: #08080c; border: 1px solid rgba(168,85,247,0.3); border-radius: 20px; overflow: hidden;">
+            <div class="modal-header border-0 pb-0" style="padding: 1.25rem 1.5rem;">
+                <h5 class="modal-title text-white fw-bold d-flex align-items-center gap-2" id="lightboxModalLabel" style="font-size: 1rem;">
+                    <i class="fa-solid fa-image text-accent"></i> <span id="lightboxTitle">HD Wallpaper</span>
+                </h5>
+                <div class="d-flex align-items-center gap-2">
+                    <a id="lightboxDownloadBtn" href="" download target="_blank" class="btn rounded-pill px-3 py-1.5 btn-watchlist-add" style="font-size: 0.82rem;">
+                        <i class="fa-solid fa-download me-1.5"></i> Download HD
+                    </a>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body text-center p-3">
+                <img id="lightboxImage" src="" alt="HD Wallpaper" style="max-width: 100%; max-height: 78vh; border-radius: 12px; object-fit: contain; box-shadow: 0 10px 40px rgba(0,0,0,0.8);">
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
+function openLightboxModal(fullUrl, title) {
+    document.getElementById('lightboxImage').src = fullUrl;
+    document.getElementById('lightboxDownloadBtn').href = fullUrl;
+    document.getElementById('lightboxTitle').textContent = title;
+    var modal = new bootstrap.Modal(document.getElementById('lightboxModal'));
+    modal.show();
+}
+
 function toggleStoryline() {
     const collapsedSpan = document.getElementById('storyline-collapsed');
     const expandedSpan = document.getElementById('storyline-expanded');

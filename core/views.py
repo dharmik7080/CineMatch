@@ -1342,7 +1342,7 @@ def movie_detail_view(request, movie_id):
         f"https://api.themoviedb.org/3/movie/{movie_id}"
         f"?api_key={api_key}"
         f"&language=en-US"
-        f"&append_to_response=credits,videos,watch/providers,similar,reviews"
+        f"&append_to_response=credits,videos,watch/providers,similar,reviews,images,external_ids"
     )
 
     movie = {}
@@ -1354,6 +1354,8 @@ def movie_detail_view(request, movie_id):
     tmdb_reviews = []
     tastedive_recs = []
     tastedive_active = False
+    gallery_images = []
+    external_links = []
     belongs_to_collection = None
     collection_movies = []
     collection_name = ""
@@ -1711,6 +1713,69 @@ def movie_detail_view(request, movie_id):
                     'content': r.get('content', ''),
                     'created_at': r.get('created_at', '')[:10],
                 })
+
+            # Parse Gallery Images (Stills & HD Wallpapers)
+            raw_backdrops = data.get('images', {}).get('backdrops', [])
+            for img in raw_backdrops[:8]:
+                file_path = img.get('file_path')
+                if file_path:
+                    gallery_images.append({
+                        'thumb_url': f"https://image.tmdb.org/t/p/w780{file_path}",
+                        'full_url': f"https://image.tmdb.org/t/p/w1280{file_path}",
+                        'width': img.get('width', 1920),
+                        'height': img.get('height', 1080),
+                    })
+
+            # Parse External Social & Database Links
+            ext_ids = data.get('external_ids', {})
+            imdb_id_val = ext_ids.get('imdb_id') or data.get('imdb_id')
+            if imdb_id_val:
+                external_links.append({
+                    'name': 'IMDb',
+                    'icon': 'fa-brands fa-imdb',
+                    'url': f"https://www.imdb.com/title/{imdb_id_val}/",
+                    'color': '#f5c518'
+                })
+            homepage_val = data.get('homepage')
+            if homepage_val:
+                external_links.append({
+                    'name': 'Official Site',
+                    'icon': 'fa-solid fa-globe',
+                    'url': homepage_val,
+                    'color': '#38bdf8'
+                })
+            instagram_id_val = ext_ids.get('instagram_id')
+            if instagram_id_val:
+                external_links.append({
+                    'name': 'Instagram',
+                    'icon': 'fa-brands fa-instagram',
+                    'url': f"https://www.instagram.com/{instagram_id_val}/",
+                    'color': '#e1306c'
+                })
+            twitter_id_val = ext_ids.get('twitter_id')
+            if twitter_id_val:
+                external_links.append({
+                    'name': 'X (Twitter)',
+                    'icon': 'fa-brands fa-x-twitter',
+                    'url': f"https://x.com/{twitter_id_val}/",
+                    'color': '#ffffff'
+                })
+            facebook_id_val = ext_ids.get('facebook_id')
+            if facebook_id_val:
+                external_links.append({
+                    'name': 'Facebook',
+                    'icon': 'fa-brands fa-facebook',
+                    'url': f"https://www.facebook.com/{facebook_id_val}/",
+                    'color': '#1877f2'
+                })
+            wikidata_id_val = ext_ids.get('wikidata_id')
+            if wikidata_id_val:
+                external_links.append({
+                    'name': 'Wikidata',
+                    'icon': 'fa-brands fa-wikipedia-w',
+                    'url': f"https://www.wikidata.org/wiki/{wikidata_id_val}",
+                    'color': '#999999'
+                })
         except Exception as e:
             print(f"[MOVIE DETAIL] Unexpected parsing error for movie_id={movie_id}: {e}")
             data = None
@@ -1861,6 +1926,8 @@ def movie_detail_view(request, movie_id):
         'collection_name':       collection_name,
         'watchlist_ids':         watchlist_ids,
         'omdb_data':             omdb_data,
+        'gallery_images':        gallery_images,
+        'external_links':        external_links,
     }
 
     return render(request, 'core/movie_detail.html', context)
@@ -1895,7 +1962,7 @@ def tv_detail_view(request, series_id):
         f"https://api.themoviedb.org/3/tv/{series_id}"
         f"?api_key={api_key}"
         f"&language=en-US"
-        f"&append_to_response=credits,videos,watch/providers,similar,external_ids,reviews"
+        f"&append_to_response=credits,videos,watch/providers,similar,external_ids,reviews,images"
     )
 
     tv_show = {}
@@ -1905,6 +1972,8 @@ def tv_detail_view(request, series_id):
     similar_shows = []
     tastedive_recs = []
     tastedive_active = False
+    gallery_images = []
+    external_links = []
     omdb_data = None
     tmdb_reviews = []
 
@@ -2163,6 +2232,69 @@ def tv_detail_view(request, series_id):
                     'content': r.get('content', ''),
                     'created_at': r.get('created_at', '')[:10],
                 })
+
+            # Parse Gallery Images (Stills & HD Wallpapers)
+            raw_backdrops = data.get('images', {}).get('backdrops', [])
+            for img in raw_backdrops[:8]:
+                file_path = img.get('file_path')
+                if file_path:
+                    gallery_images.append({
+                        'thumb_url': f"https://image.tmdb.org/t/p/w780{file_path}",
+                        'full_url': f"https://image.tmdb.org/t/p/w1280{file_path}",
+                        'width': img.get('width', 1920),
+                        'height': img.get('height', 1080),
+                    })
+
+            # Parse External Social & Database Links
+            ext_ids = data.get('external_ids', {})
+            imdb_id_val = ext_ids.get('imdb_id')
+            if imdb_id_val:
+                external_links.append({
+                    'name': 'IMDb',
+                    'icon': 'fa-brands fa-imdb',
+                    'url': f"https://www.imdb.com/title/{imdb_id_val}/",
+                    'color': '#f5c518'
+                })
+            homepage_val = data.get('homepage')
+            if homepage_val:
+                external_links.append({
+                    'name': 'Official Site',
+                    'icon': 'fa-solid fa-globe',
+                    'url': homepage_val,
+                    'color': '#38bdf8'
+                })
+            instagram_id_val = ext_ids.get('instagram_id')
+            if instagram_id_val:
+                external_links.append({
+                    'name': 'Instagram',
+                    'icon': 'fa-brands fa-instagram',
+                    'url': f"https://www.instagram.com/{instagram_id_val}/",
+                    'color': '#e1306c'
+                })
+            twitter_id_val = ext_ids.get('twitter_id')
+            if twitter_id_val:
+                external_links.append({
+                    'name': 'X (Twitter)',
+                    'icon': 'fa-brands fa-x-twitter',
+                    'url': f"https://x.com/{twitter_id_val}/",
+                    'color': '#ffffff'
+                })
+            facebook_id_val = ext_ids.get('facebook_id')
+            if facebook_id_val:
+                external_links.append({
+                    'name': 'Facebook',
+                    'icon': 'fa-brands fa-facebook',
+                    'url': f"https://www.facebook.com/{facebook_id_val}/",
+                    'color': '#1877f2'
+                })
+            wikidata_id_val = ext_ids.get('wikidata_id')
+            if wikidata_id_val:
+                external_links.append({
+                    'name': 'Wikidata',
+                    'icon': 'fa-brands fa-wikipedia-w',
+                    'url': f"https://www.wikidata.org/wiki/{wikidata_id_val}",
+                    'color': '#999999'
+                })
         except Exception as e:
             print(f"[TV DETAIL] Unexpected parsing error for series_id={series_id}: {e}")
             data = None
@@ -2329,6 +2461,8 @@ def tv_detail_view(request, series_id):
         'tmdb_reviews':    tmdb_reviews,
         'user_review':     user_review,
         'omdb_data':       omdb_data,
+        'gallery_images':  gallery_images,
+        'external_links':  external_links,
     }
 
     return render(request, 'core/tv_detail.html', context)
