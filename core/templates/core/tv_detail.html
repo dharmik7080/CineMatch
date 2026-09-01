@@ -683,6 +683,59 @@
 </script>
 {% endif %}
 
+{% if tv_show.id == 1396 or "breaking bad" in tv_show.title|lower %}
+<style>
+@keyframes breakingBadTealGlow {
+    0%, 100% { opacity: 1; text-shadow: 0 0 20px rgba(20, 184, 166, 0.95), 0 0 45px rgba(13, 148, 136, 0.8), 0 0 70px rgba(15, 118, 110, 0.6); transform: scale(1); }
+    50% { opacity: 0.9; text-shadow: 0 0 35px rgba(45, 212, 191, 1), 0 0 70px rgba(20, 184, 166, 0.9), 0 0 100px rgba(13, 148, 136, 0.75); transform: scale(1.015); }
+}
+</style>
+<!-- ⚗️ Breaking Bad "Chemical Turquoise" Intro Animation -->
+<div id="breaking-bad-overlay" style="position: fixed; inset: 0; z-index: 99999; background: radial-gradient(ellipse at center, rgba(17, 94, 89, 0.82) 0%, rgba(15, 23, 42, 0.95) 60%, rgba(0, 0, 0, 1) 100%); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; color: #ccfbf1; opacity: 1; transition: opacity 0.85s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: auto; overflow: hidden;">
+    <!-- 🧪 Glassmorphic Chemical HUD Card Frame -->
+    <div style="max-width: 740px; width: 90%; border: 2px solid rgba(20, 184, 166, 0.45); padding: 3rem 2.2rem; border-radius: 20px; background: rgba(4, 28, 26, 0.75); backdrop-filter: blur(16px); box-shadow: 0 0 50px rgba(20, 184, 166, 0.35), inset 0 0 30px rgba(13, 148, 136, 0.25); position: relative; z-index: 2;">
+        
+        <!-- ⚛️ Periodic Table Elements Header: [35]Br • [56]Ba -->
+        <div style="display: flex; gap: 12px; justify-content: center; align-items: center; margin-bottom: 1.2rem;">
+            <div style="border: 2px solid #14b8a6; background: rgba(20, 184, 166, 0.18); padding: 6px 14px; text-align: left; font-family: 'Courier New', monospace; color: #2dd4bf; border-radius: 6px; box-shadow: 0 0 15px rgba(45, 212, 191, 0.4);">
+                <span style="font-size: 0.65rem; display: block; opacity: 0.85; line-height: 1; font-weight: 700;">35</span>
+                <span style="font-size: 1.4rem; font-weight: 900; line-height: 1.1;">Br</span>
+            </div>
+            <span style="color: #14b8a6; font-size: 1.2rem; font-weight: 700;">•</span>
+            <div style="border: 2px solid #14b8a6; background: rgba(20, 184, 166, 0.18); padding: 6px 14px; text-align: left; font-family: 'Courier New', monospace; color: #2dd4bf; border-radius: 6px; box-shadow: 0 0 15px rgba(45, 212, 191, 0.4);">
+                <span style="font-size: 0.65rem; display: block; opacity: 0.85; line-height: 1; font-weight: 700;">56</span>
+                <span style="font-size: 1.4rem; font-weight: 900; line-height: 1.1;">Ba</span>
+            </div>
+        </div>
+
+        <!-- 💬 Authoritative Quote -->
+        <h1 style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 2.5rem; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; color: #2dd4bf; margin-bottom: 1.2rem; line-height: 1.25; animation: breakingBadTealGlow 2.4s infinite ease-in-out;">
+            "SAY MY NAME."
+        </h1>
+        
+        <div style="width: 150px; height: 3px; background: #14b8a6; margin: 1.4rem auto; box-shadow: 0 0 15px #2dd4bf, 0 0 30px #14b8a6;"></div>
+        
+        <!-- 🌵 Subtitle Telemetry -->
+        <div style="font-family: 'Courier New', monospace; font-size: 0.85rem; letter-spacing: 3px; text-transform: uppercase; color: #99f6e4; font-weight: 700; opacity: 0.95;">
+            99.1% CHEMICAL PURITY • HEISENBERG PROTOCOL
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    const overlay = document.getElementById('breaking-bad-overlay');
+    if (overlay) {
+        setTimeout(function() {
+            overlay.style.opacity = '0';
+            setTimeout(function() {
+                overlay.remove();
+            }, 850);
+        }, 2200);
+    }
+})();
+</script>
+{% endif %}
+
 <!-- 🌌 Dynamic Ambient Background Glow Wrapper -->
 <div id="ambient-glow-background" aria-hidden="true" style="position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;">
     {% if tv_show.backdrop_url %}
