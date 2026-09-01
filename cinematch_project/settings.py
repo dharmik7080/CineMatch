@@ -186,7 +186,7 @@ CACHES = {
     }
 }
 
-# Google reCAPTCHA Configuration
-RECAPTCHA_PUBLIC_KEY = os.environ.get('RECAPTCHA_PUBLIC_KEY', '6LeCxM0SAAAAAHm280q5ADbg9FLbthk23tqFi5ow')
-RECAPTCHA_PRIVATE_KEY = os.environ.get('RECAPTCHA_PRIVATE_KEY', '6LeCxM0SAAAAAMg25x552rZzN674n5wPq4r3kIqd')
+# Google reCAPTCHA Configuration (Defaults to Google's official public test keys for universal domain support)
+RECAPTCHA_PUBLIC_KEY = os.environ.get('RECAPTCHA_PUBLIC_KEY', '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI')
+RECAPTCHA_PRIVATE_KEY = os.environ.get('RECAPTCHA_PRIVATE_KEY', '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe')
 
