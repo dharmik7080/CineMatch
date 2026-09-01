@@ -948,7 +948,7 @@
                              onclick="openLightboxModal('{{ img.full_url }}', '{{ tv_show.title|escapejs }} Still #{{ forloop.counter }}')"
                              style="position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 16/9; background: #0f0f15; cursor: pointer; border: 1px solid rgba(255,255,255,0.08); transition: all 0.3s ease;">
                             <img src="{{ img.thumb_url }}" alt="{{ tv_show.title }} Still" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease;">
-                            <div class="gallery-hover-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease;">
+                            <div class="gallery-hover-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; pointer-events: none;">
                                 <span class="badge bg-dark bg-opacity-75 text-white rounded-pill px-2.5 py-1.5" style="border: 1px solid rgba(255,255,255,0.2); font-size: 0.75rem;">
                                     <i class="fa-solid fa-expand me-1" style="color: #c084fc;"></i> View HD
                                 </span>
@@ -1409,13 +1409,25 @@
 
 {% block extra_js %}
 <script>
-function openLightboxModal(fullUrl, title) {
-    document.getElementById('lightboxImage').src = fullUrl;
-    document.getElementById('lightboxDownloadBtn').href = fullUrl;
-    document.getElementById('lightboxTitle').textContent = title;
-    var modal = new bootstrap.Modal(document.getElementById('lightboxModal'));
-    modal.show();
-}
+window.openLightboxModal = function(fullUrl, title) {
+    const imgEl = document.getElementById('lightboxImage');
+    const dlEl = document.getElementById('lightboxDownloadBtn');
+    const titleEl = document.getElementById('lightboxTitle');
+    const modalEl = document.getElementById('lightboxModal');
+    
+    if (imgEl) imgEl.src = fullUrl;
+    if (dlEl) dlEl.href = fullUrl;
+    if (titleEl) titleEl.textContent = title;
+    
+    if (modalEl) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modalInstance.show();
+        } else {
+            window.open(fullUrl, '_blank');
+        }
+    }
+};
 
 function toggleStoryline() {
     const collapsedSpan = document.getElementById('storyline-collapsed');
