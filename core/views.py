@@ -1367,20 +1367,33 @@ def movie_detail_view(request, movie_id):
     # By integrating Just-in-Time (JIT) fetching, the system dynamically populates its cache upon the
     # first request for any media item, ensuring data availability while maintaining high performance for all subsequent hits.
     from core.models import CachedMedia
+    from django.utils import timezone
+    from datetime import timedelta
+
     is_manual_override = False
     manual_providers = []
+    force_refresh = request.GET.get('refresh') in ('1', 'true', 'yes')
+
     try:
         cached_record = CachedMedia.objects.get(media_id=movie_id_val, media_type='movie')
-        data = cached_record.data
         is_manual_override = cached_record.is_manual_override
         manual_providers = cached_record.manual_providers or []
+        is_stale = (timezone.now() - cached_record.updated_at) > timedelta(days=7)
+
+        if force_refresh or (is_stale and not is_manual_override):
+            data = None
+        else:
+            data = cached_record.data
     except CachedMedia.DoesNotExist:
         data = None
 
-    if not data:
+    if not data or force_refresh:
         from django.core.cache import cache
         cache_key = f"movie_detail_data_{movie_id}"
-        data = cache.get(cache_key)
+        if force_refresh:
+            cache.delete(cache_key)
+        else:
+            data = cache.get(cache_key)
 
     if not data:
         try:
@@ -1988,16 +2001,27 @@ def tv_detail_view(request, series_id):
     # By integrating Just-in-Time (JIT) fetching, the system dynamically populates its cache upon the
     # first request for any media item, ensuring data availability while maintaining high performance for all subsequent hits.
     from core.models import CachedMedia
+    from django.utils import timezone
+    from datetime import timedelta
+    force_refresh = request.GET.get('refresh') in ('1', 'true', 'yes')
+
     try:
         cached_record = CachedMedia.objects.get(media_id=series_id_val, media_type='tv')
-        data = cached_record.data
+        is_stale = (timezone.now() - cached_record.updated_at) > timedelta(days=7)
+        if force_refresh or is_stale:
+            data = None
+        else:
+            data = cached_record.data
     except CachedMedia.DoesNotExist:
         data = None
 
-    if not data:
+    if not data or force_refresh:
         from django.core.cache import cache
         cache_key = f"tv_detail_data_{series_id}"
-        data = cache.get(cache_key)
+        if force_refresh:
+            cache.delete(cache_key)
+        else:
+            data = cache.get(cache_key)
 
     if not data:
         try:
