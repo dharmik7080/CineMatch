@@ -142,14 +142,15 @@
 }
 @media (max-width: 767.98px) {
     .detail-poster-wrap {
-        margin-top: -140px;
-        margin-bottom: 0.75rem;
-        display: flex;
-        justify-content: center;
+        margin-top: -85px;
+        margin-bottom: 0.5rem;
+        display: block;
     }
     .detail-poster-wrap img, .detail-poster-fallback {
-        max-width: 165px;
-        box-shadow: 0 12px 36px rgba(0,0,0,0.85), 0 0 25px rgba(168,85,247,0.25);
+        max-width: 100%;
+        border-radius: 10px;
+        border-width: 2px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.85), 0 0 15px rgba(168,85,247,0.25);
     }
 }
 /* ── Badges ── */
@@ -552,7 +553,7 @@
 <section class="container" style="position:relative; z-index:5; margin-top:-2rem;">
     <div class="row g-4 align-items-start">
 
-        <div class="col-12 col-md-auto text-center text-md-start">
+        <div class="col-4 col-sm-3 col-md-auto text-start">
             <div class="detail-poster-wrap">
                 {% if movie.poster_url %}
                     <img id="detail-poster-img" src="{{ movie.poster_url }}?co=1" alt="{{ movie.title }} poster" crossorigin="anonymous" loading="lazy" onerror="this.removeAttribute('crossorigin'); this.src='{{ movie.poster_url }}';">
@@ -567,8 +568,8 @@
             </div>
         </div>
 
-        <div class="col-12 col-md">
-            <div style="padding-top:0.5rem;">
+        <div class="col-8 col-sm-9 col-md">
+            <div style="padding-top:0.25rem;">
 
                 <h1 style="font-size:clamp(1.6rem,4vw,2.8rem); font-weight:800;
                             line-height:1.15; margin-bottom:0.5rem; letter-spacing:-0.02em;">
@@ -653,38 +654,40 @@
                 <div class="mb-3"></div>
                 {% endif %}
 
-                {% if user.is_authenticated %}
-                <button id="detail-watchlist-btn"
-                        class="btn rounded-pill px-4 py-2 {% if is_in_watchlist %}btn-watchlist-saved{% else %}btn-watchlist-add{% endif %}"
-                        data-saved="{{ is_in_watchlist|lower }}"
-                        data-media-id="{{ movie.id }}"
-                        onclick="toggleDetailWatchlist(this)"
-                        style="font-size:0.88rem; transition:all 0.3s ease;">
-                    {% if is_in_watchlist %}
-                        <i class="fa-solid fa-bookmark me-2"></i> Saved to Watchlist
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                    {% if user.is_authenticated %}
+                    <button id="detail-watchlist-btn"
+                            class="btn rounded-pill px-3.5 py-2 {% if is_in_watchlist %}btn-watchlist-saved{% else %}btn-watchlist-add{% endif %}"
+                            data-saved="{{ is_in_watchlist|lower }}"
+                            data-media-id="{{ movie.id }}"
+                            onclick="toggleDetailWatchlist(this)"
+                            style="font-size:0.85rem; transition:all 0.3s ease;">
+                        {% if is_in_watchlist %}
+                            <i class="fa-solid fa-bookmark me-1.5"></i> Saved
+                        {% else %}
+                            <i class="fa-regular fa-bookmark me-1.5"></i> Add to Watchlist
+                        {% endif %}
+                    </button>
                     {% else %}
-                        <i class="fa-regular fa-bookmark me-2"></i> Add to Watchlist
+                    <a href="{% url 'login' %}?next={{ request.path }}"
+                       class="btn rounded-pill px-3.5 py-2 btn-watchlist-add d-inline-flex align-items-center justify-content-center text-decoration-none"
+                       style="font-size:0.85rem; transition:all 0.3s ease;">
+                        <i class="fa-solid fa-right-to-bracket me-1.5"></i> Sign In to Add
+                    </a>
                     {% endif %}
-                </button>
-                {% else %}
-                <a href="{% url 'login' %}?next={{ request.path }}"
-                   class="btn rounded-pill px-4 py-2 btn-watchlist-add d-inline-flex align-items-center justify-content-center text-decoration-none"
-                   style="font-size:0.88rem; transition:all 0.3s ease;">
-                    <i class="fa-solid fa-right-to-bracket me-2"></i> Sign In to Add to Watchlist
-                </a>
-                {% endif %}
-                {% if trailer_url %}
-                <button onclick="openTrailerModal()"
-                        class="btn rounded-pill px-4 py-2 ms-2 btn-watchlist-add"
-                        style="font-size:0.88rem; transition:all 0.3s ease; border-color: rgba(168,85,247,0.4); color: #c084fc;">
-                    <i class="fa-solid fa-play me-2"></i> Watch Trailer
-                </button>
-                {% endif %}
-                <button onclick="openMoviePlayerModal()"
-                        class="btn rounded-pill px-4 py-2 ms-2 btn-watchlist-add"
-                        style="font-size:0.88rem; transition:all 0.3s ease; border-color: rgba(168,85,247,0.4); color: #c084fc;">
-                    <i class="fa-solid fa-tv me-2"></i> Watch Movie
-                </button>
+                    {% if trailer_url %}
+                    <button onclick="openTrailerModal()"
+                            class="btn rounded-pill px-3.5 py-2 btn-watchlist-add"
+                            style="font-size:0.85rem; transition:all 0.3s ease; border-color: rgba(168,85,247,0.4); color: #c084fc;">
+                        <i class="fa-solid fa-play me-1.5"></i> Watch Trailer
+                    </button>
+                    {% endif %}
+                    <button onclick="openMoviePlayerModal()"
+                            class="btn rounded-pill px-3.5 py-2 btn-watchlist-add"
+                            style="font-size:0.85rem; transition:all 0.3s ease; border-color: rgba(168,85,247,0.4); color: #c084fc;">
+                        <i class="fa-solid fa-tv me-1.5"></i> Watch Movie
+                    </button>
+                </div>
 
             </div>
         </div>
