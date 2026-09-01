@@ -107,8 +107,8 @@
     min-height: 360px;
     overflow: hidden;
     background: #08080c;
-    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 60%, rgba(0,0,0,0) 100%);
-    mask-image: linear-gradient(to bottom, #000 0%, #000 60%, rgba(0,0,0,0) 100%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 85%, rgba(0,0,0,0) 100%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 85%, rgba(0,0,0,0) 100%);
 }
 .detail-hero__bg {
     position: absolute;
@@ -125,9 +125,8 @@
     background: linear-gradient(
         to bottom,
         rgba(8,8,12,0) 0%,
-        rgba(8,8,12,0.1) 40%,
-        rgba(8,8,12,0.55) 70%,
-        rgba(8,8,12,0.92) 90%,
+        rgba(8,8,12,0) 70%,
+        rgba(8,8,12,0.5) 88%,
         #08080c 100%
     );
     pointer-events: none;
@@ -206,7 +205,7 @@
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--text-secondary);
+    color: #e5e7eb !important;
     border-left: 3px solid #a855f7;
     padding-left: 0.75rem;
     margin-bottom: 1.25rem;
@@ -581,7 +580,7 @@
 {% block content %}
 
 <!-- 🌌 Dynamic Ambient Background Glow Wrapper -->
-<div id="ambient-glow-background" aria-hidden="true" style="position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; background: #08080c;">
+<div id="ambient-glow-background" aria-hidden="true" style="position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;">
     {% if movie.backdrop_url %}
         <div class="ambient-glow-layer" style="position: absolute; inset: -60px; background-image: url('{{ movie.backdrop_url }}'); background-size: cover; background-position: center; filter: blur(80px) brightness(0.65) saturate(1.4); opacity: 0.35; transform: scale(1.2); transition: all 0.8s ease;"></div>
     {% elif movie.poster_url %}
@@ -624,7 +623,7 @@
             <div style="padding-top:0.25rem;">
 
                 <h1 style="font-size:clamp(1.6rem,4vw,2.8rem); font-weight:800;
-                            line-height:1.15; margin-bottom:0.5rem; letter-spacing:-0.02em;">
+                            line-height:1.15; margin-bottom:0.5rem; letter-spacing:-0.02em; color: #ffffff !important;">
                     {{ movie.title }}
                 </h1>
 
@@ -1776,24 +1775,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function applyDynamicTheme(imgEl) {
     try {
+        const glowBg = document.getElementById('ambient-glow-background');
+        if (!glowBg || typeof ColorThief === 'undefined') return;
         const colorThief = new ColorThief();
         const color = colorThief.getColor(imgEl);
-        if (color) {
+        if (color && color.length === 3) {
             const r = color[0];
             const g = color[1];
             const b = color[2];
-            
-            document.documentElement.style.setProperty('--accent-color', `rgb(${r}, ${g}, ${b})`);
-            document.documentElement.style.setProperty('--accent-glow', `rgba(${r}, ${g}, ${b}, 0.15)`);
-            
-            // Apply ambient lighting/glow to hero section if present
-            const heroSection = document.querySelector('.detail-hero');
-            if (heroSection) {
-                heroSection.style.boxShadow = `inset 0 -120px 120px -100px rgba(${r}, ${g}, ${b}, 0.6)`;
-            }
+            // Only update background ambient glow, NEVER text or accent-color variables
+            glowBg.style.background = `radial-gradient(circle at 35% 25%, rgba(${r}, ${g}, ${b}, 0.25) 0%, rgba(8, 8, 12, 1) 75%)`;
         }
     } catch (e) {
-        console.warn("Failed to extract dynamic theme color:", e);
+        console.warn("Dynamic theme extraction note:", e);
     }
 }
 function dismissRecommendation(btn, mediaId, mediaType) {
