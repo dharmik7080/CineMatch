@@ -798,9 +798,14 @@
                     </button>
                     {% endif %}
 
+                    <button onclick="playFirstEpisode()"
+                            class="btn rounded-pill btn-watchlist-add" style="background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%); border: none; color: #ffffff; font-weight: 700; box-shadow: 0 4px 20px rgba(168,85,247,0.4);">
+                        <i class="fa-solid fa-play me-1.5"></i> Watch S1 E1
+                    </button>
+
                     <button onclick="scrollToEpisodes()"
                             class="btn rounded-pill btn-watchlist-add">
-                        <i class="fa-solid fa-tv me-1.5"></i> Watch Episodes
+                        <i class="fa-solid fa-layer-group me-1.5"></i> Browse Episodes
                     </button>
                 </div>
 
@@ -1732,6 +1737,25 @@ function loadSeasonEpisodes(seasonNumber) {
 // ── EPISODE DETAIL POPUP MODAL HANDLERS ──
 let currentEpisodeNumber = null;
 let activeEpisodeCard = null;
+
+function playFirstEpisode() {
+    const firstCard = document.querySelector('.episode-card');
+    if (firstCard) {
+        openEpisodeModal(firstCard);
+        startTvEpisodePlay();
+    } else {
+        currentEpisodeNumber = "1";
+        const modal = document.getElementById('ep-modal');
+        if (modal) {
+            document.getElementById('ep-modal-title').textContent = "{{ tv_show.title|escapejs }} - S1 E1";
+            document.getElementById('ep-modal-badge').textContent = "Episode 1";
+            document.getElementById('ep-modal-overview').textContent = "{{ tv_show.overview|escapejs }}";
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            startTvEpisodePlay();
+        }
+    }
+}
 
 function openEpisodeModal(card) {
     const title = card.getAttribute('data-title');
