@@ -1511,7 +1511,7 @@ def movie_detail_view(request, movie_id):
                     'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=cover'
                 ),
                 'backdrop_url': (
-                    f"https://image.tmdb.org/t/p/original{backdrop_path}"
+                    f"https://image.tmdb.org/t/p/w1280{backdrop_path}"
                     if backdrop_path else ''
                 ),
             }
@@ -2011,7 +2011,7 @@ def tv_detail_view(request, series_id):
                     'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
                 ),
                 'backdrop_url': (
-                    f"https://image.tmdb.org/t/p/original{backdrop_path}"
+                    f"https://image.tmdb.org/t/p/w1280{backdrop_path}"
                     if backdrop_path else ''
                 ),
             }
@@ -2298,7 +2298,7 @@ def tv_detail_view(request, series_id):
                 'overview': ep.get('overview', ''),
                 'runtime': ep.get('runtime', 0) or 0,
                 'vote_average': round(ep.get('vote_average', 0.0), 1),
-                'still_url': f"https://image.tmdb.org/t/p/original{still_path}" if still_path else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
+                'still_url': f"https://image.tmdb.org/t/p/w500{still_path}" if still_path else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
             })
 
     context = {
@@ -2358,7 +2358,7 @@ def tv_season_ajax(request, series_id, season_number):
             'overview': ep.get('overview', ''),
             'runtime': ep.get('runtime', 0) or 0,
             'vote_average': round(ep.get('vote_average', 0.0), 1),
-            'still_url': f"https://image.tmdb.org/t/p/original{still_path}" if still_path else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
+            'still_url': f"https://image.tmdb.org/t/p/w500{still_path}" if still_path else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
         })
         
     return JsonResponse({'success': True, 'episodes': episodes})

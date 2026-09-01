@@ -606,7 +606,7 @@
         <div class="col-4 col-sm-3 col-md-auto text-start">
             <div class="detail-poster-wrap">
                 {% if tv_show.poster_url %}
-                    <img id="detail-poster-img" src="{{ tv_show.poster_url }}?co=1" alt="{{ tv_show.title }} poster" crossorigin="anonymous" loading="lazy" onerror="this.removeAttribute('crossorigin'); this.src='{{ tv_show.poster_url }}';">
+                    <img id="detail-poster-img" src="{{ tv_show.poster_url }}" alt="{{ tv_show.title }} poster" loading="eager">
                 {% else %}
                     <div class="detail-poster-fallback" style="width:230px; aspect-ratio:2/3; border-radius:14px;
                                 background:linear-gradient(135deg,rgba(168,85,247,0.15),rgba(59,130,246,0.15));

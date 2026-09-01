@@ -94,7 +94,7 @@ def fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", query=None, p
                 'vote_average': round(item.get('vote_average', 0.0), 1),
                 'overview': item.get('overview', ''),
                 'poster_url': f"https://image.tmdb.org/t/p/w300{poster_path}" if poster_path else (client.movie_fallback if endpoint_type == 'movie' else client.tv_fallback),
-                'backdrop_url': f"https://image.tmdb.org/t/p/original{backdrop_path}" if backdrop_path else '',
+                'backdrop_url': f"https://image.tmdb.org/t/p/w1280{backdrop_path}" if backdrop_path else '',
             }
             mapped_results.append(mapped_item)
             
