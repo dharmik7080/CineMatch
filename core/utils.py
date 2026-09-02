@@ -546,22 +546,20 @@ def get_upcoming_tv_shows():
     seen_ids = set()
     upcoming_tv = []
 
-    # 1. Inject Premium Indian Web Series (Prime, Netflix, Hotstar, SonyLIV)
+    # 1. Inject Premium Indian Web Series with Official TMDB Metadata
     indian_web_series = [
-        {'id': 84105, 'title': 'Mirzapur (Season 3)', 'release_date': '2026-09-18', 'vote_average': 8.5, 'is_new_season': True, 'release_badge': 'New Season'},
-        {'id': 93352, 'title': 'The Family Man (Season 3)', 'release_date': '2026-10-05', 'vote_average': 8.7, 'is_new_season': True, 'release_badge': 'New Season'},
-        {'id': 101352, 'title': 'Panchayat (Season 3)', 'release_date': '2026-09-25', 'vote_average': 8.9, 'is_new_season': True, 'release_badge': 'New Season'},
-        {'id': 203202, 'title': 'Rana Naidu (Season 2)', 'release_date': '2026-10-20', 'vote_average': 7.8, 'is_new_season': True, 'release_badge': 'New Season'},
-        {'id': 132117, 'title': 'Farzi (Season 2)', 'release_date': '2026-11-12', 'vote_average': 8.4, 'is_new_season': True, 'release_badge': 'New Season'},
-        {'id': 87508, 'title': 'Delhi Crime (Season 3)', 'release_date': '2026-11-01', 'vote_average': 8.5, 'is_new_season': True, 'release_badge': 'New Season'},
-        {'id': 100911, 'title': 'Asur (Season 3)', 'release_date': '2026-10-28', 'vote_average': 8.6, 'is_new_season': True, 'release_badge': 'New Season'},
-        {'id': 89113, 'title': 'Kota Factory (Season 3)', 'release_date': '2026-09-30', 'vote_average': 9.0, 'is_new_season': True, 'release_badge': 'New Season'},
-        {'id': 154084, 'title': 'Citadel: Honey Bunny', 'release_date': '2026-09-12', 'vote_average': 7.9, 'is_new_season': False, 'release_badge': 'New Show'},
-        {'id': 247830, 'title': 'Dabba Cartel', 'release_date': '2026-09-28', 'vote_average': 8.1, 'is_new_season': False, 'release_badge': 'New Show'},
-        {'id': 113457, 'title': 'Mismatched (Season 3)', 'release_date': '2026-10-10', 'vote_average': 7.7, 'is_new_season': True, 'release_badge': 'New Season'},
-        {'id': 100757, 'title': 'Special OPS (Season 2)', 'release_date': '2026-11-05', 'vote_average': 8.6, 'is_new_season': True, 'release_badge': 'New Season'},
-        {'id': 104139, 'title': 'Gullak (Season 4)', 'release_date': '2026-09-14', 'vote_average': 9.1, 'is_new_season': True, 'release_badge': 'New Season'},
-        {'id': 153872, 'title': 'Rocket Boys (Season 3)', 'release_date': '2026-10-18', 'vote_average': 8.9, 'is_new_season': True, 'release_badge': 'New Season'}
+        {'id': 84105, 'title': 'Mirzapur', 'release_date': '2024-07-05', 'vote_average': 8.5, 'is_new_season': True, 'release_badge': 'Season 3'},
+        {'id': 101352, 'title': 'Panchayat', 'release_date': '2025-06-24', 'vote_average': 8.9, 'is_new_season': True, 'release_badge': 'Season 4'},
+        {'id': 93352, 'title': 'The Family Man', 'release_date': '2025-11-21', 'vote_average': 8.7, 'is_new_season': True, 'release_badge': 'Season 3'},
+        {'id': 203202, 'title': 'Rana Naidu', 'release_date': '2025-06-13', 'vote_average': 7.8, 'is_new_season': True, 'release_badge': 'Season 2'},
+        {'id': 132117, 'title': 'Farzi', 'release_date': '2025-12-10', 'vote_average': 8.4, 'is_new_season': True, 'release_badge': 'Season 2'},
+        {'id': 87508, 'title': 'Delhi Crime', 'release_date': '2025-11-13', 'vote_average': 8.5, 'is_new_season': True, 'release_badge': 'Season 3'},
+        {'id': 100911, 'title': 'Asur', 'release_date': '2025-10-28', 'vote_average': 8.6, 'is_new_season': True, 'release_badge': 'Season 3'},
+        {'id': 89113, 'title': 'Kota Factory', 'release_date': '2024-06-20', 'vote_average': 9.0, 'is_new_season': True, 'release_badge': 'Season 3'},
+        {'id': 154084, 'title': 'Citadel: Honey Bunny', 'release_date': '2024-11-06', 'vote_average': 7.9, 'is_new_season': False, 'release_badge': 'New Show'},
+        {'id': 247830, 'title': 'Dabba Cartel', 'release_date': '2025-02-28', 'vote_average': 8.1, 'is_new_season': False, 'release_badge': 'New Show'},
+        {'id': 113457, 'title': 'Mismatched', 'release_date': '2025-10-10', 'vote_average': 7.7, 'is_new_season': True, 'release_badge': 'Season 3'},
+        {'id': 100757, 'title': 'Special OPS', 'release_date': '2025-11-05', 'vote_average': 8.6, 'is_new_season': True, 'release_badge': 'Season 2'},
     ]
 
     client = TMDBClient()
