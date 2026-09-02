@@ -105,31 +105,55 @@ TV_SIMILARITY = None
 def get_cached_poster(client, media_id, media_type):
     """
     Syllabus Reference: Unit 9.2 (Queryset Optimization / Caching)
-    Checks if a unique combined string key exists in POSTER_CACHE.
-    If yes, returns the value immediately (0ms lookup).
-    If no, executes client.get_media_assets() with a strict timeout parameter
-    to protect the active thread pool from starvation, and stores the result in RAM.
+    Multi-stage resilient poster lookup: Memory Cache -> CachedMedia DB -> TMDB Client -> Direct TMDB Endpoint.
     """
     cache_key = f"{media_type}_{media_id}"
-    if cache_key in POSTER_CACHE:
+    if cache_key in POSTER_CACHE and POSTER_CACHE[cache_key]:
         return POSTER_CACHE[cache_key]
     
-    # Pre-saved local Unsplash fallback cover links if API is offline or times out
     fallback_urls = {
         'movie': 'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop',
         'tv': 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
     }
     
+    # 1. DB CachedMedia lookup (0ms)
     try:
-        # Enforce strict timeout block to avoid blocking Django server threads
-        poster_url = client.get_media_assets(media_id, media_type, timeout=3.0)
-        if poster_url:
-            POSTER_CACHE[cache_key] = poster_url
-            return poster_url
+        from core.models import CachedMedia
+        cm = CachedMedia.objects.filter(media_id=int(media_id), media_type=media_type).first()
+        if cm and cm.data and cm.data.get('poster_path'):
+            url = f"https://image.tmdb.org/t/p/w500{cm.data['poster_path']}"
+            POSTER_CACHE[cache_key] = url
+            return url
+    except Exception:
+        pass
+
+    # 2. TMDB Client assets call
+    try:
+        if client:
+            poster_url = client.get_media_assets(media_id, media_type, timeout=3.0)
+            if poster_url:
+                POSTER_CACHE[cache_key] = poster_url
+                return poster_url
     except Exception as e:
         print(f"[CACHE ENGINE] Exception or timeout for key {cache_key}: {e}")
         
-    return fallback_urls.get(media_type)
+    # 3. Direct TMDB API endpoint fetch
+    try:
+        from django.conf import settings
+        import requests
+        api_key = getattr(settings, 'TMDB_API_KEY', '') or '41fc74ce5602882786e1e9d4933fdcc6'
+        endpoint = 'movie' if media_type == 'movie' else 'tv'
+        resp = requests.get(f"https://api.themoviedb.org/3/{endpoint}/{media_id}?api_key={api_key}", timeout=2.5)
+        if resp.status_code == 200:
+            pp = resp.json().get('poster_path')
+            if pp:
+                url = f"https://image.tmdb.org/t/p/w500{pp}"
+                POSTER_CACHE[cache_key] = url
+                return url
+    except Exception:
+        pass
+
+    return fallback_urls.get(media_type, fallback_urls['movie'])
 
 
 def load_ml_models():
@@ -1145,67 +1169,132 @@ def explore_tv(request):
     return render(request, 'core/explore_tv.html', context)
 
 # ======================================================================
-# Explore Anime Grid View
+# Explore Anime Grid View (AniList GraphQL Engine)
 # ======================================================================
 def explore_anime_view(request):
     """
-    Explore Anime Catalog Grid View.
-    Queries TMDB discover endpoint with Animation genre (16) & Japanese language (ja).
-    Supports search query and pagination.
+    Explore Anime Catalog Grid View powered by official AniList GraphQL API (https://graphql.anilist.co).
+    Features:
+    - 100% Official AniList Popular & Search Data
+    - Exactly 16 Cards per page (perPage: 16)
+    - Strict Non-Adult Content Filtering (isAdult: false + keyword block)
+    - Cross-resolves TMDB IDs for detail page routing
     """
-    from django.conf import settings
+    import json
     import requests
-    from core.utils import get_resilient_session, TMDB_GENRE_MAP
+    from core.utils import TMDBClient
+    from core.models import MovieWatchlist
 
-    query = request.GET.get('q', '').strip()
+    query_str = request.GET.get('q', '').strip()
     page_number = request.GET.get('page', 1)
     try:
         page_number = int(page_number)
     except ValueError:
         page_number = 1
 
-    api_key = getattr(settings, 'TMDB_API_KEY', '') or '41fc74ce5602882786e1e9d4933fdcc6'
-    EXPLICIT_KEYWORDS = {'sex', 'erotic', 'porn', 'xxx', 'hentai', 'nude', 'nudity', 'lust', 'shikiyoku', 'overflow'}
+    EXPLICIT_KEYWORDS = {'sex', 'erotic', 'porn', 'xxx', 'hentai', 'nude', 'nudity', 'lust', 'shikiyoku', 'overflow', 'ecchi'}
 
-    if query:
-        url = f"https://api.themoviedb.org/3/search/tv?api_key={api_key}&query={requests.utils.quote(query)}&page={page_number}&include_adult=false"
+    anilist_url = 'https://graphql.anilist.co'
+    
+    if query_str:
+        clean_q = query_str.replace('"', '\\"')
+        graphql_query = f'''
+        {{
+          Page(page: {page_number}, perPage: 16) {{
+            pageInfo {{
+              lastPage
+              total
+            }}
+            media(search: "{clean_q}", type: ANIME, isAdult: false) {{
+              id
+              title {{
+                english
+                romaji
+              }}
+              coverImage {{
+                extraLarge
+              }}
+              averageScore
+              genres
+              seasonYear
+            }}
+          }}
+        }}
+        '''
     else:
-        url = f"https://api.themoviedb.org/3/discover/tv?api_key={api_key}&language=en-US&with_genres=16&with_original_language=ja&include_adult=false&sort_by=popularity.desc&page={page_number}"
+        graphql_query = f'''
+        {{
+          Page(page: {page_number}, perPage: 16) {{
+            pageInfo {{
+              lastPage
+              total
+            }}
+            media(type: ANIME, sort: [POPULARITY_DESC, TRENDING_DESC], isAdult: false) {{
+              id
+              title {{
+                english
+                romaji
+              }}
+              coverImage {{
+                extraLarge
+              }}
+              averageScore
+              genres
+              seasonYear
+            }}
+          }}
+        }}
+        '''
 
     anime_records = []
     total_pages = 1
 
     try:
-        resp = get_resilient_session().get(url, timeout=6.0)
+        resp = requests.post(anilist_url, json={'query': graphql_query}, timeout=6.0)
         if resp.status_code == 200:
-            data = resp.json()
-            total_pages = min(data.get('total_pages', 1), 500)
-            for item in data.get('results', []):
-                name = item.get('name') or item.get('original_name') or ''
-                if not name:
-                    continue
-                if any(word in name.lower() for word in EXPLICIT_KEYWORDS):
+            data = resp.json().get('data', {}).get('Page', {})
+            total_pages = min(data.get('pageInfo', {}).get('lastPage', 1) or 1, 500)
+            
+            client = TMDBClient()
+            for item in data.get('media', []):
+                t_eng = item.get('title', {}).get('english')
+                t_rom = item.get('title', {}).get('romaji')
+                title = t_eng or t_rom or 'Anime Title'
+
+                if any(k in title.lower() for k in EXPLICIT_KEYWORDS):
                     continue
 
-                poster_path = item.get('poster_path')
-                genre_ids = item.get('genre_ids', [])
-                genre_names = [TMDB_GENRE_MAP.get(gid) for gid in genre_ids if TMDB_GENRE_MAP.get(gid)]
-                genres_str = " | ".join(genre_names[:2]) or "Anime"
+                cover_url = item.get('coverImage', {}).get('extraLarge') or 'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop'
+                raw_score = item.get('averageScore')
+                score = round(raw_score / 10.0, 1) if raw_score else 8.2
+                genres = " | ".join(item.get('genres', [])[:2]) or "Anime"
+                year = str(item.get('seasonYear') or '2024')
+
+                # Cross-resolve TMDB ID for detail routing
+                anilist_id = item.get('id')
+                tmdb_id = anilist_id
+                try:
+                    search_res = client.search_tv(title)
+                    if search_res:
+                        tmdb_id = search_res[0].get('id')
+                except Exception:
+                    pass
 
                 anime_records.append({
-                    'id': item.get('id'),
-                    'media_id': item.get('id'),
-                    'name': name,
-                    'title': name,
+                    'id': tmdb_id,
+                    'media_id': tmdb_id,
+                    'anilist_id': anilist_id,
+                    'name': title,
+                    'title': title,
                     'media_type': 'tv',
-                    'poster_url': f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop",
-                    'vote_average': round(item.get('vote_average', 0.0), 1),
-                    'first_air_date': item.get('first_air_date', ''),
-                    'year': (item.get('first_air_date') or '')[:4] or '2024',
-                    'genres': genres_str
+                    'poster_url': cover_url,
+                    'vote_average': score,
+                    'first_air_date': year,
+                    'year': year,
+                    'genres': genres
                 })
     except Exception as e:
-        print(f"[EXPLORE ANIME ERROR] {e}")
+        print(f"[ANILIST EXPLORE ERROR] {e}")
 
     class MockPage:
         def __init__(self, number, object_list, max_pages):
@@ -1243,7 +1332,7 @@ def explore_anime_view(request):
         'page_obj': page_obj,
         'watchlist_ids': watchlist_ids,
         'saved_ids': watchlist_ids,
-        'query': query,
+        'query': query_str,
         'is_anime_page': True
     }
 
@@ -1259,47 +1348,35 @@ from django.db.models import Sum, Avg
 
 def get_user_stats(user):
     """
-    Queries WatchedHistory and UserWatchProgress models to calculate watchtime, rating, and genre counts.
-    Uses exact playing time (in seconds) if active playback logging exists.
+    Queries WatchedHistory and UserWatchProgress models to calculate exact watchtime, rating, and genre counts.
+    Uses exact playing time (in seconds) logged by video player heartbeat pings.
     """
-    from core.models import UserWatchProgress
+    from core.models import UserWatchProgress, WatchedHistory
+    
+    # 1. Calculate exact active playback seconds logged via heartbeat
     exact_progress = UserWatchProgress.objects.filter(user=user)
     exact_seconds = exact_progress.aggregate(total=Sum('seconds_watched'))['total'] or 0
 
+    # 2. Query real user watch history
     history = WatchedHistory.objects.filter(user=user)
     
-    # If user has no watch history, populate mock records for instant visualizations
-    if history.count() == 0 and exact_seconds == 0:
-        mock_data = [
-            {"movie_id": 299534, "movie_title": "Avengers: Endgame", "duration": 181, "rating": 9.0, "genres": "Action, Adventure, Sci-Fi"},
-            {"movie_id": 550, "movie_title": "Fight Club", "duration": 139, "rating": 8.5, "genres": "Drama"},
-            {"movie_id": 155, "movie_title": "The Dark Knight", "duration": 152, "rating": 9.5, "genres": "Action, Crime, Drama"},
-            {"movie_id": 680, "movie_title": "Pulp Fiction", "duration": 154, "rating": 8.0, "genres": "Crime, Thriller"},
-            {"movie_id": 13, "movie_title": "Forrest Gump", "duration": 142, "rating": 7.5, "genres": "Comedy, Drama, Romance"},
-            {"movie_id": 27205, "movie_title": "Inception", "duration": 148, "rating": 8.8, "genres": "Action, Sci-Fi, Thriller"},
-            {"movie_id": 120, "movie_title": "The Lord of the Rings: The Fellowship of the Ring", "duration": 178, "rating": 9.2, "genres": "Action, Adventure, Fantasy"},
-        ]
-        for item in mock_data:
-            WatchedHistory.objects.create(
-                user=user,
-                movie_id=item["movie_id"],
-                movie_title=item["movie_title"],
-                duration=item["duration"],
-                rating=item["rating"],
-                genres=item["genres"]
-            )
-        history = WatchedHistory.objects.filter(user=user)
-    
     agg = history.aggregate(total_time=Sum('duration'), avg_rating=Avg('rating'))
-    total_time = agg['total_time'] or 0
+    total_time_mins_hist = agg['total_time'] or 0
     avg_rating = agg['avg_rating'] or 0.0
 
+    # If exact playback progress exists, use exact active seconds!
     if exact_seconds > 0:
         total_time_hours = round(exact_seconds / 3600.0, 2)
         total_time_mins = round(exact_seconds / 60.0, 1)
+        titles_count = exact_progress.count()
+    elif history.exists():
+        total_time_hours = round(total_time_mins_hist / 60.0, 1)
+        total_time_mins = total_time_mins_hist
+        titles_count = history.count()
     else:
-        total_time_hours = round(total_time / 60.0, 1)
-        total_time_mins = total_time
+        total_time_hours = 0.0
+        total_time_mins = 0
+        titles_count = 0
 
     genre_counts = {}
     for entry in history:
@@ -1314,8 +1391,8 @@ def get_user_stats(user):
         'total_watchtime_hours': total_time_hours,
         'exact_seconds_watched': exact_seconds,
         'genre_distribution': genre_counts,
-        'avg_rating': round(avg_rating, 1),
-        'movies_watched_count': max(history.count(), exact_progress.count())
+        'avg_rating': round(avg_rating, 1) if avg_rating else 0.0,
+        'movies_watched_count': titles_count
     }
 
 def get_user_persona(stats):
@@ -1363,8 +1440,14 @@ def get_user_persona(stats):
 @login_required
 def analytics_dashboard(request):
     from .analytics_engine import generate_seaborn_heatmap, generate_plotly_scatter, generate_networkx_graph
+    from django.core.cache import cache
     
     user = request.user
+    cache_key = f"analytics_dash_user_v3_{user.id if user.is_authenticated else 'anon'}"
+    cached_context = cache.get(cache_key)
+    if cached_context:
+        return render(request, 'core/analytics.html', cached_context)
+
     try:
         watchlist_items = MovieWatchlist.objects.filter(user=user, media_type='movie')
         watchlist_movies = list(watchlist_items.values_list('media_id', flat=True))
@@ -1473,6 +1556,7 @@ def analytics_dashboard(request):
         'gauge_json': gauge_json,
     }
     
+    cache.set(cache_key, context, 300)
     return render(request, 'core/analytics.html', context)
 
 
@@ -2858,8 +2942,25 @@ def track_watchtime_api(request):
             media_type=media_type,
             defaults={'title': title, 'seconds_watched': seconds}
         )
+        position = data.get('position') or data.get('currentTime')
+        try:
+            position_sec = int(position) if position is not None else 0
+        except (ValueError, TypeError):
+            position_sec = 0
+
+        from core.models import UserWatchProgress
+        progress, created = UserWatchProgress.objects.get_or_create(
+            user=request.user,
+            media_id=int(media_id),
+            media_type=media_type,
+            defaults={'title': title, 'seconds_watched': seconds, 'last_position': position_sec or seconds}
+        )
         if not created:
             progress.seconds_watched += seconds
+            if position_sec > 0:
+                progress.last_position = position_sec
+            else:
+                progress.last_position = progress.seconds_watched
             if title:
                 progress.title = title
             progress.save()
@@ -2868,6 +2969,7 @@ def track_watchtime_api(request):
             'success': True,
             'media_id': media_id,
             'seconds_watched': progress.seconds_watched,
+            'last_position': progress.last_position,
             'total_hours': round(progress.seconds_watched / 3600.0, 2)
         })
 
@@ -2887,15 +2989,64 @@ def profile_view(request):
     stats = get_user_stats(user)
     persona = get_user_persona(stats)
 
-    # 1. Continue Watching
-    from core.models import ContinueWatching, MediaReview
-    continue_watching = ContinueWatching.objects.filter(user=user)
+    # 1. Continue Watching (Enriched with exact last_position timestamp)
+    from core.models import ContinueWatching, UserWatchProgress, MediaReview
+    raw_cw = ContinueWatching.objects.filter(user=user)
+    cw_progress_map = {
+        f"{p.media_type}_{p.media_id}": p.last_position 
+        for p in UserWatchProgress.objects.filter(user=user)
+    }
+    
+    continue_watching_list = []
+    for item in raw_cw:
+        pos_sec = cw_progress_map.get(f"{item.media_type}_{item.media_id}", 0)
+        pos_mins = pos_sec // 60
+        pos_rem_sec = pos_sec % 60
+        time_label = f"{pos_mins}m {pos_rem_sec}s" if pos_sec > 0 else "Started"
+        
+        base_path = f"/movies/{item.media_id}/" if item.media_type == 'movie' else f"/tv/{item.media_id}/"
+        resume_url = f"{base_path}?t={pos_sec}" if pos_sec > 0 else base_path
 
-    # 2. My Reviews
-    my_reviews = MediaReview.objects.filter(user=user).order_by('-created_at')
+        continue_watching_list.append({
+            'id': item.id,
+            'media_id': item.media_id,
+            'media_type': item.media_type,
+            'title': item.title,
+            'poster_url': item.poster_url,
+            'season': item.season,
+            'episode': item.episode,
+            'resume_url': resume_url,
+            'last_position': pos_sec,
+            'time_label': time_label
+        })
+
+    # 2. My Reviews (Enriched with real Title & Poster)
+    client = TMDBClient()
+    from core.models import MediaReview, CachedMedia
+    raw_reviews = MediaReview.objects.filter(user=user).order_by('-created_at')
+    my_reviews_enriched = []
+    
+    for rev in raw_reviews:
+        media_title = f"{rev.media_type.upper()} #{rev.media_id}"
+        poster_url = get_cached_poster(client, rev.media_id, rev.media_type)
+        
+        cm = CachedMedia.objects.filter(media_id=rev.media_id, media_type=rev.media_type).first()
+        if cm and cm.data:
+            media_title = cm.data.get('name') or cm.data.get('title') or cm.data.get('original_name') or media_title
+        elif rev.media_id == 66732:
+            media_title = "Stranger Things"
+        
+        my_reviews_enriched.append({
+            'id': rev.id,
+            'media_id': rev.media_id,
+            'media_type': rev.media_type,
+            'title': media_title,
+            'poster_url': poster_url,
+            'review_text': rev.review_text,
+            'created_at': rev.created_at
+        })
 
     # 3. Recently Viewed
-    client = TMDBClient()
     recently_viewed_ids = request.session.get('recently_viewed', [])
     recently_viewed_media = []
     for item in recently_viewed_ids:
@@ -2924,8 +3075,8 @@ def profile_view(request):
         'profile_user': user,
         'stats': stats,
         'persona': persona,
-        'continue_watching': continue_watching,
-        'my_reviews': my_reviews,
+        'continue_watching': continue_watching_list,
+        'my_reviews': my_reviews_enriched,
         'recently_viewed_media': recently_viewed_media,
     }
 

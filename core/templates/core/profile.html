@@ -151,19 +151,18 @@
                 <div class="watchlist-card">
                     <img src="{{ item.poster_url|default:'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop' }}" alt="{{ item.title }}" loading="lazy">
                     <div class="card-overlay">
-                        <span class="badge bg-primary text-white mb-2" style="font-size: 0.7rem;">
+                        <span class="badge bg-primary text-white mb-1" style="font-size: 0.7rem;">
                             {% if item.media_type == 'tv' %}S{{ item.season }} E{{ item.episode }}{% else %}Movie{% endif %}
                         </span>
-                        <h6 class="text-white text-center fw-bold small text-truncate w-100 mb-2">{{ item.title }}</h6>
-                        {% if item.media_type == 'movie' %}
-                            <a href="{% url 'movie_detail' item.media_id %}" class="btn btn-primary btn-sm rounded-pill px-3">
-                                <i class="fa-solid fa-play me-1"></i>Resume
-                            </a>
-                        {% else %}
-                            <a href="{% url 'tv_show_detail' item.media_id %}" class="btn btn-primary btn-sm rounded-pill px-3">
-                                <i class="fa-solid fa-play me-1"></i>Resume
-                            </a>
+                        {% if item.time_label and item.time_label != 'Started' %}
+                            <small class="badge bg-dark border border-secondary text-warning mb-2" style="font-size: 0.65rem;">
+                                <i class="fa-regular fa-clock me-1"></i>{{ item.time_label }}
+                            </small>
                         {% endif %}
+                        <h6 class="text-white text-center fw-bold small text-truncate w-100 mb-2">{{ item.title }}</h6>
+                        <a href="{{ item.resume_url|default:'#' }}" class="btn btn-primary btn-sm rounded-pill px-3">
+                            <i class="fa-solid fa-play me-1"></i>Resume
+                        </a>
                     </div>
                 </div>
                 {% endfor %}
@@ -187,35 +186,40 @@
         {% if my_reviews %}
         <div class="row g-3">
             {% for rev in my_reviews %}
-            <div class="col-md-6 col-lg-4">
-                <div class="p-3.5 rounded-4 h-100" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; justify-content: space-between;">
-                    <div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="badge text-uppercase px-2.5 py-1" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; font-size: 0.72rem; font-weight: 700; border: 1px solid rgba(168, 85, 247, 0.3);">
-                                {{ rev.media_type }} #{{ rev.media_id }}
-                            </span>
-                            <small class="text-muted" style="font-size: 0.72rem;">{{ rev.created_at|date:"M d, Y" }}</small>
+            <div class="col-md-6 col-lg-6">
+                <div class="p-3 rounded-4 h-100" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); display: flex; gap: 1rem; align-items: flex-start; transition: all 0.3s ease;">
+                    <img src="{{ rev.poster_url }}" alt="{{ rev.title }}" loading="lazy" style="width: 70px; height: 105px; object-fit: cover; border-radius: 10px; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.1);" onerror="this.src='https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop';">
+                    
+                    <div class="d-flex flex-column justify-content-between flex-grow-1 h-100" style="min-width: 0;">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-start mb-1 gap-2">
+                                <h5 class="fw-bold text-white text-truncate m-0" style="font-size: 1.05rem;" title="{{ rev.title }}">{{ rev.title }}</h5>
+                                <span class="badge text-uppercase px-2 py-0.5 flex-shrink-0" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; font-size: 0.68rem; font-weight: 700; border: 1px solid rgba(168, 85, 247, 0.3);">
+                                    {{ rev.media_type }}
+                                </span>
+                            </div>
+                            <small class="text-white-50 d-block mb-2" style="font-size: 0.72rem;">Reviewed on {{ rev.created_at|date:"M d, Y" }}</small>
+                            <p class="text-light m-0" style="font-size: 0.88rem; line-height: 1.45; font-style: italic; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                "{{ rev.review_text }}"
+                            </p>
                         </div>
-                        <p class="text-light mb-3" style="font-size: 0.92rem; line-height: 1.5; font-style: italic;">
-                            "{{ rev.review_text }}"
-                        </p>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center pt-2 border-top border-secondary" style="border-color: rgba(255,255,255,0.06) !important;">
-                        {% if rev.media_type == 'movie' %}
-                            <a href="{% url 'movie_detail' rev.media_id %}" class="btn btn-link btn-sm text-accent p-0 text-decoration-none fw-bold" style="font-size: 0.8rem;">
-                                View Title <i class="fa-solid fa-chevron-right ms-1 small"></i>
-                            </a>
-                        {% else %}
-                            <a href="{% url 'tv_show_detail' rev.media_id %}" class="btn btn-link btn-sm text-accent p-0 text-decoration-none fw-bold" style="font-size: 0.8rem;">
-                                View Title <i class="fa-solid fa-chevron-right ms-1 small"></i>
-                            </a>
-                        {% endif %}
-                        <form method="POST" action="{% url 'delete_media_review' rev.id %}" style="display:inline;">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-link text-danger p-0 border-0" style="font-size: 0.8rem;" title="Delete Review">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                        </form>
+                        <div class="d-flex justify-content-between align-items-center pt-2 mt-2 border-top" style="border-color: rgba(255,255,255,0.06) !important;">
+                            {% if rev.media_type == 'movie' %}
+                                <a href="{% url 'movie_detail' rev.media_id %}" class="btn btn-link btn-sm text-accent p-0 text-decoration-none fw-bold" style="font-size: 0.8rem;">
+                                    View Title <i class="fa-solid fa-chevron-right ms-1 small"></i>
+                                </a>
+                            {% else %}
+                                <a href="{% url 'tv_show_detail' rev.media_id %}" class="btn btn-link btn-sm text-accent p-0 text-decoration-none fw-bold" style="font-size: 0.8rem;">
+                                    View Title <i class="fa-solid fa-chevron-right ms-1 small"></i>
+                                </a>
+                            {% endif %}
+                            <form method="POST" action="{% url 'delete_media_review' rev.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-link text-danger p-0 border-0" style="font-size: 0.82rem;" title="Delete Review">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>

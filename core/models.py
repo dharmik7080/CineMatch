@@ -452,6 +452,7 @@ class UserWatchProgress(models.Model):
     media_type = models.CharField(max_length=10, default='movie')
     title = models.CharField(max_length=255, blank=True, default='')
     seconds_watched = models.IntegerField(default=0)
+    last_position = models.IntegerField(default=0, help_text="Exact timestamp position in seconds where user paused/stopped watching.")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

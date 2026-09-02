@@ -891,6 +891,10 @@
             });
 
             document.addEventListener("keydown", function(e) {
+                if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+                    e.preventDefault();
+                    openSearchModal();
+                }
                 if (e.key === "Escape" && searchOverlay.classList.contains("active")) {
                     closeSearchModal();
                 }
@@ -898,8 +902,18 @@
 
             function openSearchModal() {
                 searchOverlay.classList.add("active");
-                searchInput.focus();
                 document.body.style.overflow = "hidden";
+
+                if (searchInput) {
+                    searchInput.focus();
+                    setTimeout(() => {
+                        searchInput.focus();
+                        if (searchInput.value) searchInput.select();
+                    }, 50);
+                    setTimeout(() => {
+                        searchInput.focus();
+                    }, 150);
+                }
             }
 
             function closeSearchModal() {
@@ -1142,6 +1156,27 @@
                 startWatchTimeHeartbeat(movieMatch[1], 'movie', document.title);
             } else if (tvMatch) {
                 startWatchTimeHeartbeat(tvMatch[1], 'tv', document.title);
+            }
+
+            // Exact timestamp resume handler (?t=1245)
+            const urlParams = new URLSearchParams(window.location.search);
+            const resumeTime = urlParams.get('t');
+            if (resumeTime) {
+                const sec = parseInt(resumeTime);
+                if (!isNaN(sec) && sec > 0) {
+                    console.log(`[Auto-Resume]: Resuming playback from exact timestamp ${sec}s`);
+                    const videoElem = document.querySelector('video');
+                    if (videoElem) {
+                        videoElem.currentTime = sec;
+                    }
+                    const iframe = document.querySelector('iframe');
+                    if (iframe && iframe.src) {
+                        if (!iframe.src.includes('start=')) {
+                            const separator = iframe.src.includes('?') ? '&' : '?';
+                            iframe.src = `${iframe.src}${separator}start=${sec}#t=${sec}`;
+                        }
+                    }
+                }
             }
         });
     </script>
