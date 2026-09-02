@@ -401,9 +401,11 @@ function removeTargetItem(mediaId, mediaType) {
     formData.append('media_id', mediaId);
     formData.append('media_type', mediaType);
 
+    const token = document.querySelector('[name=csrfmiddlewaretoken]')?.value || (typeof getCookie === 'function' ? getCookie('csrftoken') : '') || '{{ csrf_token }}';
+
     fetch(url, {
         method: 'POST',
-        headers: { 'X-CSRFToken': csrftoken, 'X-Requested-With': 'XMLHttpRequest' },
+        headers: { 'X-CSRFToken': token, 'X-Requested-With': 'XMLHttpRequest' },
         body: formData
     })
     .then(r => r.json())

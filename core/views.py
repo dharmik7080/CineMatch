@@ -633,6 +633,15 @@ def watchlist_delete(request):
     media_id = request.POST.get('media_id')
     media_type = request.POST.get('media_type', 'movie')
 
+    if not media_id and request.body:
+        try:
+            import json
+            b_data = json.loads(request.body)
+            media_id = b_data.get('media_id')
+            media_type = b_data.get('media_type', 'movie')
+        except Exception:
+            pass
+
     if not media_id:
         return JsonResponse({'success': False, 'error': 'Missing media_id parameter.'}, status=400)
 

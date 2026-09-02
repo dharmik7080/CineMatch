@@ -45,12 +45,18 @@ def get_credits_df():
     ]
     return pd.DataFrame(fallback_data)
 
+_SEABORN_HEATMAP_CACHE = None
+_PLOTLY_SCATTER_CACHE = None
+
 def generate_seaborn_heatmap():
     """
     Syllabus Reference: Unit 2.1 Data Visualization with Seaborn
     Generates a correlation matrix heatmap using sns.heatmap().
     Shows statistical relationships between movie attributes (popularity, rating, budget, etc.).
     """
+    global _SEABORN_HEATMAP_CACHE
+    if _SEABORN_HEATMAP_CACHE:
+        return _SEABORN_HEATMAP_CACHE
     try:
         df = get_credits_df()
         if df is None:
@@ -100,8 +106,7 @@ def generate_seaborn_heatmap():
         buf = io.BytesIO()
         plt.savefig(buf, format='png', facecolor='#07070b', dpi=120)
         buf.seek(0)
-        encoded_png = base64.b64encode(buf.read()).decode('utf-8')
-        plt.close()
+        _SEABORN_HEATMAP_CACHE = encoded_png
         return encoded_png
     except Exception as e:
         print("[Analytics Engine] Seaborn heatmap error:", e)
@@ -114,6 +119,9 @@ def generate_plotly_scatter():
     Generates an interactive scatter chart mapping Budget vs Revenue,
     color-coded by ratings and sized by popularity, enabling zoom/hover inspect.
     """
+    global _PLOTLY_SCATTER_CACHE
+    if _PLOTLY_SCATTER_CACHE:
+        return _PLOTLY_SCATTER_CACHE
     try:
         df = get_credits_df()
         if df is None:
@@ -158,6 +166,7 @@ def generate_plotly_scatter():
         # Render figure div directly
         from plotly.offline import plot
         chart_div = plot(fig, output_type='div', include_plotlyjs=False)
+        _PLOTLY_SCATTER_CACHE = chart_div
         return chart_div
     except Exception as e:
         print("[Analytics Engine] Plotly scatter error:", e)
