@@ -959,9 +959,10 @@ def for_you_feed(request):
     talk_of_town = daily_trending[:3]
     most_interested = daily_trending[:5]
     
-    # ── FETCH UPCOMING MOVIES FROM TMDB WITH CACHE-ASIDE (24H CACHE) ──
-    from core.utils import get_upcoming_movies
+    # ── FETCH UPCOMING MOVIES & TV SHOWS FROM TMDB & ANILIST (CACHE-ASIDE) ──
+    from core.utils import get_upcoming_movies, get_upcoming_tv_shows
     upcoming_movies = get_upcoming_movies()[:20]
+    upcoming_tv_shows = get_upcoming_tv_shows()[:20]
     
     # ── Platform-specific feeds ──
     import random
@@ -1018,6 +1019,7 @@ def for_you_feed(request):
         'most_interested': most_interested,
         'trending_last_updated': trending_last_updated,
         'upcoming_movies': upcoming_movies,
+        'upcoming_tv_shows': upcoming_tv_shows,
         # 💎 INJECTED INTO CONTEXT
         'netflix_movies': netflix_data,
         'prime_movies': prime_data,
@@ -1270,15 +1272,10 @@ def explore_anime_view(request):
                 genres = " | ".join(item.get('genres', [])[:2]) or "Anime"
                 year = str(item.get('seasonYear') or '2024')
 
-                # Cross-resolve TMDB ID for detail routing
+                # Cross-resolve TMDB ID for detail routing & streaming
                 anilist_id = item.get('id')
-                tmdb_id = anilist_id
-                try:
-                    search_res = client.search_tv(title)
-                    if search_res:
-                        tmdb_id = search_res[0].get('id')
-                except Exception:
-                    pass
+                from core.utils import resolve_anilist_to_tmdb_id
+                tmdb_id = resolve_anilist_to_tmdb_id(title, fallback_id=anilist_id)
 
                 anime_records.append({
                     'id': tmdb_id,
