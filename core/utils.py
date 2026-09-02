@@ -340,17 +340,9 @@ def fetch_trending_anime():
                 vote_avg = round(score / 10.0, 1) if score else 8.5
                 genres = " | ".join(item.get('genres', [])[:2]) or "Anime"
 
-                # Resolve TMDB ID for detail page compatibility
-                tmdb_id = item.get('id')
-                try:
-                    search_url = f"https://api.themoviedb.org/3/search/tv?api_key={api_key}&query={urllib.parse.quote(title)}&include_adult=false"
-                    t_resp = get_resilient_session().get(search_url, timeout=3.0)
-                    if t_resp.status_code == 200:
-                        t_results = t_resp.json().get('results', [])
-                        if t_results:
-                            tmdb_id = t_results[0].get('id')
-                except Exception:
-                    pass
+                # Resolve TMDB ID for detail page compatibility & streaming
+                anilist_id = item.get('id')
+                tmdb_id = resolve_anilist_to_tmdb_id(title, fallback_id=anilist_id)
 
                 anime_list.append({
                     'id': tmdb_id,
@@ -652,13 +644,7 @@ def get_upcoming_tv_shows():
 
                 # Cross-resolve TMDB ID
                 anilist_id = item.get('id')
-                tmdb_id = anilist_id
-                try:
-                    res = client.search_tv(title)
-                    if res:
-                        tmdb_id = res[0].get('id')
-                except Exception:
-                    pass
+                tmdb_id = resolve_anilist_to_tmdb_id(title, fallback_id=anilist_id)
 
                 if tmdb_id in seen_ids:
                     continue

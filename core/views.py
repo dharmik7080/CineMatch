@@ -2231,6 +2231,7 @@ def tv_detail_view(request, series_id):
     )
 
     tv_show = {}
+    creators = []
     cast = []
     trailer_key = None
     watch_providers = []
