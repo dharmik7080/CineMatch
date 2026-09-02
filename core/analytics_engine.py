@@ -105,7 +105,8 @@ def generate_seaborn_heatmap():
         # Buffer serialization
         buf = io.BytesIO()
         plt.savefig(buf, format='png', facecolor='#07070b', dpi=120)
-        buf.seek(0)
+        encoded_png = base64.b64encode(buf.read()).decode('utf-8')
+        plt.close()
         _SEABORN_HEATMAP_CACHE = encoded_png
         return encoded_png
     except Exception as e:
