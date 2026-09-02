@@ -85,6 +85,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.notifications_unread_count',
+                'core.context_processors.analytics_context',
             ],
         },
     },
@@ -192,5 +193,8 @@ RECAPTCHA_PRIVATE_KEY = os.environ.get('RECAPTCHA_PRIVATE_KEY', '6LeIxAcTAAAAAGG
 
 # Silence production check error when test keys or defaults are used
 SILENCED_SYSTEM_CHECKS = ['django_recaptcha.recaptcha_test_key_error']
+
+# Google Analytics 4 Measurement ID
+GA_MEASUREMENT_ID = os.environ.get('GA_MEASUREMENT_ID', '')
 
 
