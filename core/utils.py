@@ -247,54 +247,87 @@ def get_daily_trending_movies():
 
 def fetch_trending_anime():
     """
-    Fetches top trending Japanese anime series from TMDB Discover API (with genre 16).
-    Ensures full compatibility with TMDB detail pages, watchlists, trailers, and streaming providers.
+    Fetches top popular anime directly from AniList GraphQL API.
+    Resolves TMDB IDs for seamless detail page routing and streaming providers.
     Caches results for 12 hours (43200 seconds).
     """
     from django.conf import settings
     from django.core.cache import cache
-    api_key = getattr(settings, 'TMDB_API_KEY', '')
-    if not api_key:
-        api_key = '41fc74ce5602882786e1e9d4933fdcc6'
+    import requests, urllib.parse
 
-    cache_key = "tmdb_trending_anime_cache_v2"
+    cache_key = "anilist_popular_anime_feed_v3"
     cached = cache.get(cache_key)
     if cached:
         return cached
 
-    url = f"https://api.themoviedb.org/3/discover/tv?api_key={api_key}&language=en-US&with_genres=16&with_original_language=ja&include_adult=false&sort_by=popularity.desc&page=1"
-    EXPLICIT_KEYWORDS = {'sex', 'erotic', 'porn', 'xxx', 'hentai', 'nude', 'nudity', 'lust', 'shikiyoku', 'overflow'}
+    url = "https://graphql.anilist.co"
+    query = """
+    {
+      Page (page: 1, perPage: 14) {
+        media (type: ANIME, sort: [POPULARITY_DESC, TRENDING_DESC], isAdult: false) {
+          id
+          title {
+            english
+            romaji
+          }
+          coverImage {
+            extraLarge
+            large
+          }
+          bannerImage
+          episodes
+          averageScore
+          genres
+          seasonYear
+        }
+      }
+    }
+    """
+    api_key = getattr(settings, 'TMDB_API_KEY', '') or '41fc74ce5602882786e1e9d4933fdcc6'
     anime_list = []
 
     try:
-        resp = get_resilient_session().get(url, timeout=6.0)
+        resp = get_resilient_session().post(url, json={'query': query}, timeout=6.0)
         if resp.status_code == 200:
-            results = resp.json().get('results', [])
-            for item in results:
-                name = item.get('name') or item.get('original_name') or ''
-                if not name:
-                    continue
-                # Explicit title filter
-                if any(word in name.lower() for word in EXPLICIT_KEYWORDS):
-                    continue
+            media_items = resp.json().get('data', {}).get('Page', {}).get('media', [])
+            seen_titles = set()
 
-                poster_path = item.get('poster_path')
-                backdrop_path = item.get('backdrop_path')
-                genre_ids = item.get('genre_ids', [])
-                genre_names = [TMDB_GENRE_MAP.get(gid) for gid in genre_ids if TMDB_GENRE_MAP.get(gid)]
-                genres_str = " | ".join(genre_names[:2]) or "Anime"
+            for item in media_items:
+                title = item.get('title', {}).get('english') or item.get('title', {}).get('romaji') or ''
+                if not title or title.lower() in seen_titles:
+                    continue
+                seen_titles.add(title.lower())
+
+                cover = item.get('coverImage', {}).get('extraLarge') or item.get('coverImage', {}).get('large') or ''
+                score = item.get('averageScore')
+                vote_avg = round(score / 10.0, 1) if score else 8.5
+                genres = " | ".join(item.get('genres', [])[:2]) or "Anime"
+
+                # Resolve TMDB ID for detail page compatibility
+                tmdb_id = item.get('id')
+                try:
+                    search_url = f"https://api.themoviedb.org/3/search/tv?api_key={api_key}&query={urllib.parse.quote(title)}&include_adult=false"
+                    t_resp = get_resilient_session().get(search_url, timeout=3.0)
+                    if t_resp.status_code == 200:
+                        t_results = t_resp.json().get('results', [])
+                        if t_results:
+                            tmdb_id = t_results[0].get('id')
+                except Exception:
+                    pass
 
                 anime_list.append({
-                    'id': item.get('id'),
-                    'media_id': item.get('id'),
-                    'title': name,
-                    'name': name,
+                    'id': tmdb_id,
+                    'media_id': tmdb_id,
+                    'anilist_id': item.get('id'),
+                    'title': title,
+                    'name': title,
                     'media_type': 'tv',
-                    'poster_url': f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop",
-                    'backdrop_url': f"https://image.tmdb.org/t/p/w1280{backdrop_path}" if backdrop_path else '',
-                    'vote_average': round(item.get('vote_average', 0.0), 1),
-                    'genres': genres_str,
-                    'year': (item.get('first_air_date') or '')[:4] or '2024',
+                    'poster_url': cover,
+                    'backdrop_url': item.get('bannerImage') or cover,
+                    'vote_average': vote_avg,
+                    'episodes': item.get('episodes') or 'TV',
+                    'genres': genres,
+                    'year': item.get('seasonYear') or '2024',
                     'is_anime': True
                 })
 
@@ -302,63 +335,145 @@ def fetch_trending_anime():
                 cache.set(cache_key, anime_list, 43200)
                 return anime_list
     except Exception as e:
-        print(f"[ANIME FETCH ERROR] Failed to fetch TMDB anime: {e}")
+        print(f"[ANILIST POPULAR FETCH ERROR] {e}")
 
     fallback_anime = [
-        {'id': 95479, 'media_id': 95479, 'title': 'JUJUTSU KAISEN', 'name': 'JUJUTSU KAISEN', 'poster_url': 'https://image.tmdb.org/t/p/w500/eFiYnMk26P1p2L5M1Pq4eN27H0J.jpg', 'vote_average': 8.6, 'genres': 'Action | Sci-Fi', 'media_type': 'tv'},
-        {'id': 85937, 'media_id': 85937, 'title': 'Demon Slayer', 'name': 'Demon Slayer', 'poster_url': 'https://image.tmdb.org/t/p/w500/xUfVStVxBOZ1jbaBxWVzLG7yKV7.jpg', 'vote_average': 8.7, 'genres': 'Action | Fantasy', 'media_type': 'tv'},
-        {'id': 46298, 'media_id': 46298, 'title': 'Hunter x Hunter', 'name': 'Hunter x Hunter', 'poster_url': 'https://image.tmdb.org/t/p/w500/ucpg9wYh6OJRNqEvB3rmRWC5Mjh.jpg', 'vote_average': 8.7, 'genres': 'Action | Adventure', 'media_type': 'tv'},
-        {'id': 94664, 'media_id': 94664, 'title': 'Mushoku Tensei', 'name': 'Mushoku Tensei', 'poster_url': 'https://image.tmdb.org/t/p/w500/7W40j6sWqC8q28H93lC750t65C8.jpg', 'vote_average': 8.4, 'genres': 'Animation | Fantasy', 'media_type': 'tv'},
-        {'id': 30984, 'media_id': 30984, 'title': 'Bleach', 'name': 'Bleach', 'poster_url': 'https://image.tmdb.org/t/p/w500/q3U7pB33g87x4776uS03yH81L7t.jpg', 'vote_average': 8.4, 'genres': 'Action | Sci-Fi', 'media_type': 'tv'}
+        {'id': 1429, 'media_id': 1429, 'title': 'Attack on Titan', 'name': 'Attack on Titan', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx16498-73ZaRzS3tv9o.png', 'vote_average': 8.5, 'genres': 'Action | Drama', 'media_type': 'tv'},
+        {'id': 85937, 'media_id': 85937, 'title': 'Demon Slayer', 'name': 'Demon Slayer', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx101922-W1Z6WGaB1a9B.png', 'vote_average': 8.3, 'genres': 'Action | Fantasy', 'media_type': 'tv'},
+        {'id': 95479, 'media_id': 95479, 'title': 'JUJUTSU KAISEN', 'name': 'JUJUTSU KAISEN', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx113415-bbBWj4pGFrFj.jpg', 'vote_average': 8.4, 'genres': 'Action | Supernatural', 'media_type': 'tv'},
+        {'id': 13916, 'media_id': 13916, 'title': 'Death Note', 'name': 'Death Note', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1535-lawyer.jpg', 'vote_average': 8.4, 'genres': 'Mystery | Psychological', 'media_type': 'tv'},
+        {'id': 46298, 'media_id': 46298, 'title': 'Hunter x Hunter', 'name': 'Hunter x Hunter', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx11061-sP5vWxFdHzB8.png', 'vote_average': 8.9, 'genres': 'Action | Adventure', 'media_type': 'tv'},
+        {'id': 37854, 'media_id': 37854, 'title': 'ONE PIECE', 'name': 'ONE PIECE', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21-u44yqKi1268h.png', 'vote_average': 8.7, 'genres': 'Action | Adventure', 'media_type': 'tv'}
     ]
     return fallback_anime
 
 
+def fetch_anilist_enrichment(title):
+    """
+    Fetches AniList anime enrichment data (Studio name, AniList community score, Japanese native title, AniList URL).
+    Caches result for 24 hours (86400 seconds).
+    """
+    if not title:
+        return None
+
+    from django.core.cache import cache
+    import json
+    clean_title = str(title).strip()
+    cache_key = f"anilist_enrich_{clean_title.lower().replace(' ', '_')}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
+    url = "https://graphql.anilist.co"
+    safe_title = json.dumps(clean_title)
+    query = f"""
+    {{
+      Media (search: {safe_title}, type: ANIME) {{
+        id
+        title {{
+          romaji
+          english
+          native
+        }}
+        studios(isMain: true) {{
+          nodes {{
+            name
+          }}
+        }}
+        averageScore
+        siteUrl
+      }}
+    }}
+    """
+    try:
+        resp = get_resilient_session().post(url, json={'query': query}, timeout=5.0)
+        if resp.status_code == 200:
+            media = resp.json().get('data', {}).get('Media')
+            if media:
+                studios = media.get('studios', {}).get('nodes', [])
+                main_studio = studios[0].get('name') if studios else None
+                score = media.get('averageScore')
+                vote_avg = round(score / 10.0, 1) if score else None
+                
+                enrichment = {
+                    'anilist_id': media.get('id'),
+                    'title_romaji': media.get('title', {}).get('romaji'),
+                    'title_native': media.get('title', {}).get('native'),
+                    'studio': main_studio,
+                    'anilist_score': vote_avg,
+                    'anilist_url': media.get('siteUrl')
+                }
+                cache.set(cache_key, enrichment, 86400)
+                return enrichment
+    except Exception as e:
+        print(f"[ANILIST ENRICHMENT ERROR] Failed to fetch for '{clean_title}': {e}")
+
+    return None
+
+
 def get_upcoming_movies():
     """
-    Fetches upcoming movies from TMDB /movie/upcoming API.
+    Fetches genuine upcoming Indian + Global movies (release_date >= today).
+    Combines regional Indian theatrical releases (region=IN) with global blockbusters.
     Caches result for 24 hours (86400 seconds).
     """
     from django.conf import settings
     from django.core.cache import cache
-    import requests
+    import requests, datetime
 
-    api_key = getattr(settings, 'TMDB_API_KEY', '')
-    if not api_key:
-        return []
-
-    cache_key = "upcoming_movies_cache"
+    today = datetime.datetime.now().strftime('%Y-%m-%d')
+    cache_key = f"upcoming_movies_indian_global_v6_{today}"
     cached_data = cache.get(cache_key)
     if cached_data is not None:
         return cached_data
 
-    url = "https://api.themoviedb.org/3/movie/upcoming"
-    params = {
-        'api_key': api_key,
-        'language': 'en-US',
-        'page': 1,
-        'region': 'IN'
-    }
-    try:
-        response = get_resilient_session().get(url, params=params, timeout=10.0)
-        if response.status_code == 200:
-            results = response.json().get('results', [])
-            upcoming_movies = []
-            for item in results:
-                poster_path = item.get('poster_path')
-                upcoming_movies.append({
-                    'id': item.get('id'),
-                    'movie_id': item.get('id'),
-                    'title': item.get('title', 'Unknown'),
-                    'poster_url': f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop",
-                    'release_date': item.get('release_date', ''),
-                    'vote_average': round(item.get('vote_average', 0.0), 1),
-                })
-            # Cache for 24 hours
-            cache.set(cache_key, upcoming_movies, 86400)
-            return upcoming_movies
-    except Exception as e:
-        print(f"[TMDB UPCOMING ERROR] Failed to fetch upcoming movies: {e}")
+    api_key = getattr(settings, 'TMDB_API_KEY', '') or '41fc74ce5602882786e1e9d4933fdcc6'
+    EXPLICIT_KEYWORDS = {'sex', 'erotic', 'porn', 'xxx', 'hentai', 'nude', 'nudity', 'lust'}
+    
+    seen_ids = set()
+    upcoming_movies = []
+
+    # 1. Fetch Upcoming Movies in Indian Region (region=IN)
+    url_in = f"https://api.themoviedb.org/3/movie/upcoming?api_key={api_key}&language=en-US&region=IN&page=1"
+    # 2. Fetch Upcoming Global Discover Movies
+    url_global = f"https://api.themoviedb.org/3/discover/movie?api_key={api_key}&language=en-US&primary_release_date.gte={today}&sort_by=popularity.desc&include_adult=false&page=1"
+
+    for url in [url_in, url_global]:
+        try:
+            response = get_resilient_session().get(url, timeout=6.0)
+            if response.status_code == 200:
+                results = response.json().get('results', [])
+                for item in results:
+                    mid = item.get('id')
+                    if not mid or mid in seen_ids:
+                        continue
+                    title = item.get('title', 'Unknown')
+                    rel_date = item.get('release_date', '')
+                    if not rel_date or rel_date < today:
+                        continue
+                    if any(word in title.lower() for word in EXPLICIT_KEYWORDS):
+                        continue
+
+                    seen_ids.add(mid)
+                    poster_path = item.get('poster_path')
+                    upcoming_movies.append({
+                        'id': mid,
+                        'movie_id': mid,
+                        'title': title,
+                        'poster_url': f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop",
+                        'release_date': rel_date,
+                        'vote_average': round(item.get('vote_average', 0.0), 1),
+                        'media_type': 'movie'
+                    })
+        except Exception as e:
+            print(f"[TMDB UPCOMING ERROR] {e}")
+
+    # Sort upcoming movies chronologically (nearest release date first)
+    upcoming_movies.sort(key=lambda x: x['release_date'])
+
+    if upcoming_movies:
+        cache.set(cache_key, upcoming_movies, 86400)
+        return upcoming_movies
 
     return []
 

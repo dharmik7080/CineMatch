@@ -937,7 +937,7 @@ def for_you_feed(request):
     
     # ── FETCH UPCOMING MOVIES FROM TMDB WITH CACHE-ASIDE (24H CACHE) ──
     from core.utils import get_upcoming_movies
-    upcoming_movies = get_upcoming_movies()[:6]
+    upcoming_movies = get_upcoming_movies()[:20]
     
     # ── Platform-specific feeds ──
     import random
@@ -1143,6 +1143,114 @@ def explore_tv(request):
         return render(request, 'core/includes/tv_grid_partial.html', context)
 
     return render(request, 'core/explore_tv.html', context)
+
+# ======================================================================
+# Explore Anime Grid View
+# ======================================================================
+def explore_anime_view(request):
+    """
+    Explore Anime Catalog Grid View.
+    Queries TMDB discover endpoint with Animation genre (16) & Japanese language (ja).
+    Supports search query and pagination.
+    """
+    from django.conf import settings
+    import requests
+    from core.utils import get_resilient_session, TMDB_GENRE_MAP
+
+    query = request.GET.get('q', '').strip()
+    page_number = request.GET.get('page', 1)
+    try:
+        page_number = int(page_number)
+    except ValueError:
+        page_number = 1
+
+    api_key = getattr(settings, 'TMDB_API_KEY', '') or '41fc74ce5602882786e1e9d4933fdcc6'
+    EXPLICIT_KEYWORDS = {'sex', 'erotic', 'porn', 'xxx', 'hentai', 'nude', 'nudity', 'lust', 'shikiyoku', 'overflow'}
+
+    if query:
+        url = f"https://api.themoviedb.org/3/search/tv?api_key={api_key}&query={requests.utils.quote(query)}&page={page_number}&include_adult=false"
+    else:
+        url = f"https://api.themoviedb.org/3/discover/tv?api_key={api_key}&language=en-US&with_genres=16&with_original_language=ja&include_adult=false&sort_by=popularity.desc&page={page_number}"
+
+    anime_records = []
+    total_pages = 1
+
+    try:
+        resp = get_resilient_session().get(url, timeout=6.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            total_pages = min(data.get('total_pages', 1), 500)
+            for item in data.get('results', []):
+                name = item.get('name') or item.get('original_name') or ''
+                if not name:
+                    continue
+                if any(word in name.lower() for word in EXPLICIT_KEYWORDS):
+                    continue
+
+                poster_path = item.get('poster_path')
+                genre_ids = item.get('genre_ids', [])
+                genre_names = [TMDB_GENRE_MAP.get(gid) for gid in genre_ids if TMDB_GENRE_MAP.get(gid)]
+                genres_str = " | ".join(genre_names[:2]) or "Anime"
+
+                anime_records.append({
+                    'id': item.get('id'),
+                    'media_id': item.get('id'),
+                    'name': name,
+                    'title': name,
+                    'media_type': 'tv',
+                    'poster_url': f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop",
+                    'vote_average': round(item.get('vote_average', 0.0), 1),
+                    'first_air_date': item.get('first_air_date', ''),
+                    'year': (item.get('first_air_date') or '')[:4] or '2024',
+                    'genres': genres_str
+                })
+    except Exception as e:
+        print(f"[EXPLORE ANIME ERROR] {e}")
+
+    class MockPage:
+        def __init__(self, number, object_list, max_pages):
+            self.number = number
+            self.object_list = object_list
+            self.has_previous = number > 1
+            self.previous_page_number = number - 1
+            self.has_next = number < max_pages
+            self.next_page_number = number + 1
+            self.has_other_pages = max_pages > 1
+
+    class MockPaginator:
+        def __init__(self, max_pages):
+            self.max_pages = max_pages
+
+        @property
+        def num_pages(self):
+            return self.max_pages
+
+    page_obj = MockPage(page_number, anime_records, total_pages)
+    page_obj.paginator = MockPaginator(total_pages)
+
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == 'true'
+
+    if request.user.is_authenticated:
+        watchlist_ids = list(MovieWatchlist.objects.filter(
+            user=request.user
+        ).values_list('media_id', flat=True))
+    else:
+        watchlist_ids = []
+
+    context = {
+        'tv_shows': anime_records,
+        'anime_list': anime_records,
+        'page_obj': page_obj,
+        'watchlist_ids': watchlist_ids,
+        'saved_ids': watchlist_ids,
+        'query': query,
+        'is_anime_page': True
+    }
+
+    if is_ajax:
+        return render(request, 'core/includes/tv_grid_partial.html', context)
+
+    return render(request, 'core/explore_anime.html', context)
 
 # ======================================================================
 # User History Statistics & Persona Aggregation Helpers
@@ -2554,6 +2662,16 @@ def tv_detail_view(request, series_id):
                 'still_url': f"https://image.tmdb.org/t/p/w500{still_path}" if still_path else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
             })
 
+    # ── ANILIST HYBRID ENRICHMENT DATA ──
+    from core.utils import fetch_anilist_enrichment
+    anilist_data = None
+    if tv_show and tv_show.get('title'):
+        show_genres = tv_show.get('genres', [])
+        show_genres_str = " ".join([str(g) for g in show_genres]).lower()
+        origin_countries = [str(c).upper() for c in (data.get('origin_country', []) if data else [])]
+        if 'animation' in show_genres_str or 'anime' in show_genres_str or 'JP' in origin_countries:
+            anilist_data = fetch_anilist_enrichment(tv_show.get('title'))
+
     context = {
         'tv_show':         tv_show,
         'tagline':         tv_show.get('tagline', ''),
@@ -2569,7 +2687,7 @@ def tv_detail_view(request, series_id):
         'is_in_watchlist': is_in_watchlist,
         'seasons':         seasons,
         'episodes':        episodes,
-        # 💎 INJECTED REVIEWS DATA CONTEXTS
+        # 💎 INJECTED REVIEWS & ANILIST DATA CONTEXTS
         'reviews':         reviews_list,
         'tmdb_reviews':    tmdb_reviews,
         'user_review':     user_review,
@@ -2577,6 +2695,7 @@ def tv_detail_view(request, series_id):
         'gallery_images':  gallery_images,
         'external_links':  external_links,
         'keywords':        keywords,
+        'anilist_data':    anilist_data,
     }
 
     return render(request, 'core/tv_detail.html', context)

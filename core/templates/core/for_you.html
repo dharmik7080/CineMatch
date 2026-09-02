@@ -847,6 +847,7 @@
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
     <!-- 2.5 COMING SOON (UPCOMING)                                         -->
     <!-- ══════════════════════════════════════════════════════════════════ -->
     {% if upcoming_movies %}
@@ -854,20 +855,20 @@
         <h2 class="section-title mb-4">
             <span class="shimmer-header"><i class="fa-solid fa-calendar-days icon-gradient me-2"></i>Coming Soon</span>
         </h2>
-        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3">
+        <div class="horizontal-slider">
             {% for movie in upcoming_movies %}
-            <div class="col">
-                <div class="rec-poster w-100" style="position: relative; width: 100%; height: 260px; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: #0f0f15;">
+            <div class="slider-card">
+                <div class="rec-poster" style="position: relative; width: 100%; height: 340px; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: #0f0f15;">
                     
                     <!-- Media Badge / Release Date (Top-Left) -->
-                    <span class="badge-media" style="position: absolute; top: 10px; left: 10px; z-index: 5; background: rgba(168, 85, 247, 0.85); backdrop-filter: blur(5px); padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.68rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); color: #ffffff;">
+                    <span class="badge-media" style="position: absolute; top: 12px; left: 12px; z-index: 5; background: rgba(168, 85, 247, 0.85); backdrop-filter: blur(5px); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); color: #ffffff;">
                         <i class="fa-regular fa-clock me-1"></i> {{ movie.release_date|default:"TBA" }}
                     </span>
 
                     <!-- Floating top-right: Watchlist bookmark -->
-                    <div class="rec-watchlist-float" style="position: absolute; top: 10px; right: 10px; z-index: 5;">
-                        <button type="button" class="btn btn-circle border-0 {% if movie.id in saved_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}" onclick="toggleWatchlist('{{ movie.id }}')" data-saved="{% if movie.id in saved_ids %}true{% else %}false{% endif %}" data-media-type="movie" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
-                            <i class="fa-bookmark {% if movie.id in saved_ids %}fa-solid text-warning{% else %}fa-regular text-white{% endif %}" style="font-size: 0.75rem;"></i>
+                    <div class="rec-watchlist-float" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
+                        <button type="button" class="btn btn-circle border-0 {% if movie.id in saved_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}" onclick="toggleWatchlist('{{ movie.id }}')" data-saved="{% if movie.id in saved_ids %}true{% else %}false{% endif %}" data-media-type="movie" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
+                            <i class="fa-bookmark {% if movie.id in saved_ids %}fa-solid text-warning{% else %}fa-regular text-white{% endif %}"></i>
                         </button>
                     </div>
 
@@ -881,15 +882,15 @@
                     {% endif %}
 
                     <!-- Bottom Title / Release Date Details -->
-                    <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%); padding: 1rem 0.75rem 0.75rem 0.75rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
-                        <div style="max-width: 70%; display: flex; flex-direction: column; gap: 2px;">
-                            <h6 class="text-truncate m-0" style="font-size: 0.88rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{{ movie.title }}">{{ movie.title }}</h6>
-                            <p class="text-muted m-0" style="font-size: 0.68rem;">ID: {{ movie.id|default:"N/A" }}</p>
+                    <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%); padding: 1.25rem 1rem 1rem 1rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
+                        <div style="max-width: 65%; display: flex; flex-direction: column; gap: 2px;">
+                            <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{{ movie.title }}">{{ movie.title }}</h5>
+                            <p class="card-text text-muted m-0" style="font-size: 0.75rem;">ID: {{ movie.id|default:"N/A" }}</p>
                         </div>
                         {% if movie.id %}
                         <div style="z-index: 5;">
-                            <a href="{% url 'movie_detail' movie.id %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0 d-flex align-items-center gap-1" style="font-size: 0.75rem;">
-                                Details <i class="fa-solid fa-chevron-right ms-0.5 small"></i>
+                            <a href="{% url 'movie_detail' movie.id %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0 d-flex align-items-center gap-1">
+                                Details <i class="fa-solid fa-chevron-right ms-1 small"></i>
                             </a>
                         </div>
                         {% endif %}
@@ -1095,9 +1096,17 @@
     <!-- ══════════════════════════════════════════════════════════════════ -->
     {% if trending_anime %}
     <div class="mb-5">
-        <h2 class="section-title d-flex align-items-center" style="gap: 12px; margin-bottom: 20px;">
-            <span>Popular Anime Spotlight</span>
-        </h2>
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <h2 class="section-title d-flex align-items-center m-0" style="gap: 12px;">
+                <div class="logo-container">
+                    <img src="{% static 'images/crunchyroll_logo.png' %}" alt="Crunchyroll Logo" class="platform-logo">
+                </div>
+                <span>Popular Anime Spotlight</span>
+            </h2>
+            <a href="{% url 'explore_anime' %}" class="btn btn-link text-accent text-decoration-none p-0 d-flex align-items-center gap-1 fw-bold" style="font-size: 0.9rem;">
+                Explore All Anime <i class="fa-solid fa-chevron-right ms-1 small"></i>
+            </a>
+        </div>
         <div class="horizontal-slider">
             {% for item in trending_anime %}
             <div class="slider-card">

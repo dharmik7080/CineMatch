@@ -1231,6 +1231,48 @@
                         </div>
                     </div>
                     {% endif %}
+
+                    {% if anilist_data %}
+                    <hr style="border-color: rgba(244,63,94,0.25);">
+                    <div class="mb-0">
+                        <small class="d-block font-weight-bold mb-2" style="font-size:0.72rem; letter-spacing:0.5px; text-transform: uppercase; color: #fb7185 !important;">🐉 ANILIST ENRICHMENT</small>
+                        
+                        {% if anilist_data.studio %}
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge rounded-pill px-2.5 py-1" style="background: rgba(244,63,94,0.15); color: #ffffff; border: 1px solid rgba(244,63,94,0.3); font-size: 0.8rem; font-weight: 600;">
+                                🎬 Studio: {{ anilist_data.studio }}
+                            </span>
+                        </div>
+                        {% endif %}
+
+                        {% if anilist_data.anilist_score %}
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge rounded-pill px-2.5 py-1" style="background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); font-size: 0.8rem; font-weight: 700;">
+                                <i class="fa-solid fa-star me-1"></i> {{ anilist_data.anilist_score }} / 10 on AniList
+                            </span>
+                        </div>
+                        {% endif %}
+
+                        {% if anilist_data.title_native or anilist_data.title_romaji %}
+                        <div class="text-secondary small mt-2">
+                            {% if anilist_data.title_romaji %}
+                            <span class="d-block text-white-50" style="font-size: 0.8rem;">Romaji: <strong>{{ anilist_data.title_romaji }}</strong></span>
+                            {% endif %}
+                            {% if anilist_data.title_native %}
+                            <span class="d-block text-muted" style="font-size: 0.78rem;">Native: <strong>{{ anilist_data.title_native }}</strong></span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if anilist_data.anilist_url %}
+                        <div class="mt-2">
+                            <a href="{{ anilist_data.anilist_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-link btn-sm text-decoration-none p-0" style="color: #fb7185; font-size: 0.78rem; font-weight: 600;">
+                                View on AniList <i class="fa-solid fa-arrow-up-right-from-square ms-1 small"></i>
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </div>
 
       <!-- TMDB Reviews Section -->

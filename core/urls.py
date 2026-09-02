@@ -29,6 +29,7 @@ urlpatterns = [
     path('tv-shows/', views.explore_tv, name='explore_tv'),
     path('tv-shows/random/', views.random_tv_show_view, name='random_tv'),
     path('tv/genre/<str:genre_name>/', views.tv_shows_by_genre_view, name='tv_shows_by_genre'),
+    path('anime/', views.explore_anime_view, name='explore_anime'),
     
     # Analytics Panel
     path('analytics/', views.analytics_dashboard, name='analytics_dashboard'),
