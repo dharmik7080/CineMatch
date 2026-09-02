@@ -70,7 +70,8 @@ def fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", query=None, p
         url = f"{client.base_url}/{endpoint_type}/{list_type}"
         params = {
             'language': 'en-US',
-            'page': page
+            'page': page,
+            'include_adult': 'false'
         }
         
     try:
@@ -82,14 +83,22 @@ def fetch_tmdb_catalog(endpoint_type="movie", list_type="popular", query=None, p
         
         # Map variables to match core templates context expectation
         mapped_results = []
+        EXPLICIT_KEYWORDS = {'sex', 'erotic', 'porn', 'xxx', 'hentai', 'nude', 'nudity', 'lust'}
         for item in results:
+            if item.get('adult'):
+                continue
+            title = item.get('title') or item.get('name') or item.get('original_title') or item.get('original_name') or 'Unknown Title'
+            title_words = set(title.lower().split())
+            if title_words.intersection(EXPLICIT_KEYWORDS):
+                continue
+
             poster_path = item.get('poster_path')
             backdrop_path = item.get('backdrop_path')
             
             mapped_item = {
                 'id': item.get('id'),
                 'movie_id': item.get('id'), # Required for explore_movies template compatibility
-                'title': item.get('title') or item.get('name') or item.get('original_title') or item.get('original_name') or 'Unknown Title',
+                'title': title,
                 'release_date': item.get('release_date') or item.get('first_air_date') or 'N/A',
                 'vote_average': round(item.get('vote_average', 0.0), 1),
                 'overview': item.get('overview', ''),
@@ -203,12 +212,20 @@ def get_daily_trending_movies():
             results = data.get('results', [])
             
             trending_movies = []
+            EXPLICIT_KEYWORDS = {'sex', 'erotic', 'porn', 'xxx', 'hentai', 'nude', 'nudity', 'lust'}
             for item in results:
+                if item.get('adult'):
+                    continue
+                title = item.get('title', 'Unknown')
+                title_words = set(title.lower().split())
+                if title_words.intersection(EXPLICIT_KEYWORDS):
+                    continue
+
                 poster_path = item.get('poster_path')
                 trending_movies.append({
                     'id': item.get('id'),
                     'movie_id': item.get('id'),
-                    'title': item.get('title', 'Unknown'),
+                    'title': title,
                     'poster_url': f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop",
                     'vote_average': round(item.get('vote_average', 0.0), 1),
                     'release_date': item.get('release_date', '')

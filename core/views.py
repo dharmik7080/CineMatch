@@ -813,10 +813,16 @@ def for_you_feed(request):
             data = response.json()
             results = data.get('results', [])
             
+            EXPLICIT_KEYWORDS = {'sex', 'erotic', 'porn', 'xxx', 'hentai', 'nude', 'nudity', 'lust'}
             for movie_data in results:
+                if movie_data.get('adult'):
+                    continue
                 movie_id = movie_data.get('id')
                 title = movie_data.get('title')
                 if not movie_id or not title:
+                    continue
+                title_words = set(title.lower().split())
+                if title_words.intersection(EXPLICIT_KEYWORDS):
                     continue
                 
                 genre_ids = movie_data.get('genre_ids', [])
