@@ -247,78 +247,69 @@ def get_daily_trending_movies():
 
 def fetch_trending_anime():
     """
-    Fetches top trending anime from AniList GraphQL API.
+    Fetches top trending Japanese anime series from TMDB Discover API (with genre 16).
+    Ensures full compatibility with TMDB detail pages, watchlists, trailers, and streaming providers.
     Caches results for 12 hours (43200 seconds).
-    Returns list of anime dicts formatted for feed rendering.
     """
+    from django.conf import settings
     from django.core.cache import cache
-    cache_key = "anilist_trending_anime_cache"
+    api_key = getattr(settings, 'TMDB_API_KEY', '')
+    if not api_key:
+        api_key = '41fc74ce5602882786e1e9d4933fdcc6'
+
+    cache_key = "tmdb_trending_anime_cache_v2"
     cached = cache.get(cache_key)
     if cached:
         return cached
 
-    url = "https://graphql.anilist.co"
-    query = """
-    query {
-      Page (page: 1, perPage: 12) {
-        media (type: ANIME, sort: [TRENDING_DESC, POPULARITY_DESC], isAdult: false) {
-          id
-          title {
-            english
-            romaji
-          }
-          coverImage {
-            extraLarge
-            large
-          }
-          bannerImage
-          episodes
-          averageScore
-          genres
-          seasonYear
-        }
-      }
-    }
-    """
+    url = f"https://api.themoviedb.org/3/discover/tv?api_key={api_key}&language=en-US&with_genres=16&with_original_language=ja&include_adult=false&sort_by=popularity.desc&page=1"
+    EXPLICIT_KEYWORDS = {'sex', 'erotic', 'porn', 'xxx', 'hentai', 'nude', 'nudity', 'lust', 'shikiyoku', 'overflow'}
     anime_list = []
+
     try:
-        resp = get_resilient_session().post(url, json={'query': query}, timeout=6.0)
+        resp = get_resilient_session().get(url, timeout=6.0)
         if resp.status_code == 200:
-            data = resp.json()
-            items = data.get('data', {}).get('Page', {}).get('media', [])
-            for item in items:
-                title = item.get('title', {}).get('english') or item.get('title', {}).get('romaji') or 'Anime'
-                cover = item.get('coverImage', {}).get('extraLarge') or item.get('coverImage', {}).get('large') or ''
-                score = item.get('averageScore')
-                vote_avg = round(score / 10.0, 1) if score else 8.5
-                genres = " | ".join(item.get('genres', [])[:2]) or "Anime"
-                
+            results = resp.json().get('results', [])
+            for item in results:
+                name = item.get('name') or item.get('original_name') or ''
+                if not name:
+                    continue
+                # Explicit title filter
+                if any(word in name.lower() for word in EXPLICIT_KEYWORDS):
+                    continue
+
+                poster_path = item.get('poster_path')
+                backdrop_path = item.get('backdrop_path')
+                genre_ids = item.get('genre_ids', [])
+                genre_names = [TMDB_GENRE_MAP.get(gid) for gid in genre_ids if TMDB_GENRE_MAP.get(gid)]
+                genres_str = " | ".join(genre_names[:2]) or "Anime"
+
                 anime_list.append({
                     'id': item.get('id'),
                     'media_id': item.get('id'),
-                    'title': title,
-                    'name': title,
+                    'title': name,
+                    'name': name,
                     'media_type': 'tv',
-                    'poster_url': cover,
-                    'backdrop_url': item.get('bannerImage') or cover,
-                    'vote_average': vote_avg,
-                    'episodes': item.get('episodes') or 'TV',
-                    'genres': genres,
-                    'year': item.get('seasonYear') or '2025',
+                    'poster_url': f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop",
+                    'backdrop_url': f"https://image.tmdb.org/t/p/w1280{backdrop_path}" if backdrop_path else '',
+                    'vote_average': round(item.get('vote_average', 0.0), 1),
+                    'genres': genres_str,
+                    'year': (item.get('first_air_date') or '')[:4] or '2024',
                     'is_anime': True
                 })
+
             if anime_list:
                 cache.set(cache_key, anime_list, 43200)
                 return anime_list
     except Exception as e:
-        print(f"[ANILIST ERROR] Failed to fetch trending anime: {e}")
+        print(f"[ANIME FETCH ERROR] Failed to fetch TMDB anime: {e}")
 
     fallback_anime = [
-        {'id': 11061, 'media_id': 11061, 'title': 'Hunter x Hunter', 'name': 'Hunter x Hunter', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx11061-sP5vWxFdHzB8.png', 'vote_average': 9.0, 'genres': 'Action | Adventure', 'episodes': 148, 'year': 2011, 'is_anime': True},
-        {'id': 101922, 'media_id': 101922, 'title': 'Demon Slayer', 'name': 'Demon Slayer', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx101922-W1Z6WGaB1a9B.png', 'vote_average': 8.6, 'genres': 'Action | Fantasy', 'episodes': 26, 'year': 2019, 'is_anime': True},
-        {'id': 113415, 'media_id': 113415, 'title': 'Jujutsu Kaisen', 'name': 'Jujutsu Kaisen', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx113415-bbBWj4pGFrFj.jpg', 'vote_average': 8.7, 'genres': 'Action | Supernatural', 'episodes': 24, 'year': 2020, 'is_anime': True},
-        {'id': 145064, 'media_id': 145064, 'title': 'Solo Leveling', 'name': 'Solo Leveling', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx145064-y4kM4jC4V9L6.jpg', 'vote_average': 8.5, 'genres': 'Action | Fantasy', 'episodes': 12, 'year': 2024, 'is_anime': True},
-        {'id': 21459, 'media_id': 21459, 'title': 'My Hero Academia', 'name': 'My Hero Academia', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21459-k2bWk4A5599Z.png', 'vote_average': 8.1, 'genres': 'Action | Sci-Fi', 'episodes': 13, 'year': 2016, 'is_anime': True}
+        {'id': 95479, 'media_id': 95479, 'title': 'JUJUTSU KAISEN', 'name': 'JUJUTSU KAISEN', 'poster_url': 'https://image.tmdb.org/t/p/w500/eFiYnMk26P1p2L5M1Pq4eN27H0J.jpg', 'vote_average': 8.6, 'genres': 'Action | Sci-Fi', 'media_type': 'tv'},
+        {'id': 85937, 'media_id': 85937, 'title': 'Demon Slayer', 'name': 'Demon Slayer', 'poster_url': 'https://image.tmdb.org/t/p/w500/xUfVStVxBOZ1jbaBxWVzLG7yKV7.jpg', 'vote_average': 8.7, 'genres': 'Action | Fantasy', 'media_type': 'tv'},
+        {'id': 46298, 'media_id': 46298, 'title': 'Hunter x Hunter', 'name': 'Hunter x Hunter', 'poster_url': 'https://image.tmdb.org/t/p/w500/ucpg9wYh6OJRNqEvB3rmRWC5Mjh.jpg', 'vote_average': 8.7, 'genres': 'Action | Adventure', 'media_type': 'tv'},
+        {'id': 94664, 'media_id': 94664, 'title': 'Mushoku Tensei', 'name': 'Mushoku Tensei', 'poster_url': 'https://image.tmdb.org/t/p/w500/7W40j6sWqC8q28H93lC750t65C8.jpg', 'vote_average': 8.4, 'genres': 'Animation | Fantasy', 'media_type': 'tv'},
+        {'id': 30984, 'media_id': 30984, 'title': 'Bleach', 'name': 'Bleach', 'poster_url': 'https://image.tmdb.org/t/p/w500/q3U7pB33g87x4776uS03yH81L7t.jpg', 'vote_average': 8.4, 'genres': 'Action | Sci-Fi', 'media_type': 'tv'}
     ]
     return fallback_anime
 

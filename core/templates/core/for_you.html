@@ -1091,56 +1091,52 @@
     {% endif %}
 
     <!-- ══════════════════════════════════════════════════════════════════ -->
-    <!-- 🎌 POPULAR ANIME SPOTLIGHT (Powered by AniList API)               -->
+    <!-- 🎌 POPULAR ANIME SPOTLIGHT                                         -->
     <!-- ══════════════════════════════════════════════════════════════════ -->
     {% if trending_anime %}
     <div class="mb-5">
-        <h2 class="section-title d-flex align-items-center justify-content-between" style="margin-bottom: 20px;">
-            <div class="d-flex align-items-center gap-2">
-                <span style="font-size: 1.5rem;">🎌</span>
-                <span style="background: linear-gradient(135deg, #f43f5e 0%, #a855f7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">Popular Anime Spotlight</span>
-                <span class="badge rounded-pill px-2.5 py-1 ms-2" style="background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px;">
-                    ANILIST POWERED
-                </span>
-            </div>
+        <h2 class="section-title d-flex align-items-center" style="gap: 12px; margin-bottom: 20px;">
+            <span>Popular Anime Spotlight</span>
         </h2>
         <div class="horizontal-slider">
             {% for item in trending_anime %}
             <div class="slider-card">
-                <div class="rec-poster" style="position: relative; width: 100%; height: 340px; overflow: hidden; border-radius: 12px; border: 1px solid rgba(244, 63, 94, 0.2); background: #0f0f15; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
+                <div class="rec-poster" style="position: relative; width: 100%; height: 340px; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: #0f0f15;">
                     
                     <!-- Media Badge (Top-Left) -->
-                    <span class="badge-media" style="position: absolute; top: 12px; left: 12px; z-index: 5; background: rgba(244, 63, 94, 0.85); backdrop-filter: blur(5px); color: #ffffff; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.2);">
-                        <i class="fa-solid fa-fire me-1"></i> Anime
+                    <span class="badge-media" style="position: absolute; top: 12px; left: 12px; z-index: 5; background: rgba(4, 4, 6, 0.75); backdrop-filter: blur(5px); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(255,255,255,0.1);">
+                        <i class="fa-solid fa-tv text-warning me-1"></i> Anime
                     </span>
 
-                    <!-- Rating Score Badge (Top-Right) -->
-                    <div style="position: absolute; top: 12px; right: 12px; z-index: 5; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(5px); color: #fbbf24; padding: 0.25rem 0.65rem; border-radius: 20px; font-size: 0.75rem; font-weight: 800; border: 1px solid rgba(251, 191, 36, 0.3); display: flex; align-items: center; gap: 4px;">
-                        <i class="fa-solid fa-star text-warning" style="font-size: 0.7rem;"></i> {{ item.vote_average }}
+                    <!-- Floating top-right: Watchlist bookmark -->
+                    <div class="rec-watchlist-float" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
+                        <button type="button" class="btn btn-circle border-0 {% if item.id in saved_ids %}btn-danger{% else %}btn-dark rgba-bg{% endif %}" onclick="toggleWatchlist('{{ item.id }}')" data-saved="{% if item.id in saved_ids %}true{% else %}false{% endif %}" data-media-type="tv" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
+                            <i class="fa-bookmark {% if item.id in saved_ids %}fa-solid text-warning{% else %}fa-regular text-white{% endif %}"></i>
+                        </button>
                     </div>
 
                     <!-- Poster image -->
                     {% if item.poster_url %}
-                        <img src="{{ item.poster_url }}" alt="{{ item.title }}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
+                        <img src="{{ item.poster_url }}" alt="{% if item.title %}{{ item.title }}{% else %}{{ item.name }}{% endif %}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease;">
                     {% else %}
                         <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-secondary">
-                            <i class="fa-solid fa-tv fs-2"></i>
+                            <i class="fa-solid fa-film fs-2"></i>
                         </div>
                     {% endif %}
 
                     <!-- Bottom Text & Link Overlay -->
-                    <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(12, 10, 20, 0.98) 0%, rgba(12, 10, 20, 0.75) 60%, rgba(0, 0, 0, 0) 100%); padding: 1.25rem 1rem 1rem 1rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
-                        <div style="max-width: 70%; display: flex; flex-direction: column; gap: 2px;">
-                            <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{{ item.title }}">{{ item.title }}</h5>
-                            <p class="card-text text-secondary m-0" style="font-size: 0.75rem; color: #cbd5e1 !important;">
-                                {{ item.genres }} {% if item.episodes %}• {{ item.episodes }} Ep{% endif %}
-                            </p>
+                    <div class="overlay-container" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%); padding: 1.25rem 1rem 1rem 1rem; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
+                        <div style="max-width: 65%; display: flex; flex-direction: column; gap: 2px;">
+                            <h5 class="card-title title-fade m-0" style="font-size: 1.05rem; font-weight: 700; color: #ffffff; line-height: 1.2;" title="{% if item.title %}{{ item.title }}{% else %}{{ item.name }}{% endif %}">{% if item.title %}{{ item.title }}{% else %}{{ item.name }}{% endif %}</h5>
+                            <p class="card-text text-muted m-0" style="font-size: 0.75rem;">ID: {{ item.id|default:"N/A" }}</p>
                         </div>
+                        {% if item.id %}
                         <div style="z-index: 5;">
-                            <a href="{% url 'search_results' %}?q={{ item.title|urlencode }}" class="btn btn-link btn-sm text-decoration-none p-0 d-flex align-items-center gap-1" style="color: #f43f5e; font-weight: 700;">
-                                Explore <i class="fa-solid fa-chevron-right ms-1 small"></i>
+                            <a href="{% url 'tv_show_detail' item.id %}" class="btn btn-link btn-sm text-accent text-decoration-none p-0 d-flex align-items-center gap-1">
+                                Details <i class="fa-solid fa-chevron-right ms-1 small"></i>
                             </a>
                         </div>
+                        {% endif %}
                     </div>
 
                 </div>
