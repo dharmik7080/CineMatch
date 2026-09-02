@@ -538,25 +538,20 @@ def get_upcoming_tv_shows():
     seen_ids = set()
     upcoming_tv = []
 
-    # 1. Inject Premium Indian Web Series with Official TMDB Metadata
+    # 1. Inject Premium Indian Web Series (UPCOMING Seasons & Premieres Only)
     indian_web_series = [
-        {'id': 84105, 'title': 'Mirzapur', 'release_date': '2024-07-05', 'vote_average': 8.5, 'is_new_season': True, 'release_badge': 'Season 3'},
-        {'id': 101352, 'title': 'Panchayat', 'release_date': '2025-06-24', 'vote_average': 8.9, 'is_new_season': True, 'release_badge': 'Season 4'},
-        {'id': 93352, 'title': 'The Family Man', 'release_date': '2025-11-21', 'vote_average': 8.7, 'is_new_season': True, 'release_badge': 'Season 3'},
-        {'id': 203202, 'title': 'Rana Naidu', 'release_date': '2025-06-13', 'vote_average': 7.8, 'is_new_season': True, 'release_badge': 'Season 2'},
-        {'id': 132117, 'title': 'Farzi', 'release_date': '2025-12-10', 'vote_average': 8.4, 'is_new_season': True, 'release_badge': 'Season 2'},
-        {'id': 87508, 'title': 'Delhi Crime', 'release_date': '2025-11-13', 'vote_average': 8.5, 'is_new_season': True, 'release_badge': 'Season 3'},
-        {'id': 100911, 'title': 'Asur', 'release_date': '2025-10-28', 'vote_average': 8.6, 'is_new_season': True, 'release_badge': 'Season 3'},
-        {'id': 89113, 'title': 'Kota Factory', 'release_date': '2024-06-20', 'vote_average': 9.0, 'is_new_season': True, 'release_badge': 'Season 3'},
-        {'id': 154084, 'title': 'Citadel: Honey Bunny', 'release_date': '2024-11-06', 'vote_average': 7.9, 'is_new_season': False, 'release_badge': 'New Show'},
-        {'id': 247830, 'title': 'Dabba Cartel', 'release_date': '2025-02-28', 'vote_average': 8.1, 'is_new_season': False, 'release_badge': 'New Show'},
-        {'id': 113457, 'title': 'Mismatched', 'release_date': '2025-10-10', 'vote_average': 7.7, 'is_new_season': True, 'release_badge': 'Season 3'},
-        {'id': 100757, 'title': 'Special OPS', 'release_date': '2025-11-05', 'vote_average': 8.6, 'is_new_season': True, 'release_badge': 'Season 2'},
+        {'id': 101352, 'title': 'Panchayat', 'release_date': '2026-11-15', 'vote_average': 8.9, 'is_new_season': True, 'release_badge': 'Season 5'},
+        {'id': 93352, 'title': 'The Family Man', 'release_date': '2026-12-01', 'vote_average': 8.7, 'is_new_season': True, 'release_badge': 'Season 3'},
+        {'id': 132117, 'title': 'Farzi', 'release_date': '2026-12-20', 'vote_average': 8.4, 'is_new_season': True, 'release_badge': 'Season 2'},
+        {'id': 87508, 'title': 'Delhi Crime', 'release_date': '2026-11-28', 'vote_average': 8.5, 'is_new_season': True, 'release_badge': 'Season 3'},
+        {'id': 100911, 'title': 'Asur', 'release_date': '2026-10-30', 'vote_average': 8.6, 'is_new_season': True, 'release_badge': 'Season 3'},
+        {'id': 100757, 'title': 'Special OPS', 'release_date': '2026-11-05', 'vote_average': 8.6, 'is_new_season': True, 'release_badge': 'Season 2'},
+        {'id': 104139, 'title': 'Gullak', 'release_date': '2026-12-10', 'vote_average': 9.1, 'is_new_season': True, 'release_badge': 'Season 5'},
     ]
 
     client = TMDBClient()
     for ih in indian_web_series:
-        if ih['id'] not in seen_ids:
+        if ih['release_date'] >= today and ih['id'] not in seen_ids:
             seen_ids.add(ih['id'])
             poster_url = client.get_media_assets(ih['id'], 'tv') or 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
             upcoming_tv.append({
