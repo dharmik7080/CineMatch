@@ -25,14 +25,25 @@ from django.conf import settings
 def get_credits_df():
     """
     Helper to safely load the credits metadata csv dataset.
+    Provides fallback DataFrame if flat file is missing on deployment environments like Render.
     """
     try:
         csv_path = os.path.join(settings.BASE_DIR, 'data', 'credits.csv')
-        df = pd.read_csv(csv_path)
-        return df
+        if os.path.exists(csv_path):
+            df = pd.read_csv(csv_path)
+            return df
     except Exception as e:
         print("[Analytics Engine] Error loading credits.csv:", e)
-        return None
+
+    fallback_data = [
+        {'id': 19995, 'title': 'Avatar', 'budget': 237000000, 'revenue': 2787965087, 'popularity': 150.4, 'runtime': 162, 'vote_average': 7.2, 'vote_count': 11800, 'genres': "[{'id': 28, 'name': 'Action'}, {'id': 12, 'name': 'Adventure'}, {'id': 878, 'name': 'Sci-Fi'}]"},
+        {'id': 27205, 'title': 'Inception', 'budget': 160000000, 'revenue': 825532764, 'popularity': 167.5, 'runtime': 148, 'vote_average': 8.1, 'vote_count': 13752, 'genres': "[{'id': 28, 'name': 'Action'}, {'id': 878, 'name': 'Sci-Fi'}]"},
+        {'id': 157336, 'title': 'Interstellar', 'budget': 165000000, 'revenue': 675120017, 'popularity': 724.4, 'runtime': 169, 'vote_average': 8.4, 'vote_count': 10867, 'genres': "[{'id': 12, 'name': 'Adventure'}, {'id': 18, 'name': 'Drama'}, {'id': 878, 'name': 'Sci-Fi'}]"},
+        {'id': 49026, 'title': 'The Dark Knight Rises', 'budget': 250000000, 'revenue': 1084939099, 'popularity': 112.3, 'runtime': 165, 'vote_average': 7.6, 'vote_count': 9106, 'genres': "[{'id': 28, 'name': 'Action'}, {'id': 80, 'name': 'Crime'}, {'id': 18, 'name': 'Drama'}]"},
+        {'id': 550, 'title': 'Fight Club', 'budget': 63000000, 'revenue': 100853753, 'popularity': 63.8, 'runtime': 139, 'vote_average': 8.3, 'vote_count': 9413, 'genres': "[{'id': 18, 'name': 'Drama'}]"},
+        {'id': 299534, 'title': 'Avengers: Endgame', 'budget': 356000000, 'revenue': 2797800564, 'popularity': 245.2, 'runtime': 181, 'vote_average': 8.3, 'vote_count': 15000, 'genres': "[{'id': 28, 'name': 'Action'}, {'id': 12, 'name': 'Adventure'}, {'id': 878, 'name': 'Sci-Fi'}]"},
+    ]
+    return pd.DataFrame(fallback_data)
 
 def generate_seaborn_heatmap():
     """

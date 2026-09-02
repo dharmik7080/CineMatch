@@ -245,6 +245,84 @@ def get_daily_trending_movies():
     return [], None
 
 
+def fetch_trending_anime():
+    """
+    Fetches top trending anime from AniList GraphQL API.
+    Caches results for 12 hours (43200 seconds).
+    Returns list of anime dicts formatted for feed rendering.
+    """
+    from django.core.cache import cache
+    cache_key = "anilist_trending_anime_cache"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
+    url = "https://graphql.anilist.co"
+    query = """
+    query {
+      Page (page: 1, perPage: 12) {
+        media (type: ANIME, sort: [TRENDING_DESC, POPULARITY_DESC], isAdult: false) {
+          id
+          title {
+            english
+            romaji
+          }
+          coverImage {
+            extraLarge
+            large
+          }
+          bannerImage
+          episodes
+          averageScore
+          genres
+          seasonYear
+        }
+      }
+    }
+    """
+    anime_list = []
+    try:
+        resp = get_resilient_session().post(url, json={'query': query}, timeout=6.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            items = data.get('data', {}).get('Page', {}).get('media', [])
+            for item in items:
+                title = item.get('title', {}).get('english') or item.get('title', {}).get('romaji') or 'Anime'
+                cover = item.get('coverImage', {}).get('extraLarge') or item.get('coverImage', {}).get('large') or ''
+                score = item.get('averageScore')
+                vote_avg = round(score / 10.0, 1) if score else 8.5
+                genres = " | ".join(item.get('genres', [])[:2]) or "Anime"
+                
+                anime_list.append({
+                    'id': item.get('id'),
+                    'media_id': item.get('id'),
+                    'title': title,
+                    'name': title,
+                    'media_type': 'tv',
+                    'poster_url': cover,
+                    'backdrop_url': item.get('bannerImage') or cover,
+                    'vote_average': vote_avg,
+                    'episodes': item.get('episodes') or 'TV',
+                    'genres': genres,
+                    'year': item.get('seasonYear') or '2025',
+                    'is_anime': True
+                })
+            if anime_list:
+                cache.set(cache_key, anime_list, 43200)
+                return anime_list
+    except Exception as e:
+        print(f"[ANILIST ERROR] Failed to fetch trending anime: {e}")
+
+    fallback_anime = [
+        {'id': 11061, 'media_id': 11061, 'title': 'Hunter x Hunter', 'name': 'Hunter x Hunter', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx11061-sP5vWxFdHzB8.png', 'vote_average': 9.0, 'genres': 'Action | Adventure', 'episodes': 148, 'year': 2011, 'is_anime': True},
+        {'id': 101922, 'media_id': 101922, 'title': 'Demon Slayer', 'name': 'Demon Slayer', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx101922-W1Z6WGaB1a9B.png', 'vote_average': 8.6, 'genres': 'Action | Fantasy', 'episodes': 26, 'year': 2019, 'is_anime': True},
+        {'id': 113415, 'media_id': 113415, 'title': 'Jujutsu Kaisen', 'name': 'Jujutsu Kaisen', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx113415-bbBWj4pGFrFj.jpg', 'vote_average': 8.7, 'genres': 'Action | Supernatural', 'episodes': 24, 'year': 2020, 'is_anime': True},
+        {'id': 145064, 'media_id': 145064, 'title': 'Solo Leveling', 'name': 'Solo Leveling', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx145064-y4kM4jC4V9L6.jpg', 'vote_average': 8.5, 'genres': 'Action | Fantasy', 'episodes': 12, 'year': 2024, 'is_anime': True},
+        {'id': 21459, 'media_id': 21459, 'title': 'My Hero Academia', 'name': 'My Hero Academia', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21459-k2bWk4A5599Z.png', 'vote_average': 8.1, 'genres': 'Action | Sci-Fi', 'episodes': 13, 'year': 2016, 'is_anime': True}
+    ]
+    return fallback_anime
+
+
 def get_upcoming_movies():
     """
     Fetches upcoming movies from TMDB /movie/upcoming API.

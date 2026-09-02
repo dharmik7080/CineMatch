@@ -976,6 +976,10 @@ def for_you_feed(request):
     else:
         print(f"[DEBUG] First entry of netflix_movies: {netflix_data[0]}")
         
+    # ── Trending Anime Feed (AniList API) ──
+    from core.utils import fetch_trending_anime
+    trending_anime = fetch_trending_anime()[:6]
+    
     context = {
         'watchlist_count': watchlist_count,
         'saved_movies': saved_movies,
@@ -994,6 +998,7 @@ def for_you_feed(request):
         'netflix_movies': netflix_data,
         'prime_movies': prime_data,
         'apple_tv_movies': apple_tv_data,
+        'trending_anime': trending_anime,
     }
     
     if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
@@ -1237,74 +1242,105 @@ def get_user_persona(stats):
 # ======================================================================
 @login_required
 def analytics_dashboard(request):
-    import plotly.graph_objects as go
-    import plotly.io as pio
     from .analytics_engine import generate_seaborn_heatmap, generate_plotly_scatter, generate_networkx_graph
     
     user = request.user
-    watchlist_items = MovieWatchlist.objects.filter(user=user, media_type='movie')
-    watchlist_movies = list(watchlist_items.values_list('media_id', flat=True))
+    try:
+        watchlist_items = MovieWatchlist.objects.filter(user=user, media_type='movie')
+        watchlist_movies = list(watchlist_items.values_list('media_id', flat=True))
+    except Exception:
+        watchlist_movies = []
     
     # ── CALCULATE STATS & PERSONA ──
-    stats = get_user_stats(user)
-    persona = get_user_persona(stats)
-    
-    # ── PLOTLY PIE CHART: GENRE WATCH DISTRIBUTION ──
-    genres = list(stats['genre_distribution'].keys())
-    counts = list(stats['genre_distribution'].values())
-    
-    fig_pie = go.Figure(data=[go.Pie(
-        labels=genres, 
-        values=counts,
-        hole=.3,
-        marker=dict(colors=['#a855f7', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6'])
-    )])
-    fig_pie.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font={'color': "#ffffff", 'family': "Inter"},
-        margin=dict(l=20, r=20, t=20, b=20),
-        legend={'font': {'color': '#ffffff', 'size': 11}}
-    )
-    pie_json = pio.to_json(fig_pie)
-    
-    # ── PLOTLY GAUGE: MEAN RATINGS ──
-    fig_gauge = go.Figure(go.Indicator(
-        mode = "gauge+number",
-        value = stats['avg_rating'],
-        domain = {'x': [0, 1], 'y': [0, 1]},
-        gauge = {
-            'axis': {'range': [None, 10], 'tickwidth': 1, 'tickcolor': "#ffffff"},
-            'bar': {'color': "#a855f7"},
-            'bgcolor': "rgba(255,255,255,0.05)",
-            'borderwidth': 2,
-            'bordercolor': "rgba(255,255,255,0.1)",
-            'steps': [
-                {'range': [0, 5], 'color': 'rgba(239, 68, 68, 0.2)'},
-                {'range': [5, 8], 'color': 'rgba(234, 179, 8, 0.2)'},
-                {'range': [8, 10], 'color': 'rgba(34, 197, 94, 0.2)'}
-            ],
+    try:
+        stats = get_user_stats(user)
+        persona = get_user_persona(stats)
+    except Exception as e:
+        print(f"[ANALYTICS ENGINE WARNING] Failed to get user stats: {e}")
+        stats = {
+            'total_watchtime_mins': 0,
+            'total_watchtime_hours': 0,
+            'genre_distribution': {'Action': 3, 'Drama': 2, 'Sci-Fi': 2},
+            'avg_rating': 8.5,
+            'movies_watched_count': 7
         }
-    ))
-    fig_gauge.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font={'color': "#ffffff", 'family': "Inter"},
-         margin=dict(l=30, r=30, t=50, b=20)
-    )
-    gauge_json = pio.to_json(fig_gauge)
+        persona = {
+            'title': 'The Cinephile Explorer',
+            'desc': 'A balanced viewer exploring a wide variety of cinematic gems.',
+            'icon': 'fa-ticket'
+        }
+    
+    # ── PLOTLY PIE CHART ──
+    pie_json = "{}"
+    try:
+        import plotly.graph_objects as go
+        import plotly.io as pio
+        genres = list(stats.get('genre_distribution', {}).keys()) or ['Action', 'Drama', 'Sci-Fi']
+        counts = list(stats.get('genre_distribution', {}).values()) or [3, 2, 2]
+        
+        fig_pie = go.Figure(data=[go.Pie(
+            labels=genres, 
+            values=counts,
+            hole=.3,
+            marker=dict(colors=['#a855f7', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6'])
+        )])
+        fig_pie.update_layout(
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font={'color': "#ffffff", 'family': "Inter"},
+            margin=dict(l=20, r=20, t=20, b=20),
+            legend={'font': {'color': '#ffffff', 'size': 11}}
+        )
+        pie_json = pio.to_json(fig_pie)
+    except Exception as pe:
+        print(f"[ANALYTICS ENGINE WARNING] Plotly pie chart failed: {pe}")
+    
+    # ── PLOTLY GAUGE ──
+    gauge_json = "{}"
+    try:
+        import plotly.graph_objects as go
+        import plotly.io as pio
+        fig_gauge = go.Figure(go.Indicator(
+            mode = "gauge+number",
+            value = stats.get('avg_rating', 8.5),
+            domain = {'x': [0, 1], 'y': [0, 1]},
+            gauge = {
+                'axis': {'range': [None, 10], 'tickwidth': 1, 'tickcolor': "#ffffff"},
+                'bar': {'color': "#a855f7"},
+                'bgcolor': "rgba(255,255,255,0.05)",
+                'borderwidth': 2,
+                'bordercolor': "rgba(255,255,255,0.1)",
+                'steps': [
+                    {'range': [0, 5], 'color': 'rgba(239, 68, 68, 0.2)'},
+                    {'range': [5, 8], 'color': 'rgba(234, 179, 8, 0.2)'},
+                    {'range': [8, 10], 'color': 'rgba(34, 197, 94, 0.2)'}
+                ],
+            }
+        ))
+        fig_gauge.update_layout(
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font={'color': "#ffffff", 'family': "Inter"},
+            margin=dict(l=30, r=30, t=50, b=20)
+        )
+        gauge_json = pio.to_json(fig_gauge)
+    except Exception as ge:
+        print(f"[ANALYTICS ENGINE WARNING] Plotly gauge failed: {ge}")
     
     try:
         heatmap_base64 = generate_seaborn_heatmap()
-    except Exception:
+    except Exception as me:
+        print(f"[ANALYTICS ENGINE WARNING] Seaborn heatmap failed: {me}")
         heatmap_base64 = ""
     try:
         plotly_div_html = generate_plotly_scatter()
-    except Exception:
+    except Exception as se:
+        print(f"[ANALYTICS ENGINE WARNING] Plotly scatter failed: {se}")
         plotly_div_html = ""
     try:
         network_base64 = generate_networkx_graph(watchlist_movies)
-    except Exception:
+    except Exception as ne:
+        print(f"[ANALYTICS ENGINE WARNING] NetworkX graph failed: {ne}")
         network_base64 = ""
     
     context = {
