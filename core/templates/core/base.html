@@ -7,6 +7,11 @@
     <!-- Image CDN Preconnect for High-Speed Asset Loading -->
     <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
     <link rel="dns-prefetch" href="https://image.tmdb.org">
+    <link rel="preconnect" href="https://s4.anilist.co" crossorigin>
+    <link rel="dns-prefetch" href="https://s4.anilist.co">
+    <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+    <link rel="dns-prefetch" href="https://images.unsplash.com">
+    <link rel="dns-prefetch" href="https://graphql.anilist.co">
     <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,6 +36,21 @@
             --accent-glow: rgba(168, 85, 247, 0.2);
             --text-primary: #ffffff;
             --text-secondary: #a1a1aa;
+        }
+
+        /* High-Performance Rendering & Hardware Acceleration */
+        .slider-card, .rec-poster, .movie-card {
+            content-visibility: auto;
+            contain-intrinsic-size: 340px;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            will-change: transform;
+        }
+
+        .horizontal-slider {
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            transform: translateZ(0);
         }
 
         body {

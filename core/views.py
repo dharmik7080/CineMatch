@@ -1189,109 +1189,117 @@ def explore_anime_view(request):
 
     query_str = request.GET.get('q', '').strip()
     page_number = request.GET.get('page', 1)
-    try:
-        page_number = int(page_number)
-    except ValueError:
-        page_number = 1
+    from django.core.cache import cache
+    from core.models import MovieWatchlist
 
     EXPLICIT_KEYWORDS = {'sex', 'erotic', 'porn', 'xxx', 'hentai', 'nude', 'nudity', 'lust', 'shikiyoku', 'overflow', 'ecchi'}
-
     anilist_url = 'https://graphql.anilist.co'
+
+    cache_key = f"explore_anime_grid_data_p{page_number}_q{query_str.lower()}"
+    cached_tuple = cache.get(cache_key)
     
-    if query_str:
-        clean_q = query_str.replace('"', '\\"')
-        graphql_query = f'''
-        {{
-          Page(page: {page_number}, perPage: 16) {{
-            pageInfo {{
-              lastPage
-              total
-            }}
-            media(search: "{clean_q}", type: ANIME, isAdult: false) {{
-              id
-              title {{
-                english
-                romaji
-              }}
-              coverImage {{
-                extraLarge
-              }}
-              averageScore
-              genres
-              seasonYear
-            }}
-          }}
-        }}
-        '''
+    if cached_tuple:
+        anime_records, total_pages = cached_tuple
     else:
-        graphql_query = f'''
-        {{
-          Page(page: {page_number}, perPage: 16) {{
-            pageInfo {{
-              lastPage
-              total
-            }}
-            media(type: ANIME, sort: [POPULARITY_DESC, TRENDING_DESC], isAdult: false) {{
-              id
-              title {{
-                english
-                romaji
+        anime_records = []
+        total_pages = 1
+
+        if query_str:
+            clean_q = query_str.replace('"', '\\"')
+            graphql_query = f'''
+            {{
+              Page(page: {page_number}, perPage: 16) {{
+                pageInfo {{
+                  lastPage
+                  total
+                }}
+                media(search: "{clean_q}", type: ANIME, isAdult: false) {{
+                  id
+                  title {{
+                    english
+                    romaji
+                  }}
+                  coverImage {{
+                    extraLarge
+                  }}
+                  averageScore
+                  genres
+                  seasonYear
+                }}
               }}
-              coverImage {{
-                extraLarge
-              }}
-              averageScore
-              genres
-              seasonYear
             }}
-          }}
-        }}
-        '''
+            '''
+        else:
+            graphql_query = f'''
+            {{
+              Page(page: {page_number}, perPage: 16) {{
+                pageInfo {{
+                  lastPage
+                  total
+                }}
+                media(type: ANIME, sort: [POPULARITY_DESC, TRENDING_DESC], isAdult: false) {{
+                  id
+                  title {{
+                    english
+                    romaji
+                  }}
+                  coverImage {{
+                    extraLarge
+                  }}
+                  averageScore
+                  genres
+                  seasonYear
+                }}
+              }}
+            }}
+            '''
 
-    anime_records = []
-    total_pages = 1
-
-    try:
-        resp = requests.post(anilist_url, json={'query': graphql_query}, timeout=6.0)
-        if resp.status_code == 200:
-            data = resp.json().get('data', {}).get('Page', {})
-            total_pages = min(data.get('pageInfo', {}).get('lastPage', 1) or 1, 500)
-            
-            client = TMDBClient()
-            for item in data.get('media', []):
-                t_eng = item.get('title', {}).get('english')
-                t_rom = item.get('title', {}).get('romaji')
-                title = t_eng or t_rom or 'Anime Title'
-
-                if any(k in title.lower() for k in EXPLICIT_KEYWORDS):
-                    continue
-
-                cover_url = item.get('coverImage', {}).get('extraLarge') or 'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop'
-                raw_score = item.get('averageScore')
-                score = round(raw_score / 10.0, 1) if raw_score else 8.2
-                genres = " | ".join(item.get('genres', [])[:2]) or "Anime"
-                year = str(item.get('seasonYear') or '2024')
-
-                # Cross-resolve TMDB ID for detail routing & streaming
-                anilist_id = item.get('id')
+        try:
+            resp = requests.post(anilist_url, json={'query': graphql_query}, timeout=6.0)
+            if resp.status_code == 200:
+                data = resp.json().get('data', {}).get('Page', {})
+                total_pages = min(data.get('pageInfo', {}).get('lastPage', 1) or 1, 500)
+                
+                from concurrent.futures import ThreadPoolExecutor
                 from core.utils import resolve_anilist_to_tmdb_id
-                tmdb_id = resolve_anilist_to_tmdb_id(title, fallback_id=anilist_id)
 
-                anime_records.append({
-                    'id': tmdb_id,
-                    'media_id': tmdb_id,
-                    'anilist_id': anilist_id,
-                    'name': title,
-                    'title': title,
-                    'media_type': 'tv',
-                    'poster_url': cover_url,
-                    'vote_average': score,
-                    'first_air_date': year,
-                    'year': year,
-                    'genres': genres
-                })
-    except Exception as e:
-        print(f"[ANILIST EXPLORE ERROR] {e}")
+                media_items = [
+                    item for item in data.get('media', [])
+                    if not any(k in (item.get('title', {}).get('english') or item.get('title', {}).get('romaji') or '').lower() for k in EXPLICIT_KEYWORDS)
+                ]
+
+                def process_anime_item(item):
+                    t_eng = item.get('title', {}).get('english')
+                    t_rom = item.get('title', {}).get('romaji')
+                    title = t_eng or t_rom or 'Anime Title'
+                    cover_url = item.get('coverImage', {}).get('extraLarge') or 'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop'
+                    raw_score = item.get('averageScore')
+                    score = round(raw_score / 10.0, 1) if raw_score else 8.2
+                    genres = " | ".join(item.get('genres', [])[:2]) or "Anime"
+                    year = str(item.get('seasonYear') or '2024')
+                    anilist_id = item.get('id')
+                    tmdb_id = resolve_anilist_to_tmdb_id(title, fallback_id=anilist_id)
+
+                    return {
+                        'id': tmdb_id,
+                        'media_id': tmdb_id,
+                        'anilist_id': anilist_id,
+                        'name': title,
+                        'title': title,
+                        'media_type': 'tv',
+                        'poster_url': cover_url,
+                        'vote_average': score,
+                        'first_air_date': year,
+                        'year': year,
+                        'genres': genres
+                    }
+
+                with ThreadPoolExecutor(max_workers=8) as executor:
+                    anime_records = list(executor.map(process_anime_item, media_items))
+                
+                cache.set(cache_key, (anime_records, total_pages), 600)
+        except Exception as e:
+            print(f"[ANILIST EXPLORE ERROR] {e}")
 
     class MockPage:
         def __init__(self, number, object_list, max_pages):

@@ -85,6 +85,9 @@ class MovieWatchlist(models.Model):
         verbose_name_plural = "Movie Watchlist Items"
         # Database constraint: Prevent duplicate entries of the same show in a user's watchlist
         unique_together = ('user', 'media_id', 'media_type')
+        indexes = [
+            models.Index(fields=['user', 'media_id', 'media_type']),
+        ]
 
     def __str__(self):
         return f"{self.user.username} saved {self.media_type} ID {self.media_id}"
@@ -181,6 +184,9 @@ class MediaReview(models.Model):
         ordering = ['-created_at']  # Show freshest critical insights first
         # Prevent a single user from spamming multiple root records for the same property
         unique_together = ('user', 'media_id', 'media_type')
+        indexes = [
+            models.Index(fields=['user', 'media_id', 'media_type']),
+        ]
 
     def __name__(self):
         return f"{self.user.username} - {self.media_type} {self.media_id} ({self.created_at.strftime('%Y-%m-%d')})"
@@ -459,6 +465,9 @@ class UserWatchProgress(models.Model):
         verbose_name = "Exact Watch Progress"
         verbose_name_plural = "Exact Watch Progress Logs"
         unique_together = ('user', 'media_id', 'media_type')
+        indexes = [
+            models.Index(fields=['user', 'media_id', 'media_type']),
+        ]
 
     def __str__(self):
         return f"{self.user.username} watched {self.seconds_watched}s of {self.title or self.media_id}"
