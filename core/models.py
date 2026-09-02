@@ -439,6 +439,30 @@ class ContinueWatching(models.Model):
         return f"{self.user.username} is watching {self.title}"
 
 
+# ======================================================================
+# Model: UserWatchProgress (Exact Playback Watch Time Tracker)
+# ======================================================================
+class UserWatchProgress(models.Model):
+    """
+    Tracks active playing time (in seconds) for exact watch time calculations.
+    Increments dynamically via player heartbeat API.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='exact_watch_progress')
+    media_id = models.IntegerField()
+    media_type = models.CharField(max_length=10, default='movie')
+    title = models.CharField(max_length=255, blank=True, default='')
+    seconds_watched = models.IntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Exact Watch Progress"
+        verbose_name_plural = "Exact Watch Progress Logs"
+        unique_together = ('user', 'media_id', 'media_type')
+
+    def __str__(self):
+        return f"{self.user.username} watched {self.seconds_watched}s of {self.title or self.media_id}"
+
+
 # -----------------------------------------------------------------------------
 # AUTOMATED ML RE-TRAINING SIGNAL
 # -----------------------------------------------------------------------------

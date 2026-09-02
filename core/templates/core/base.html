@@ -410,9 +410,11 @@
                             {% endif %}
                         </a>
 
-                        <span class="text-secondary d-none d-xl-inline fs-6 ms-1 me-1">
-                            <i class="fa-solid fa-circle-user text-accent me-1"></i> Hello, <strong class="text-white">{{ user.username }}</strong>
-                        </span>
+                        <a href="{% url 'user_profile' %}" class="user-pill-btn d-inline-flex align-items-center text-decoration-none px-3 py-1.5 rounded-pill me-1" title="View Profile & Dashboard" style="background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.3); color: #ffffff; transition: all 0.25s ease;">
+                            <i class="fa-solid fa-circle-user text-accent me-1.5" style="font-size: 1rem;"></i>
+                            <span class="text-white-50" style="font-size: 0.85rem; font-weight: 500;">Hello,</span>
+                            <strong class="text-white ms-1" style="font-size: 0.88rem; font-weight: 700;">{{ user.username }}</strong>
+                        </a>
 
                         <a href="{% url 'logout' %}" class="btn btn-outline-custom btn-sm ms-1">
                             <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
@@ -1098,6 +1100,53 @@
             {% endif %}
         });
     </script>
+
+    {% if user.is_authenticated %}
+    <!-- Exact Watch Time Heartbeat Tracking Script -->
+    <script>
+        let activeWatchInterval = null;
+        function startWatchTimeHeartbeat(mediaId, mediaType, mediaTitle) {
+            if (!mediaId) return;
+            if (activeWatchInterval) clearInterval(activeWatchInterval);
+            
+            // Send heartbeat ping (+30s) every 30 seconds of active window viewing
+            activeWatchInterval = setInterval(() => {
+                if (!document.hidden) {
+                    fetch('/api/track-watchtime/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': typeof getCookie === 'function' ? getCookie('csrftoken') : ''
+                        },
+                        body: JSON.stringify({
+                            media_id: mediaId,
+                            media_type: mediaType || 'movie',
+                            title: mediaTitle || '',
+                            seconds: 30
+                        })
+                    }).then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log(`[WatchTime Ping]: +30s logged for ID ${mediaId}. Total Hours: ${data.total_hours}`);
+                        }
+                    }).catch(e => console.error('[WatchTime Ping Error]:', e));
+                }
+            }, 30000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const currentPath = window.location.pathname;
+            const movieMatch = currentPath.match(/\/movies\/(\d+)\//);
+            const tvMatch = currentPath.match(/\/tv\/(\d+)\//);
+            if (movieMatch) {
+                startWatchTimeHeartbeat(movieMatch[1], 'movie', document.title);
+            } else if (tvMatch) {
+                startWatchTimeHeartbeat(tvMatch[1], 'tv', document.title);
+            }
+        });
+    </script>
+    {% endif %}
+
     <!-- ColorThief CDN for dominant color theme extraction -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
     {% block extra_js %}{% endblock %}

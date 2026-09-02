@@ -1,0 +1,304 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ profile_user.username }}'s Profile & Dashboard — CineMatch{% endblock %}
+
+{% block extra_css %}
+.section-heading {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    border-left: 3px solid #a855f7;
+    padding-left: 0.75rem;
+    margin-bottom: 1.75rem;
+}
+.profile-card {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(15, 15, 25, 0.6) 100%);
+    border: 1px solid rgba(168, 85, 247, 0.25);
+    border-radius: 20px;
+    padding: 2.5rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+}
+.carousel-row {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 1.5rem;
+    padding-bottom: 1.25rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(168, 85, 247, 0.4) rgba(255, 255, 255, 0.05);
+}
+.carousel-row::-webkit-scrollbar {
+    height: 6px;
+}
+.carousel-row::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+.carousel-row::-webkit-scrollbar-thumb {
+    background: rgba(168, 85, 247, 0.4);
+    border-radius: 10px;
+}
+.carousel-row .watchlist-card {
+    flex: 0 0 170px;
+    max-width: 170px;
+}
+.watchlist-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.watchlist-card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(168, 85, 247, 0.4);
+    box-shadow: 0 10px 30px rgba(168, 85, 247, 0.15);
+}
+.watchlist-card img {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    display: block;
+}
+.card-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(7, 7, 11, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    padding: 1rem;
+}
+.watchlist-card:hover .card-overlay {
+    opacity: 1;
+}
+.empty-placeholder {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 3.5rem 1.5rem;
+    text-align: center;
+    color: #6b7280;
+}
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+    <!-- 1. USER PROFILE HERO HEADER CARD -->
+    <div class="profile-card mb-5">
+        <div class="d-flex flex-column flex-md-row align-items-center gap-4">
+            <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-lg" 
+                 style="width: 90px; height: 90px; font-size: 2.2rem; background: linear-gradient(135deg, #a855f7, #ec4899); color: #ffffff; flex-shrink: 0; border: 3px solid rgba(255,255,255,0.2);">
+                {{ profile_user.username|slice:":1"|upper }}
+            </div>
+            <div class="text-center text-md-start flex-grow-1">
+                <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-md-start gap-2 mb-1">
+                    <h2 class="fw-bold text-white mb-0" style="font-size: 2rem;">{{ profile_user.username }}</h2>
+                    <span class="badge rounded-pill px-3 py-1" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); font-size: 0.8rem;">
+                        <i class="fa-solid fa-crown me-1 text-warning"></i> {{ persona.title|default:"CineMatch Member" }}
+                    </span>
+                </div>
+                <p class="text-white-50 mb-3" style="font-size: 0.95rem;">
+                    Member since {{ profile_user.date_joined|date:"F Y" }} &bull; CineMatch Film Enthusiast
+                </p>
+                <div class="d-flex flex-wrap gap-3 justify-content-center justify-content-md-start">
+                    <div class="px-3 py-2 rounded-3" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08);">
+                        <small class="d-block text-secondary text-uppercase fw-bold" style="font-size: 0.68rem; letter-spacing: 0.5px;">EXACT WATCH TIME</small>
+                        <span class="fw-bold text-warning" style="font-size: 1.15rem;">
+                            <i class="fa-regular fa-clock me-1"></i>{{ stats.total_watchtime_hours }} hrs
+                        </span>
+                    </div>
+                    <div class="px-3 py-2 rounded-3" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08);">
+                        <small class="d-block text-secondary text-uppercase fw-bold" style="font-size: 0.68rem; letter-spacing: 0.5px;">TITLES LOGGED</small>
+                        <span class="fw-bold text-info" style="font-size: 1.15rem;">
+                            <i class="fa-solid fa-film me-1"></i>{{ stats.movies_watched_count }} titles
+                        </span>
+                    </div>
+                    <div class="px-3 py-2 rounded-3" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08);">
+                        <small class="d-block text-secondary text-uppercase fw-bold" style="font-size: 0.68rem; letter-spacing: 0.5px;">REVIEWS WRITTEN</small>
+                        <span class="fw-bold text-accent" style="font-size: 1.15rem;">
+                            <i class="fa-regular fa-comment-dots me-1"></i>{{ my_reviews.count }} reviews
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'analytics_dashboard' %}" class="btn btn-outline-light rounded-pill px-4 py-2" style="border-color: rgba(255,255,255,0.2); font-weight: 600; font-size: 0.9rem;">
+                    <i class="fa-solid fa-chart-pie me-2 text-warning"></i>View Analytics
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. SECTION: CONTINUE WATCHING -->
+    <div class="mb-5">
+        <h2 class="section-heading">
+            <i class="fa-solid fa-circle-play me-2 text-primary"></i>Continue Watching
+        </h2>
+        <div id="continue-watching-grid" class="carousel-row">
+            {% if continue_watching %}
+                {% for item in continue_watching %}
+                <div class="watchlist-card">
+                    <img src="{{ item.poster_url|default:'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop' }}" alt="{{ item.title }}" loading="lazy">
+                    <div class="card-overlay">
+                        <span class="badge bg-primary text-white mb-2" style="font-size: 0.7rem;">
+                            {% if item.media_type == 'tv' %}S{{ item.season }} E{{ item.episode }}{% else %}Movie{% endif %}
+                        </span>
+                        <h6 class="text-white text-center fw-bold small text-truncate w-100 mb-2">{{ item.title }}</h6>
+                        {% if item.media_type == 'movie' %}
+                            <a href="{% url 'movie_detail' item.media_id %}" class="btn btn-primary btn-sm rounded-pill px-3">
+                                <i class="fa-solid fa-play me-1"></i>Resume
+                            </a>
+                        {% else %}
+                            <a href="{% url 'tv_show_detail' item.media_id %}" class="btn btn-primary btn-sm rounded-pill px-3">
+                                <i class="fa-solid fa-play me-1"></i>Resume
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        {% if not continue_watching %}
+        <div id="continue-watching-empty" class="empty-placeholder">
+            <i class="fa-solid fa-play fs-1 text-secondary mb-3 d-block"></i>
+            <h5 class="text-light">No Active Playback History</h5>
+            <p class="small text-muted mb-0">Start watching a movie or TV show to see it here.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 3. SECTION: MY REVIEWS -->
+    <div class="mb-5">
+        <h2 class="section-heading">
+            <i class="fa-solid fa-star me-2 text-warning"></i>My Reviews & Ratings
+        </h2>
+        {% if my_reviews %}
+        <div class="row g-3">
+            {% for rev in my_reviews %}
+            <div class="col-md-6 col-lg-4">
+                <div class="p-3.5 rounded-4 h-100" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge text-uppercase px-2.5 py-1" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; font-size: 0.72rem; font-weight: 700; border: 1px solid rgba(168, 85, 247, 0.3);">
+                                {{ rev.media_type }} #{{ rev.media_id }}
+                            </span>
+                            <small class="text-muted" style="font-size: 0.72rem;">{{ rev.created_at|date:"M d, Y" }}</small>
+                        </div>
+                        <p class="text-light mb-3" style="font-size: 0.92rem; line-height: 1.5; font-style: italic;">
+                            "{{ rev.review_text }}"
+                        </p>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top border-secondary" style="border-color: rgba(255,255,255,0.06) !important;">
+                        {% if rev.media_type == 'movie' %}
+                            <a href="{% url 'movie_detail' rev.media_id %}" class="btn btn-link btn-sm text-accent p-0 text-decoration-none fw-bold" style="font-size: 0.8rem;">
+                                View Title <i class="fa-solid fa-chevron-right ms-1 small"></i>
+                            </a>
+                        {% else %}
+                            <a href="{% url 'tv_show_detail' rev.media_id %}" class="btn btn-link btn-sm text-accent p-0 text-decoration-none fw-bold" style="font-size: 0.8rem;">
+                                View Title <i class="fa-solid fa-chevron-right ms-1 small"></i>
+                            </a>
+                        {% endif %}
+                        <form method="POST" action="{% url 'delete_media_review' rev.id %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-link text-danger p-0 border-0" style="font-size: 0.8rem;" title="Delete Review">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-placeholder">
+            <i class="fa-regular fa-comment-dots fs-1 text-secondary mb-3 d-block"></i>
+            <h5 class="text-light">No Reviews Published Yet</h5>
+            <p class="small text-muted mb-0">Share your thoughts on any movie or TV show detail page to record your reviews here.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 4. SECTION: RECENTLY VIEWED -->
+    <div class="mb-4">
+        <h2 class="section-heading">
+            <i class="fa-solid fa-clock-rotate-left me-2 text-info"></i>Recently Viewed
+        </h2>
+        {% if recently_viewed_media %}
+        <div class="carousel-row">
+            {% for item in recently_viewed_media %}
+            <div class="watchlist-card">
+                <img src="{{ item.poster_url }}" alt="Media Poster" loading="lazy">
+                <div class="card-overlay">
+                    <span class="badge bg-dark border border-secondary text-light mb-2 text-uppercase" style="font-size: 0.68rem;">{{ item.type }}</span>
+                    {% if item.type == 'movie' %}
+                        <a href="{% url 'movie_detail' item.id %}" class="btn btn-accent btn-sm rounded-pill px-3">
+                            <i class="fa-solid fa-eye me-1"></i>View
+                        </a>
+                    {% else %}
+                        <a href="{% url 'tv_show_detail' item.id %}" class="btn btn-accent btn-sm rounded-pill px-3">
+                            <i class="fa-solid fa-eye me-1"></i>View
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-placeholder">
+            <i class="fa-solid fa-history fs-1 text-secondary mb-3 d-block"></i>
+            <h5 class="text-light">No Recently Viewed Items</h5>
+            <p class="small text-muted mb-0">Browse movies and TV shows to see your recent viewing history here.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const grid = document.getElementById('continue-watching-grid');
+    if (!grid) return;
+
+    const list = JSON.parse(localStorage.getItem('continue_watching') || '[]');
+    if (list.length > 0 && grid.children.length === 0) {
+        const emptyPlaceholder = document.getElementById('continue-watching-empty');
+        if (emptyPlaceholder) emptyPlaceholder.style.display = 'none';
+        
+        list.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'watchlist-card';
+            card.id = `card-continue-${item.type}-${item.id}`;
+            
+            let detailUrl = item.type === 'movie' ? `/movies/${item.id}/` : `/tv/${item.id}/`;
+            let subtitle = item.type === 'movie' ? 'Movie' : `S${item.season || 1} E${item.episode || 1}`;
+            
+            card.innerHTML = `
+                <img src="${item.poster_url}" alt="${item.title}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop';">
+                <div class="card-overlay">
+                    <span class="badge bg-primary text-white mb-2" style="font-size: 0.7rem;">${subtitle}</span>
+                    <h6 class="text-white text-center fw-bold small text-truncate w-100 mb-2">${item.title}</h6>
+                    <a href="${detailUrl}" class="btn btn-primary btn-sm rounded-pill px-3">
+                        <i class="fa-solid fa-play me-1"></i>Resume
+                    </a>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+});
+</script>
+{% endblock %}

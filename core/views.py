@@ -19,7 +19,7 @@ from django.contrib.auth import login
 from core.forms import CineMatchRegistrationForm, CineMatchLoginForm
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_protect, csrf_exempt
 from django.http import JsonResponse
 from django.conf import settings
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
@@ -1259,13 +1259,17 @@ from django.db.models import Sum, Avg
 
 def get_user_stats(user):
     """
-    Queries WatchedHistory database model to calculate watchtime, rating, and genre counts.
-    Seeds mock entries if user has no prior history.
+    Queries WatchedHistory and UserWatchProgress models to calculate watchtime, rating, and genre counts.
+    Uses exact playing time (in seconds) if active playback logging exists.
     """
+    from core.models import UserWatchProgress
+    exact_progress = UserWatchProgress.objects.filter(user=user)
+    exact_seconds = exact_progress.aggregate(total=Sum('seconds_watched'))['total'] or 0
+
     history = WatchedHistory.objects.filter(user=user)
     
     # If user has no watch history, populate mock records for instant visualizations
-    if history.count() == 0:
+    if history.count() == 0 and exact_seconds == 0:
         mock_data = [
             {"movie_id": 299534, "movie_title": "Avengers: Endgame", "duration": 181, "rating": 9.0, "genres": "Action, Adventure, Sci-Fi"},
             {"movie_id": 550, "movie_title": "Fight Club", "duration": 139, "rating": 8.5, "genres": "Drama"},
@@ -1289,7 +1293,14 @@ def get_user_stats(user):
     agg = history.aggregate(total_time=Sum('duration'), avg_rating=Avg('rating'))
     total_time = agg['total_time'] or 0
     avg_rating = agg['avg_rating'] or 0.0
-    
+
+    if exact_seconds > 0:
+        total_time_hours = round(exact_seconds / 3600.0, 2)
+        total_time_mins = round(exact_seconds / 60.0, 1)
+    else:
+        total_time_hours = round(total_time / 60.0, 1)
+        total_time_mins = total_time
+
     genre_counts = {}
     for entry in history:
         if entry.genres:
@@ -1299,11 +1310,12 @@ def get_user_stats(user):
                     genre_counts[g_clean] = genre_counts.get(g_clean, 0) + 1
                     
     return {
-        'total_watchtime_mins': total_time,
-        'total_watchtime_hours': round(total_time / 60.0, 1),
+        'total_watchtime_mins': total_time_mins,
+        'total_watchtime_hours': total_time_hours,
+        'exact_seconds_watched': exact_seconds,
         'genre_distribution': genre_counts,
         'avg_rating': round(avg_rating, 1),
-        'movies_watched_count': history.count()
+        'movies_watched_count': max(history.count(), exact_progress.count())
     }
 
 def get_user_persona(stats):
@@ -2807,6 +2819,117 @@ def watchlist_hub_view(request):
         'groups':                 user_groups,
     }
     return render(request, 'core/watchlist_hub.html', context)
+
+
+# ======================================================================
+# Track Watch Time Heartbeat API (10 mins watched = 10 mins counted)
+# ======================================================================
+@csrf_exempt
+def track_watchtime_api(request):
+    """
+    Heartbeat endpoint called by video player JS ping every 30s.
+    Increments exact active seconds watched for the authenticated user.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'Unauthenticated'}, status=401)
+
+    if request.method in ('POST', 'PUT'):
+        try:
+            import json
+            data = json.loads(request.body.decode('utf-8'))
+        except Exception:
+            data = request.POST
+
+        media_id = data.get('media_id') or data.get('id')
+        media_type = data.get('media_type', 'movie')
+        title = data.get('title', '')
+        try:
+            seconds = int(data.get('seconds', 30))
+        except (ValueError, TypeError):
+            seconds = 30
+
+        if not media_id:
+            return JsonResponse({'success': False, 'error': 'media_id required'}, status=400)
+
+        from core.models import UserWatchProgress
+        progress, created = UserWatchProgress.objects.get_or_create(
+            user=request.user,
+            media_id=int(media_id),
+            media_type=media_type,
+            defaults={'title': title, 'seconds_watched': seconds}
+        )
+        if not created:
+            progress.seconds_watched += seconds
+            if title:
+                progress.title = title
+            progress.save()
+
+        return JsonResponse({
+            'success': True,
+            'media_id': media_id,
+            'seconds_watched': progress.seconds_watched,
+            'total_hours': round(progress.seconds_watched / 3600.0, 2)
+        })
+
+    return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=405)
+
+
+# ======================================================================
+# User Profile Dashboard View (/profile/)
+# ======================================================================
+@login_required
+def profile_view(request):
+    """
+    User Profile Dashboard displaying User Info, Continue Watching,
+    My Reviews, and Recently Viewed.
+    """
+    user = request.user
+    stats = get_user_stats(user)
+    persona = get_user_persona(stats)
+
+    # 1. Continue Watching
+    from core.models import ContinueWatching, MediaReview
+    continue_watching = ContinueWatching.objects.filter(user=user)
+
+    # 2. My Reviews
+    my_reviews = MediaReview.objects.filter(user=user).order_by('-created_at')
+
+    # 3. Recently Viewed
+    client = TMDBClient()
+    recently_viewed_ids = request.session.get('recently_viewed', [])
+    recently_viewed_media = []
+    for item in recently_viewed_ids:
+        if not isinstance(item, dict):
+            m_id = item
+            m_type = 'movie'
+        else:
+            m_id = item.get('id')
+            m_type = item.get('type')
+
+        if not m_id or not m_type:
+            continue
+
+        cache_key = f"{m_type}_{m_id}"
+        poster_url = POSTER_CACHE.get(cache_key)
+        if not poster_url:
+            poster_url = get_cached_poster(client, m_id, m_type)
+
+        recently_viewed_media.append({
+            'id': m_id,
+            'type': m_type,
+            'poster_url': poster_url or 'https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop',
+        })
+
+    context = {
+        'profile_user': user,
+        'stats': stats,
+        'persona': persona,
+        'continue_watching': continue_watching,
+        'my_reviews': my_reviews,
+        'recently_viewed_media': recently_viewed_media,
+    }
+
+    return render(request, 'core/profile.html', context)
 
 
 # ======================================================================

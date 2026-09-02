@@ -31,6 +31,10 @@ urlpatterns = [
     path('tv/genre/<str:genre_name>/', views.tv_shows_by_genre_view, name='tv_shows_by_genre'),
     path('anime/', views.explore_anime_view, name='explore_anime'),
     
+    # User Profile & Dashboard
+    path('profile/', views.profile_view, name='user_profile'),
+    path('api/track-watchtime/', views.track_watchtime_api, name='track_watchtime_api'),
+
     # Analytics Panel
     path('analytics/', views.analytics_dashboard, name='analytics_dashboard'),
     
