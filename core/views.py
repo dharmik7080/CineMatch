@@ -4601,6 +4601,73 @@ Output ONLY valid JSON."""
     # Universal Dynamic Fallback: Trigger for ANY query if raw_recs is still empty
     if not raw_recs:
         try:
+            # 1. Check Mood Fallback Map for emotional vibe requests
+            MOOD_FALLBACK_MAP = {
+                'funny': [
+                    {'title': 'Superbad', 'media_type': 'movie', 'ai_reason': 'A hilariously witty comedy classic packed with non-stop laughs.'},
+                    {'title': 'Schitt\'s Creek', 'media_type': 'tv', 'ai_reason': 'A delightfully warm and witty sitcom that offers pure comedic relief.'},
+                    {'title': 'Palm Springs', 'media_type': 'movie', 'ai_reason': 'A breezy, sun-soaked sci-fi romantic comedy.'},
+                    {'title': 'Ted Lasso', 'media_type': 'tv', 'ai_reason': 'Packed with feel-good humor and infectious optimism.'}
+                ],
+                'comforting': [
+                    {'title': 'Paddington 2', 'media_type': 'movie', 'ai_reason': 'A wholesome, heartwarming masterpiece guaranteed to lift your spirits.'},
+                    {'title': 'Ted Lasso', 'media_type': 'tv', 'ai_reason': 'The ultimate comfort watch for a peaceful, feel-good evening.'},
+                    {'title': 'Chef', 'media_type': 'movie', 'ai_reason': 'Low-stress, mouth-watering culinary journey with pure good vibes.'},
+                    {'title': 'Amélie', 'media_type': 'movie', 'ai_reason': 'Whimsical charm and vibrant, soothing storytelling.'}
+                ],
+                'mind-bending': [
+                    {'title': 'Inception', 'media_type': 'movie', 'ai_reason': 'Plunges you into nested dreamscapes where reality and imagination blur.'},
+                    {'title': 'Dark', 'media_type': 'tv', 'ai_reason': 'An intricate time-loop narrative that will tangle your mind with paradoxes.'},
+                    {'title': 'Shutter Island', 'media_type': 'movie', 'ai_reason': 'A psychological labyrinth that shatters your trust in reality.'},
+                    {'title': 'Interstellar', 'media_type': 'movie', 'ai_reason': 'Bends your mind around time dilation and cosmic mystery.'}
+                ],
+                'scary': [
+                    {'title': 'Hereditary', 'media_type': 'movie', 'ai_reason': 'A deeply disturbing nightmare of psychological and occult dread.'},
+                    {'title': 'The Haunting of Hill House', 'media_type': 'tv', 'ai_reason': 'Unsettling horror masterclass that gets under your skin.'},
+                    {'title': 'Talk to Me', 'media_type': 'movie', 'ai_reason': 'A fast-paced, terrifying modern supernatural horror.'},
+                    {'title': 'Chernobyl', 'media_type': 'tv', 'ai_reason': 'A harrowing dramatization with atmospheric dread.'}
+                ],
+                'emotional': [
+                    {'title': 'Past Lives', 'media_type': 'movie', 'ai_reason': 'A quiet, profound ache about destiny and lost timing.'},
+                    {'title': 'This Is Us', 'media_type': 'tv', 'ai_reason': 'An emotional journey through family bonds guaranteed to move you.'},
+                    {'title': 'The Fault in Our Stars', 'media_type': 'movie', 'ai_reason': 'Profoundly moving romance that explores love and loss.'},
+                    {'title': 'Aftersun', 'media_type': 'movie', 'ai_reason': 'Devastatingly subtle and realistic portrayal of memory and grief.'}
+                ],
+                'relaxing': [
+                    {'title': 'The Great British Baking Show', 'media_type': 'tv', 'ai_reason': 'Soothing, gentle, low-stakes television comfort.'},
+                    {'title': 'Planet Earth II', 'media_type': 'tv', 'ai_reason': 'Breathtaking nature landscapes and calming narration.'},
+                    {'title': 'My Neighbor Totoro', 'media_type': 'movie', 'ai_reason': 'Tranquil journey into nature and nostalgia that washes away stress.'},
+                    {'title': 'Ted Lasso', 'media_type': 'tv', 'ai_reason': 'Heartwarming and easy-going.'}
+                ],
+                'romantic': [
+                    {'title': 'Before Sunrise', 'media_type': 'movie', 'ai_reason': 'Intensely engaging, dialogue-driven authentic romance.'},
+                    {'title': 'Normal People', 'media_type': 'tv', 'ai_reason': 'Captures the raw, vulnerable reality of young love.'},
+                    {'title': 'About Time', 'media_type': 'movie', 'ai_reason': 'A tender, uplifting romantic fantasy full of heart.'},
+                    {'title': 'Past Lives', 'media_type': 'movie', 'ai_reason': 'Quiet, mature exploration of destiny and love.'}
+                ],
+                'exciting': [
+                    {'title': 'Mad Max: Fury Road', 'media_type': 'movie', 'ai_reason': 'Relentless, pulse-pounding action from start to finish.'},
+                    {'title': 'Arcane', 'media_type': 'tv', 'ai_reason': 'Kinetic fight choreography with an electrifying narrative.'},
+                    {'title': 'Mission: Impossible - Fallout', 'media_type': 'movie', 'ai_reason': 'Non-stop suspense and death-defying set pieces.'},
+                    {'title': 'Squid Game', 'media_type': 'tv', 'ai_reason': 'High-stakes life-or-death tension.'}
+                ]
+            }
+
+            matched_mood_items = []
+            for mood_key, mood_list in MOOD_FALLBACK_MAP.items():
+                if mood_key in msg_lower or (mood_key == 'funny' and ('light' in msg_lower or 'laugh' in msg_lower or 'comedy' in msg_lower)) or (mood_key == 'comforting' and ('bad day' in msg_lower or 'feel-good' in msg_lower or 'feel good' in msg_lower)) or (mood_key == 'mind-bending' and ('mind' in msg_lower or 'twist' in msg_lower)) or (mood_key == 'scary' and ('disturbing' in msg_lower or 'dark' in msg_lower or 'horror' in msg_lower)) or (mood_key == 'emotional' and ('cry' in msg_lower or 'sad' in msg_lower or 'heart' in msg_lower)) or (mood_key == 'relaxing' and ('bed' in msg_lower or 'unwind' in msg_lower or 'soothing' in msg_lower)) or (mood_key == 'romantic' and ('romance' in msg_lower or 'love' in msg_lower)) or (mood_key == 'exciting' and ('intense' in msg_lower or 'action' in msg_lower or 'thrill' in msg_lower)):
+                    for item in mood_list:
+                        if not requested_media_type or item['media_type'] == requested_media_type:
+                            matched_mood_items.append(item)
+                    if matched_mood_items:
+                        raw_recs = matched_mood_items[:4]
+                        break
+        except Exception as me:
+            print(f"[MOOD MAP FALLBACK ERROR] {me}")
+
+    # Universal Dynamic Fallback (Search TMDB if raw_recs is still empty)
+    if not raw_recs:
+        try:
             stop_words = r'(?i)\b(suggest|recommend|give|show|find|get|list|tell|movies|movie|shows|show|series|films|film|anime|cartoons|cartoon|like|similar|vibe|for|with|about|want|looking|me|some|any|a|an|the|of|in|to|on|top|best|please)\b'
             clean_term = re.sub(stop_words, '', user_message).strip()
             if not clean_term or len(clean_term) < 2:
