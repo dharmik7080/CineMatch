@@ -660,7 +660,7 @@
     </div>
     
     <!-- Color extraction bridge -->
-    <img id="spotlight-color-source" data-src="{{ spotlight_movie.backdrop_path }}" style="display: none;" onload="extractSpotlightGlowColor()">
+    <img id="spotlight-color-source" src="{{ spotlight_movie.backdrop_path }}" data-src="{{ spotlight_movie.backdrop_path }}" crossorigin="anonymous" style="display: none;" onload="extractSpotlightGlowColor()">
 
     <!-- ══════════════════════════════════════════════════════════════════ -->
     <!-- 1.5 TALK OF THE TOWN & MOST INTERESTED (SIDE BY SIDE)             -->
@@ -1565,103 +1565,101 @@ let spotlightInterval = setInterval(rotateSpotlight, 10000);
 function initSpotlightGlow() {
     const img = document.getElementById('spotlight-color-source');
     if (!img) return;
-    const path = img.getAttribute('data-src');
+    const path = img.getAttribute('data-src') || img.src;
     if (!path) return;
     
-    // Add crossorigin only if loading from an external domain to prevent local CORS blocks
     if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('//')) {
         img.crossOrigin = 'anonymous';
-    } else {
-        img.removeAttribute('crossorigin');
     }
-    img.src = path;
+    
+    if (img.src !== path) {
+        img.src = path;
+    }
+    
+    extractSpotlightGlowColor();
 }
 
 function extractSpotlightGlowColor() {
     const img = document.getElementById('spotlight-color-source');
-    if (!img || !img.src) return;
-    
-    try {
-        const colorThief = new ColorThief();
-        let color = [168, 85, 247]; // Default fallback purple
-        
-        if (img.complete) {
-            color = pickVibrantColor(colorThief, img);
-            applyGlow(color);
-        } else {
-            img.onload = function() {
-                color = pickVibrantColor(colorThief, img);
-                applyGlow(color);
-            };
-        }
-    } catch (e) {
-        console.warn("[SPOTLIGHT GLOW COLOR] Fallback applied:", e);
-        applyGlow([168, 85, 247]); // Revert to standard CineMatch purple accent
-    }
-}
+    if (!img) return;
+    const src = img.getAttribute('data-src') || img.src;
+    if (!src) return;
 
-function pickVibrantColor(colorThief, img) {
-    try {
-        const palette = colorThief.getPalette(img, 8);
-        if (!palette || palette.length === 0) {
-            return colorThief.getColor(img);
-        }
-        
-        let bestColor = palette[0];
-        let maxScore = -9999;
-        
-        for (let i = 0; i < palette.length; i++) {
-            const r = palette[i][0];
-            const g = palette[i][1];
-            const b = palette[i][2];
+    const canvasImg = new Image();
+    canvasImg.crossOrigin = "anonymous";
+    
+    canvasImg.onload = function() {
+        try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            canvas.width = 40;
+            canvas.height = 40;
+            ctx.drawImage(canvasImg, 0, 0, 40, 40);
             
-            // Calculate relative perceived brightness
-            const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+            const imgData = ctx.getImageData(0, 0, 40, 40).data;
+            let bestColor = [168, 85, 247];
+            let maxScore = -9999;
             
-            // Calculate saturation approximation
-            const maxVal = Math.max(r, g, b);
-            const minVal = Math.min(r, g, b);
-            const saturation = maxVal === 0 ? 0 : (maxVal - minVal) / maxVal;
-            
-            // High priority on high saturation/vibrancy, penalty on pure black/dark grey
-            let score = saturation * 120;
-            
-            if (brightness < 40) {
-                score -= 100;
-            } else if (brightness > 220) {
-                score -= 60;
-            } else {
-                score += 30; // Sweet spot of mid-brightness
+            for (let i = 0; i < imgData.length; i += 4) {
+                const r = imgData[i];
+                const g = imgData[i+1];
+                const b = imgData[i+2];
+                const a = imgData[i+3];
+                
+                if (a < 128) continue;
+                
+                const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+                const maxVal = Math.max(r, g, b);
+                const minVal = Math.min(r, g, b);
+                const saturation = maxVal === 0 ? 0 : (maxVal - minVal) / maxVal;
+                
+                let score = saturation * 180;
+                if (brightness < 35) score -= 130;
+                else if (brightness > 230) score -= 90;
+                else score += 45;
+                
+                if (score > maxScore) {
+                    maxScore = score;
+                    bestColor = [r, g, b];
+                }
             }
             
-            if (score > maxScore) {
-                maxScore = score;
-                bestColor = palette[i];
+            // Boost glow brightness if color is too dark
+            const br = 0.299 * bestColor[0] + 0.587 * bestColor[1] + 0.114 * bestColor[2];
+            if (br < 100) {
+                const factor = 120 / Math.max(br, 1);
+                bestColor = [
+                    Math.min(Math.round(bestColor[0] * factor), 255),
+                    Math.min(Math.round(bestColor[1] * factor), 255),
+                    Math.min(Math.round(bestColor[2] * factor), 255)
+                ];
             }
+            
+            applyGlow(bestColor);
+        } catch (err) {
+            console.warn("[SPOTLIGHT GLOW COLOR ERROR]", err);
+            try {
+                if (typeof ColorThief !== 'undefined') {
+                    const ct = new ColorThief();
+                    const color = ct.getColor(img);
+                    if (color) applyGlow(color);
+                }
+            } catch(e) {}
         }
-        
-        // If the best color is still too dark to glow, boost its brightness
-        const br = 0.299 * bestColor[0] + 0.587 * bestColor[1] + 0.114 * bestColor[2];
-        if (br < 80) {
-            const factor = 80 / Math.max(br, 1);
-            bestColor = [
-                Math.min(Math.round(bestColor[0] * factor), 255),
-                Math.min(Math.round(bestColor[1] * factor), 255),
-                Math.min(Math.round(bestColor[2] * factor), 255)
-            ];
-        }
-        
-        return bestColor;
-    } catch (err) {
-        console.warn("pickVibrantColor failed:", err);
-        return colorThief.getColor(img);
+    };
+    
+    // Add cache buster for cross-origin CORS canvas safety
+    if (src.startsWith('http://') || src.startsWith('https://')) {
+        canvasImg.src = src.includes('?') ? src + '&cors=1' : src + '?cors=1';
+    } else {
+        canvasImg.src = src;
     }
 }
 
 function applyGlow(rgb) {
     const glowEl = document.getElementById('spotlight-ambient-glow');
     if (glowEl) {
-        glowEl.style.background = `radial-gradient(circle, rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.75) 0%, rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.25) 50%, transparent 80%)`;
+        glowEl.style.background = `radial-gradient(circle, rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.85) 0%, rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.35) 50%, transparent 80%)`;
     }
 }
 
