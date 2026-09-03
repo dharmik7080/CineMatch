@@ -462,6 +462,24 @@ def get_upcoming_movies():
     seen_ids = set()
     upcoming_movies = []
 
+    # Inject Curated High-Profile Indian Movies (e.g. Mirzapur: The Movie)
+    curated_upcoming_movies = [
+        {
+            'id': 1378537,
+            'movie_id': 1378537,
+            'title': 'Mirzapur: The Movie',
+            'poster_url': 'https://image.tmdb.org/t/p/w500/jAt8u6MMIMnExmG6bN02EQyB0KR.jpg',
+            'release_date': '2026-09-04',
+            'vote_average': 8.8,
+            'media_type': 'movie'
+        }
+    ]
+
+    for cm in curated_upcoming_movies:
+        if cm['release_date'] >= today and cm['id'] not in seen_ids:
+            seen_ids.add(cm['id'])
+            upcoming_movies.append(cm)
+
     # 1. Fetch Upcoming Movies in Indian Region (region=IN)
     url_in = f"https://api.themoviedb.org/3/movie/upcoming?api_key={api_key}&language=en-US&region=IN&page=1"
     # 2. Fetch Upcoming Global Discover Movies
