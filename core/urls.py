@@ -45,6 +45,7 @@ urlpatterns = [
 
     # Movie Detail Hub (Unit 7: REST API deep-fetch with append_to_response)
     path('movies/<int:movie_id>/', views.movie_detail_view, name='movie_detail'),
+    path('movie/<int:movie_id>/', views.movie_detail_view),
 
     # TV Show Detail Hub (Unit 7: REST API compound request — TV variant)
     path('tv/<int:series_id>/', views.tv_detail_view, name='tv_show_detail'),
@@ -87,4 +88,11 @@ urlpatterns = [
 
     # Temporary route to trigger fixture loading on Render free tier
     path('temp-load-fixtures-route/', views.temp_load_fixture, name='temp_load_fixture'),
+
+    # PWA Service Worker & Manifest routes
+    path('sw.js', views.service_worker_view, name='service_worker'),
+    path('manifest.json', views.manifest_view, name='manifest_json'),
+
+    # CineBot AI Recommendation Assistant API
+    path('api/cinebot/chat/', views.cinebot_chat_api, name='cinebot_chat_api'),
 ]

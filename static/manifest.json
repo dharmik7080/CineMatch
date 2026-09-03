@@ -1,0 +1,29 @@
+{
+  "name": "CineMatch - Premium Movie & TV Recommender",
+  "short_name": "CineMatch",
+  "description": "Discover personalized movies, TV shows, and anime recommendations.",
+  "start_url": "/feed/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07070b",
+  "theme_color": "#a855f7",
+  "icons": [
+    {
+      "src": "/static/images/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/static/images/apple_tv_logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/images/apple_tv_logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

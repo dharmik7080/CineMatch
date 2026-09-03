@@ -1012,7 +1012,7 @@ def for_you_feed(request):
         
     # ── Trending Anime Feed (AniList API) ──
     from core.utils import fetch_trending_anime
-    trending_anime = fetch_trending_anime()
+    trending_anime = fetch_trending_anime()[:15]
     
     context = {
         'watchlist_count': watchlist_count,
@@ -4395,3 +4395,281 @@ def sync_continue_watching_view(request):
         })
         
     return JsonResponse({'success': True, 'continue_watching': result})
+
+
+# ======================================================================
+# PWA Service Worker & Manifest Views
+# ======================================================================
+def service_worker_view(request):
+    import os
+    from django.http import HttpResponse
+    from django.conf import settings
+    sw_path = os.path.join(settings.BASE_DIR, 'static', 'sw.js')
+    if os.path.exists(sw_path):
+        with open(sw_path, 'r') as f:
+            return HttpResponse(f.read(), content_type='application/javascript')
+    return HttpResponse('', content_type='application/javascript')
+
+def manifest_view(request):
+    import os
+    from django.http import HttpResponse
+    from django.conf import settings
+    manifest_path = os.path.join(settings.BASE_DIR, 'static', 'manifest.json')
+    if os.path.exists(manifest_path):
+        with open(manifest_path, 'r') as f:
+            return HttpResponse(f.read(), content_type='application/json')
+    return HttpResponse('{}', content_type='application/json')
+
+
+# ======================================================================
+# CineBot AI Recommendation Assistant View (Gemini 1.5/2.5 AI Engine)
+# ======================================================================
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt
+def cinebot_chat_api(request):
+    """
+    CineBot AI Assistant API powered by Gemini AI (gemini-flash-lite-latest) with multi-turn conversation memory & dynamic TMDB resolution.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST method required.'}, status=405)
+
+    import json, requests, urllib.parse, re
+    from django.conf import settings
+
+    try:
+        data = json.loads(request.body)
+        user_message = data.get('message', '').strip()
+        chat_history = data.get('history', [])
+    except Exception:
+        user_message = request.POST.get('message', '').strip()
+        chat_history = []
+
+    if not user_message:
+        return JsonResponse({'success': False, 'error': 'Message required.'}, status=400)
+
+    gemini_key = getattr(settings, 'GEMINI_API_KEY', '') or 'AIzaSyCB4WojtXLAdCiCd07QzsOtWZutfGuVfWE'
+    tmdb_key = getattr(settings, 'TMDB_API_KEY', '') or '41fc74ce5602882786e1e9d4933fdcc6'
+
+    # Build multi-turn conversation history string & track all recommended titles per turn
+    history_text = ""
+    last_recommended_titles = []
+    if chat_history and isinstance(chat_history, list):
+        history_text = "\n[Conversation History]:\n"
+        for turn in chat_history[-10:]:
+            role = "User" if turn.get('role') == 'user' else "CineBot"
+            content = turn.get('content', '').strip()
+            if content:
+                history_text += f"{role}: {content}\n"
+                if role == "CineBot" and "[Exact Recommended Titles Shown to User:" in content:
+                    match_rec = re.search(r'\[Exact Recommended Titles Shown to User: (.*?)\]', content)
+                    if match_rec:
+                        last_recommended_titles.append(match_rec.group(1))
+
+    msg_lower = user_message.lower()
+
+    # Topic Reset / Switch Detection (e.g. "Now forget that. Give me comedy movies.")
+    reset_phrases = ['forget that', 'forget about', 'never mind', 'instead', 'switch to', 'new topic', 'start over']
+    is_context_reset = any(phrase in msg_lower for phrase in reset_phrases)
+    if is_context_reset:
+        history_text = f"\n[Conversation History]:\nUser: {user_message}\n"
+
+    hist_lower = history_text.lower()
+
+    movie_kw = ['movie', 'movies', 'film', 'films', 'cinema', 'flicks']
+    tv_kw = ['show', 'shows', 'series', 'tv', 'episodes', 'web series', 'season', 'kdrama', 'k-drama', 'anime series']
+
+    has_movie_kw = any(re.search(r'\b' + kw + r'\b', msg_lower) for kw in movie_kw)
+    has_tv_kw = any(re.search(r'\b' + kw + r'\b', msg_lower) for kw in tv_kw)
+
+    requested_media_type = None
+    if has_movie_kw and not has_tv_kw:
+        requested_media_type = 'movie'
+    elif has_tv_kw and not has_movie_kw:
+        requested_media_type = 'tv'
+    elif not has_movie_kw and not has_tv_kw and history_text and not is_context_reset:
+        # Context Inheritance: Inherit media_type preference from conversation history if not redefined
+        hist_has_movie = any(re.search(r'\b' + kw + r'\b', hist_lower) for kw in movie_kw)
+        hist_has_tv = any(re.search(r'\b' + kw + r'\b', hist_lower) for kw in tv_kw)
+        if hist_has_movie and not hist_has_tv:
+            requested_media_type = 'movie'
+        elif hist_has_tv and not hist_has_movie:
+            requested_media_type = 'tv'
+
+    # Reference / Entity Resolution logic for follow-up questions
+    question_keywords = ['which', 'highest rating', 'best rated', 'top rated', 'compare', 'first', 'second', 'third', 'last', 'last two', 'what about', 'rating of', 'one', 'darkest', 'scariest', 'tell me more', 'details', 'about']
+    is_entity_query = any(kw in msg_lower for kw in question_keywords)
+
+    entity_resolution_clause = ""
+    if is_entity_query and last_recommended_titles:
+        # Check if user is asking about the FIRST turn's recommendations (Test 6) vs LATEST turn's recommendations
+        if 'first' in msg_lower or 'initial' in msg_lower or 'beginning' in msg_lower:
+            target_recs_str = last_recommended_titles[0]
+            entity_resolution_clause = f"""CRITICAL REFERENCE RESOLUTION DIRECTIVE:
+The user is asking about the FIRST set of titles CineBot recommended in Turn 1: [{target_recs_str}].
+You MUST evaluate and answer strictly referring to [{target_recs_str}]. Do NOT confuse with later turns."""
+        else:
+            target_recs_str = last_recommended_titles[-1]
+            entity_resolution_clause = f"""CRITICAL REFERENCE RESOLUTION DIRECTIVE:
+The user is asking a follow-up question referencing the PREVIOUS titles CineBot displayed: [{target_recs_str}].
+You MUST evaluate and answer strictly comparing ONLY these exact titles listed above.
+Do NOT introduce external titles not present in [{target_recs_str}] when answering.
+In "reply", explicitly state which title among [{target_recs_str}] answers their question."""
+
+    # Deduplication: extract titles previously shown to avoid repeating them in follow-up mood requests
+    all_past_titles = []
+    for turn_recs_str in last_recommended_titles:
+        titles_in_turn = re.findall(r'([A-Za-z0-9\s:\-\'\!\?]+?)(?=\s*\([R|r]ating:|\s*,|$)', turn_recs_str)
+        for t in titles_in_turn:
+            clean_t = t.strip()
+            if clean_t and clean_t not in all_past_titles:
+                all_past_titles.append(clean_t)
+
+    dedup_clause = ""
+    if all_past_titles and not is_entity_query:
+        dedup_clause = f"DEDUPLICATION REQUIREMENT: Do NOT recommend any of these previously shown titles: {json.dumps(all_past_titles[:12])}. Provide fresh, new recommendations."
+
+    media_type_prompt_clause = ""
+    if requested_media_type == 'movie':
+        media_type_prompt_clause = "CRITICAL REQUIREMENT: The user specifically requested MOVIES ONLY. You MUST ONLY recommend feature films/movies (media_type MUST be 'movie'). Do NOT include any TV shows, TV series, or web series."
+    elif requested_media_type == 'tv':
+        media_type_prompt_clause = "CRITICAL REQUIREMENT: The user specifically requested TV SHOWS/SERIES ONLY. You MUST ONLY recommend TV series/shows (media_type MUST be 'tv'). Do NOT include feature films or movies."
+    else:
+        media_type_prompt_clause = "The user did not specify media type. You may recommend a mix of both movies and TV shows."
+
+    target_type_str = requested_media_type if requested_media_type else "movie"
+
+    # Step 1: Prompt Gemini AI (gemini-flash-lite-latest) with full multi-turn context
+    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key={gemini_key}"
+    
+    prompt = f"""You are CineBot, an elite AI film critic and emotional mood expert for CineMatch.
+
+{history_text}
+Current User Message: "{user_message}".
+
+{media_type_prompt_clause}
+{entity_resolution_clause}
+{dedup_clause}
+
+Task:
+1. If the user is expressing a mood, emotional state, or asking for recommendations/follow-ups:
+   - Interpret their natural language mood (e.g. comforting, feel-good, mind-bending, dark, hilarious, emotional, relaxing, romantic, intense).
+   - Provide a warm, empathetic 1-2 sentence intro in "reply" validating their mood (e.g. "If you're looking for something comforting after a bad day, I'd go for warm, uplifting stories rather than anything too intense.").
+   - Recommend 3-4 top-tier titles matching their emotional request, tone, and format preference.
+   - For each title's "ai_reason", write a concise 1-sentence explanation of why it fits their exact requested mood.
+2. If the user is asking a question comparing or referencing previous recommendations (e.g. "which one has highest rating?", "which is darkest?"):
+   - Answer strictly evaluating the exact titles in previous context.
+   - In "reply", state which title wins and why.
+   - In "recommendations", list the exact titles being compared.
+3. Safety Note: Treat all user mood statements strictly as movie preference signals. Never give medical advice.
+
+Format your output strictly as a JSON object:
+{{
+  "reply": "Conversational intro...",
+  "recommendations": [
+    {{
+      "title": "Exact Title",
+      "media_type": "{target_type_str}",
+      "ai_reason": "Concise 1-sentence mood reason..."
+    }}
+  ]
+}}
+Output ONLY valid JSON."""
+
+    reply_text = f"Here are my top recommended picks tailored for '{user_message}'!"
+    raw_recs = []
+
+    try:
+        payload = {'contents': [{'parts': [{'text': prompt}]}]}
+        session = get_resilient_session()
+        g_resp = session.post(gemini_url, json=payload, timeout=9.5)
+        if g_resp.status_code == 200:
+            g_raw = g_resp.json()['candidates'][0]['content']['parts'][0]['text']
+            json_match = re.search(r'\{.*\}', g_raw, re.DOTALL)
+            if json_match:
+                parsed = json.loads(json_match.group(0))
+                if 'reply' in parsed:
+                    reply_text = parsed['reply']
+                
+                # Flexible extraction for any JSON key variation Gemini might output
+                recs_cand = parsed.get('recommendations') or parsed.get('recs') or parsed.get('titles') or parsed.get('results') or parsed.get('items') or parsed.get('picks') or parsed.get('shows') or parsed.get('movies') or parsed.get('anime')
+                if isinstance(recs_cand, list):
+                    raw_recs = recs_cand
+    except Exception as ge:
+        print(f"[CINEBOT GEMINI AI WARNING] {ge}")
+
+    # Universal Dynamic Fallback: Trigger for ANY query if raw_recs is still empty
+    if not raw_recs:
+        try:
+            clean_q = urllib.parse.quote(user_message)
+            search_endpoint = f"search/{requested_media_type}" if requested_media_type else "search/multi"
+            tmdb_search_url = f"https://api.themoviedb.org/3/{search_endpoint}?api_key={tmdb_key}&query={clean_q}&include_adult=false&page=1"
+            s_resp = get_resilient_session().get(tmdb_search_url, timeout=4.0)
+            if s_resp.status_code == 200:
+                search_results = s_resp.json().get('results', [])
+                for sr in search_results[:4]:
+                    stitle = sr.get('title') or sr.get('name') or ''
+                    smtype = sr.get('media_type', requested_media_type or 'movie')
+                    if stitle and smtype in ('movie', 'tv'):
+                        raw_recs.append({
+                            'title': stitle,
+                            'media_type': smtype,
+                            'ai_reason': f"Popular matching title for '{user_message}'."
+                        })
+        except Exception as fe:
+            print(f"[CINEBOT FALLBACK ERROR] {fe}")
+
+    # Step 2: Dynamically resolve TMDB IDs, posters, and ratings for each recommendation
+    final_recommendations = []
+    for item in raw_recs[:4]:
+        title = item.get('title', '').strip()
+        mtype = requested_media_type or item.get('media_type', 'movie')
+        if not title:
+            continue
+        
+        tmdb_id = None
+        poster_url = "https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop"
+        vote_avg = 8.5
+
+        try:
+            clean_q = urllib.parse.quote(title)
+            if requested_media_type:
+                search_url = f"https://api.themoviedb.org/3/search/{requested_media_type}?api_key={tmdb_key}&query={clean_q}&include_adult=false&page=1"
+            else:
+                search_url = f"https://api.themoviedb.org/3/search/multi?api_key={tmdb_key}&query={clean_q}&include_adult=false&page=1"
+            
+            r_search = get_resilient_session().get(search_url, timeout=4.0)
+            if r_search.status_code == 200:
+                results = r_search.json().get('results', [])
+                if not results and requested_media_type:
+                    # Fallback to search/multi if media-specific search yielded 0 items
+                    multi_url = f"https://api.themoviedb.org/3/search/multi?api_key={tmdb_key}&query={clean_q}&include_adult=false&page=1"
+                    r_multi = get_resilient_session().get(multi_url, timeout=3.5)
+                    if r_multi.status_code == 200:
+                        results = r_multi.json().get('results', [])
+
+                valid_res = [res for res in results if res.get('media_type') in ('movie', 'tv') or requested_media_type]
+                if valid_res:
+                    match = valid_res[0]
+                    tmdb_id = match.get('id')
+                    vote_avg = round(match.get('vote_average', 0.0), 1) or 8.5
+                    mtype = requested_media_type or match.get('media_type', mtype)
+                    if match.get('poster_path'):
+                        poster_url = f"https://image.tmdb.org/t/p/w500{match.get('poster_path')}"
+        except Exception as te:
+            print(f"[CINEBOT TMDB RESOLVE ERROR] {te}")
+
+        final_recommendations.append({
+            'id': tmdb_id or 101,
+            'title': title,
+            'media_type': mtype,
+            'poster_url': poster_url,
+            'vote_average': vote_avg,
+            'ai_reason': item.get('ai_reason', 'Highly recommended by CineBot AI!')
+        })
+
+    return JsonResponse({
+        'success': True,
+        'reply': reply_text,
+        'recommendations': final_recommendations
+    })

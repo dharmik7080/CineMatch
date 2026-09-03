@@ -5,10 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CineMatch - Premium Movie & TV Recommender{% endblock %}</title>
-    <!-- Favicon Integration -->
+    <!-- Favicon & PWA Integration -->
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
     <link rel="shortcut icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
     <link rel="apple-touch-icon" href="{% static 'images/favicon.ico' %}">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#a855f7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CineMatch">
     <!-- Google Analytics 4 (GA4) Integration -->
     {% if GA_MEASUREMENT_ID %}
     <script async src="https://www.googletagmanager.com/gtag/js?id={{ GA_MEASUREMENT_ID }}"></script>
@@ -1217,8 +1222,301 @@
     </script>
     {% endif %}
 
-    <!-- ColorThief CDN for dominant color theme extraction -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
+      <!-- 🤖 CineBot AI Recommendation Assistant Floating Widget -->
+    <style>
+      @keyframes cinebotPulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.6), 0 8px 25px rgba(0, 0, 0, 0.4);
+          transform: translateY(0) scale(1);
+        }
+        50% {
+          box-shadow: 0 0 0 14px rgba(168, 85, 247, 0), 0 12px 30px rgba(168, 85, 247, 0.4);
+          transform: translateY(-4px) scale(1.05);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(168, 85, 247, 0), 0 8px 25px rgba(0, 0, 0, 0.4);
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      @keyframes cinebotIconSpin {
+        0%, 100% { transform: rotate(0deg); }
+        25% { transform: rotate(-10deg); }
+        75% { transform: rotate(10deg); }
+      }
+
+      #cinebot-trigger-btn {
+        animation: cinebotPulse 3s infinite ease-in-out;
+      }
+      #cinebot-trigger-btn:hover {
+        transform: scale(1.1) rotate(5deg) !important;
+        box-shadow: 0 0 30px rgba(168, 85, 247, 0.8) !important;
+      }
+      #cinebot-trigger-btn i {
+        animation: cinebotIconSpin 4s infinite ease-in-out;
+      }
+
+      #cinebot-input {
+        background: rgba(255, 255, 255, 0.12) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(168, 85, 247, 0.4) !important;
+        font-weight: 500 !important;
+        transition: all 0.3s ease !important;
+      }
+      #cinebot-input::placeholder {
+        color: rgba(255, 255, 255, 0.65) !important;
+        font-weight: 400 !important;
+      }
+      #cinebot-input:focus {
+        background: rgba(255, 255, 255, 0.18) !important;
+        border-color: #a855f7 !important;
+        box-shadow: 0 0 15px rgba(168, 85, 247, 0.5) !important;
+        outline: none !important;
+      }
+
+      .cinebot-rec-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-left: 3px solid #a855f7;
+        transition: all 0.3s ease;
+      }
+      .cinebot-rec-card:hover {
+        background: rgba(168, 85, 247, 0.12);
+        border-color: rgba(168, 85, 247, 0.4);
+        transform: translateY(-2px);
+      }
+    </style>
+
+    <div id="cinebot-widget-container" style="position: fixed; bottom: 24px; right: 24px; z-index: 1050;">
+        <button id="cinebot-trigger-btn" onclick="toggleCineBot()" class="btn border-0 shadow-lg d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #a855f7 0%, #3b82f6 100%); color: white; font-size: 1.4rem;">
+            <i class="fa-solid fa-robot" id="cinebot-icon"></i>
+        </button>
+
+        <div id="cinebot-modal" class="d-none flex-column" style="position: fixed; bottom: 90px; right: 24px; width: 390px; max-width: calc(100vw - 32px); height: 530px; max-height: calc(100vh - 120px); background: rgba(12, 12, 18, 0.95); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.8); overflow: hidden; z-index: 1050;">
+            
+            <!-- Header -->
+            <div class="p-3 d-flex justify-content-between align-items-center" style="background: linear-gradient(90deg, rgba(168, 85, 247, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%); border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center justify-content-center shadow-sm" style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #a855f7 0%, #3b82f6 100%); font-size: 0.95rem; color: white;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    </div>
+                    <div>
+                        <h6 class="m-0 fw-bold text-white" style="font-size: 0.95rem; letter-spacing: -0.2px;">CineBot AI Critic</h6>
+                    </div>
+                </div>
+                <button onclick="toggleCineBot()" class="btn btn-sm text-white-50 text-decoration-none p-1 border-0 fs-5 hover-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Chat Stream Body -->
+            <div id="cinebot-chat-stream" class="p-3 flex-grow-1 overflow-y-auto d-flex flex-column gap-3" style="scrollbar-width: thin; scrollbar-color: rgba(168,85,247,0.4) transparent;">
+                <div class="d-flex gap-2">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" style="width: 30px; height: 30px; background: rgba(168, 85, 247, 0.25); color: #c084fc; font-size: 0.8rem; border: 1px solid rgba(168,85,247,0.4);">🤖</div>
+                    <div class="p-3 rounded-4 shadow-sm" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); color: #f3f4f6; font-size: 0.85rem; max-width: 85%; border-top-left-radius: 4px !important; line-height: 1.45;">
+                        Hey! I'm <strong>CineBot</strong>. Tell me what movie, TV show, or emotional vibe you're in the mood for!
+                    </div>
+                </div>
+
+                <!-- 🧠 AI Mood -> Movie Section -->
+                <div class="p-2.5 rounded-4 ms-4" id="cinebot-mood-section" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(59, 130, 246, 0.12) 100%); border: 1px solid rgba(168, 85, 247, 0.25);">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="fw-bold text-white d-flex align-items-center gap-1.5" style="font-size: 0.78rem;">
+                            <span>🧠</span> How are you feeling?
+                        </span>
+                        <span class="badge rounded-pill" style="background: rgba(168, 85, 247, 0.25); color: #d8b4fe; font-size: 0.62rem; font-weight: 600; letter-spacing: 0.3px;">AI MOOD → MOVIE</span>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-1.5" id="cinebot-quick-pills">
+                        <button onclick="sendCineBotQuick('I want a feel-good comforting movie or show after a bad day.')" class="btn btn-sm rounded-pill text-white py-1 px-2.5 border-0 mood-chip" style="background: rgba(236, 72, 153, 0.2); border: 1px solid rgba(236, 72, 153, 0.4) !important; font-size: 0.72rem;">
+                            ❤️ Feel-good
+                        </button>
+                        <button onclick="sendCineBotQuick('I want something that will completely mess with my mind.')" class="btn btn-sm rounded-pill text-white py-1 px-2.5 border-0 mood-chip" style="background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.4) !important; font-size: 0.72rem;">
+                            🧠 Mind-bending
+                        </button>
+                        <button onclick="sendCineBotQuick('I want something funny and light.')" class="btn btn-sm rounded-pill text-white py-1 px-2.5 border-0 mood-chip" style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4) !important; font-size: 0.72rem;">
+                            😂 Funny
+                        </button>
+                        <button onclick="sendCineBotQuick('I want something emotional that will make me cry.')" class="btn btn-sm rounded-pill text-white py-1 px-2.5 border-0 mood-chip" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4) !important; font-size: 0.72rem;">
+                            😭 Emotional
+                        </button>
+                        <button onclick="sendCineBotQuick('I want something dark, scary and disturbing.')" class="btn btn-sm rounded-pill text-white py-1 px-2.5 border-0 mood-chip" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4) !important; font-size: 0.72rem;">
+                            😱 Scary
+                        </button>
+                        <button onclick="sendCineBotQuick('I want an exciting, intense and unpredictable watch for tonight.')" class="btn btn-sm rounded-pill text-white py-1 px-2.5 border-0 mood-chip" style="background: rgba(249, 115, 22, 0.2); border: 1px solid rgba(249, 115, 22, 0.4) !important; font-size: 0.72rem;">
+                            🔥 Intense
+                        </button>
+                        <button onclick="sendCineBotQuick('I want something relaxing to watch before bed.')" class="btn btn-sm rounded-pill text-white py-1 px-2.5 border-0 mood-chip" style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4) !important; font-size: 0.72rem;">
+                            🌙 Relaxing
+                        </button>
+                        <button onclick="sendCineBotQuick('I want something romantic but not too cheesy.')" class="btn btn-sm rounded-pill text-white py-1 px-2.5 border-0 mood-chip" style="background: rgba(244, 63, 94, 0.2); border: 1px solid rgba(244, 63, 94, 0.4) !important; font-size: 0.72rem;">
+                            💘 Romantic
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Box -->
+            <div class="p-3 border-top border-secondary border-opacity-20" style="background: rgba(0, 0, 0, 0.4);">
+                <form id="cinebot-form" onsubmit="handleCineBotSubmit(event)" class="d-flex gap-2 align-items-center m-0">
+                    <input type="text" id="cinebot-input" class="form-control py-2 px-3.5" placeholder="Tell me what kind of vibe you're looking for..." style="border-radius: 24px; font-size: 0.85rem;" autocomplete="off">
+                    <button type="submit" id="cinebot-send-btn" class="btn rounded-circle d-flex align-items-center justify-content-center p-0 flex-shrink-0 shadow-sm" style="width: 40px; height: 40px; background: linear-gradient(135deg, #a855f7 0%, #3b82f6 100%); color: white; border: none; transition: transform 0.2s ease;">
+                        <i class="fa-solid fa-paper-plane" style="font-size: 0.85rem;"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    window.cinebotHistory = [];
+
+    function toggleCineBot() {
+        const modal = document.getElementById('cinebot-modal');
+        const icon = document.getElementById('cinebot-icon');
+        if (modal.classList.contains('d-none')) {
+            modal.classList.remove('d-none');
+            modal.classList.add('d-flex');
+            icon.className = 'fa-solid fa-xmark';
+            document.getElementById('cinebot-input').focus();
+        } else {
+            modal.classList.remove('d-flex');
+            modal.classList.add('d-none');
+            icon.className = 'fa-solid fa-robot';
+        }
+    }
+
+    function sendCineBotQuick(msg) {
+        document.getElementById('cinebot-input').value = '';
+        const moodSec = document.getElementById('cinebot-mood-section');
+        if (moodSec) moodSec.remove();
+        sendCineBotMessage(msg);
+    }
+
+    function handleCineBotSubmit(e) {
+        e.preventDefault();
+        const input = document.getElementById('cinebot-input');
+        const msg = input.value.trim();
+        if (!msg) return;
+        input.value = '';
+        const moodSec = document.getElementById('cinebot-mood-section');
+        if (moodSec) moodSec.remove();
+        sendCineBotMessage(msg);
+    }
+
+    function sendCineBotMessage(userMsg) {
+        const stream = document.getElementById('cinebot-chat-stream');
+        
+        // Push user message to history
+        window.cinebotHistory.push({ role: 'user', content: userMsg });
+
+        const userDiv = document.createElement('div');
+        userDiv.className = 'd-flex gap-2 justify-content-end my-1';
+        userDiv.innerHTML = `
+            <div class="p-3 rounded-4 shadow-sm" style="background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%); color: #ffffff; font-size: 0.85rem; max-width: 85%; border-top-right-radius: 4px !important; font-weight: 500;">
+                ${escapeHTML(userMsg)}
+            </div>
+        `;
+        stream.appendChild(userDiv);
+
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'd-flex gap-2 my-1';
+        typingDiv.id = 'cinebot-typing';
+        typingDiv.innerHTML = `
+            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" style="width: 30px; height: 30px; background: rgba(168, 85, 247, 0.25); color: #c084fc; font-size: 0.8rem; border: 1px solid rgba(168,85,247,0.4);">🤖</div>
+            <div class="p-2.5 rounded-4 d-flex align-items-center gap-2" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); color: #d1d5db; font-size: 0.82rem;">
+                <i class="fa-solid fa-circle-notch fa-spin text-accent me-1"></i> CineBot is thinking...
+            </div>
+        `;
+        stream.appendChild(typingDiv);
+        stream.scrollTop = stream.scrollHeight;
+
+        fetch('/api/cinebot/chat/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            },
+            body: JSON.stringify({ 
+                message: userMsg,
+                history: window.cinebotHistory.slice(-6)
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            const typing = document.getElementById('cinebot-typing');
+            if (typing) typing.remove();
+
+            // Push bot reply and exact rendered recommendations with ratings to history
+            let historyTurnText = data.reply || '';
+            if (data.recommendations && data.recommendations.length > 0) {
+                const recSummary = data.recommendations.map(r => `${r.title} (Rating: ${r.vote_average || 'N/A'})`).join(', ');
+                historyTurnText += ` [Exact Recommended Titles Shown to User: ${recSummary}]`;
+            }
+            window.cinebotHistory.push({ role: 'model', content: historyTurnText });
+
+            const botDiv = document.createElement('div');
+            botDiv.className = 'd-flex gap-2 my-1';
+            
+            let recsHTML = '';
+            if (data.recommendations && data.recommendations.length > 0) {
+                recsHTML = '<div class="d-flex flex-column gap-2 mt-2.5">';
+                data.recommendations.forEach(rec => {
+                    const detailUrl = rec.media_type === 'tv' ? `/tv/${rec.id}/` : `/movies/${rec.id}/`;
+                    recsHTML += `
+                        <div class="d-flex gap-2.5 p-2.5 rounded-3 cinebot-rec-card">
+                            <img src="${rec.poster_url}" alt="${escapeHTML(rec.title)}" style="width: 50px; height: 74px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);" onerror="this.src='https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop';">
+                            <div class="d-flex flex-column justify-content-between flex-grow-1" style="min-width: 0;">
+                                <div>
+                                    <div class="fw-bold text-white text-truncate" style="font-size: 0.86rem; letter-spacing: -0.1px;">${escapeHTML(rec.title)}</div>
+                                    <div style="font-size: 0.73rem; line-height: 1.35; color: #d1d5db; margin-top: 3px;">${escapeHTML(rec.ai_reason || '')}</div>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between mt-2">
+                                    <span class="badge bg-dark border border-warning border-opacity-30" style="font-size: 0.65rem; color: #f59e0b;"><i class="fa-solid fa-star me-1"></i>${rec.vote_average || '8.5'}</span>
+                                    <a href="${detailUrl}" class="btn btn-sm btn-link text-accent p-0 text-decoration-none fw-bold" style="font-size: 0.74rem;">Details <i class="fa-solid fa-chevron-right ms-0.5"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                recsHTML += '</div>';
+            }
+
+            botDiv.innerHTML = `
+                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" style="width: 30px; height: 30px; background: rgba(168, 85, 247, 0.25); color: #c084fc; font-size: 0.8rem; border: 1px solid rgba(168,85,247,0.4);">🤖</div>
+                <div class="p-3 rounded-4 shadow-sm" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); color: #f3f4f6; font-size: 0.85rem; max-width: 88%; border-top-left-radius: 4px !important; line-height: 1.45;">
+                    <div>${escapeHTML(data.reply || 'Here are my top picks for you:')}</div>
+                    ${recsHTML}
+                </div>
+            `;
+            stream.appendChild(botDiv);
+            stream.scrollTop = stream.scrollHeight;
+        })
+        .catch(err => {
+            console.error('[CINEBOT API ERROR]', err);
+            const typing = document.getElementById('cinebot-typing');
+            if (typing) typing.remove();
+
+            const errDiv = document.createElement('div');
+            errDiv.className = 'd-flex gap-2 my-1';
+            errDiv.innerHTML = `
+                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" style="width: 30px; height: 30px; background: rgba(239, 68, 68, 0.25); color: #ef4444; font-size: 0.8rem;">🤖</div>
+                <div class="p-3 rounded-4" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #fca5a5; font-size: 0.85rem; max-width: 85%;">
+                    Oops! I had trouble connecting. Please try asking again!
+                </div>
+            `;
+            stream.appendChild(errDiv);
+            stream.scrollTop = stream.scrollHeight;
+        });
+    }
+
+    function escapeHTML(str) {
+        if (!str) return '';
+        return str.replace(/[&<>'"]/g, 
+            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+        );
+    }
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

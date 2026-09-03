@@ -31,7 +31,7 @@ if env_path.exists():
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', '')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-cinematch-local-dev-key-change-in-prod-123456789')
 
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true' if 'RENDER' in os.environ else True
 
@@ -196,5 +196,8 @@ SILENCED_SYSTEM_CHECKS = ['django_recaptcha.recaptcha_test_key_error']
 
 # Google Analytics 4 Measurement ID
 GA_MEASUREMENT_ID = os.environ.get('GA_MEASUREMENT_ID', '')
+
+# Google Gemini AI API Key for CineBot Assistant
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', 'AIzaSyCB4WojtXLAdCiCd07QzsOtWZutfGuVfWE')
 
 
