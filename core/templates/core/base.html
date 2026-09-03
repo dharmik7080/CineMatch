@@ -1460,7 +1460,7 @@
             
             let recsHTML = '';
             if (data.recommendations && data.recommendations.length > 0) {
-                recsHTML = '<div class="d-flex flex-column gap-2 mt-2.5">';
+                recsHTML = '<div class="d-flex flex-column gap-2.5 mt-3 pt-1">';
                 data.recommendations.forEach(rec => {
                     const detailUrl = rec.media_type === 'tv' ? `/tv/${rec.id}/` : `/movies/${rec.id}/`;
                     recsHTML += `

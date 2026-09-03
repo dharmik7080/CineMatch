@@ -757,7 +757,7 @@
     <!-- ══════════════════════════════════════════════════════════════════ -->
     <div class="mb-5">
         <h2 class="section-title">
-            <i class="fa-solid fa-ticket icon-gradient"></i> Now Showing in Theatres
+            <span class="shimmer-header"><i class="fa-solid fa-ticket icon-gradient me-2"></i>Now Showing in Theatres</span>
         </h2>
         <div class="horizontal-slider">
             {% for item in now_showing %}
@@ -1132,8 +1132,8 @@
     <div class="mb-5">
         <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
             <h2 class="section-title d-flex align-items-center m-0" style="gap: 12px;">
-                <div class="logo-container">
-                    <img src="{% static 'images/crunchyroll_logo.png' %}" alt="Crunchyroll Logo" class="platform-logo">
+                <div class="d-flex align-items-center justify-content-center">
+                    <img src="{% static 'images/anime_icon.png' %}" alt="Anime Logo" style="width: 52px; height: 52px; object-fit: contain;">
                 </div>
                 <span>Popular Anime Spotlight</span>
             </h2>
