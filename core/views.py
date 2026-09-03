@@ -4537,6 +4537,8 @@ In "reply", explicitly state which title among [{target_recs_str}] answers their
     else:
         media_type_prompt_clause = "The user did not specify media type. You may recommend a mix of both movies and TV shows."
 
+    target_type_str = requested_media_type if requested_media_type else "movie"
+
     prompt = f"""You are CineBot, an elite AI film critic and emotional mood expert for CineMatch.
 
 {history_text}
@@ -4573,9 +4575,9 @@ Output ONLY valid JSON."""
 
     # Step 1: Prompt Gemini AI with full multi-turn context
     candidate_models = [
-        'gemini-2.0-flash',
-        'gemini-1.5-flash-latest',
-        'gemini-flash-lite-latest'
+        'gemini-flash-lite-latest',
+        'gemini-flash-latest',
+        'gemini-1.5-flash-latest'
     ]
     
     reply_text = f"Here are my top recommended picks tailored for '{user_message}'!"
@@ -4583,11 +4585,19 @@ Output ONLY valid JSON."""
 
     if gemini_key:
         for m_name in candidate_models:
-            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{m_name}:generateContent?key={gemini_key}"
+            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{m_name}:generateContent"
+            headers = {
+                'Content-Type': 'application/json',
+                'X-goog-api-key': gemini_key
+            }
             try:
                 payload = {'contents': [{'parts': [{'text': prompt}]}]}
                 session = get_resilient_session()
-                g_resp = session.post(gemini_url, json=payload, timeout=9.5)
+                # Try header authentication first, fallback to query param if needed
+                g_resp = session.post(gemini_url, headers=headers, json=payload, timeout=9.5)
+                if g_resp.status_code != 200:
+                    g_resp = session.post(f"{gemini_url}?key={gemini_key}", json=payload, timeout=9.5)
+                    
                 if g_resp.status_code == 200:
                     g_raw = g_resp.json()['candidates'][0]['content']['parts'][0]['text']
                     json_match = re.search(r'\{.*\}', g_raw, re.DOTALL)
