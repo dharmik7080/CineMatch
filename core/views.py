@@ -4601,21 +4601,47 @@ Output ONLY valid JSON."""
     # Universal Dynamic Fallback: Trigger for ANY query if raw_recs is still empty
     if not raw_recs:
         try:
-            clean_q = urllib.parse.quote(user_message)
+            clean_term = re.sub(r'(?i)\b(suggest|recommend|give me|show me|find me|movies|movie|shows|show|series|films|film|like|similar to|vibe|for|with|about|want|looking for)\b', '', user_message).strip()
+            if not clean_term or len(clean_term) < 2:
+                clean_term = user_message.strip()
+
+            clean_q = urllib.parse.quote(clean_term)
             search_endpoint = f"search/{requested_media_type}" if requested_media_type else "search/multi"
             tmdb_search_url = f"https://api.themoviedb.org/3/{search_endpoint}?api_key={tmdb_key}&query={clean_q}&include_adult=false&page=1"
             s_resp = get_resilient_session().get(tmdb_search_url, timeout=4.0)
             if s_resp.status_code == 200:
                 search_results = s_resp.json().get('results', [])
-                for sr in search_results[:4]:
-                    stitle = sr.get('title') or sr.get('name') or ''
-                    smtype = sr.get('media_type', requested_media_type or 'movie')
-                    if stitle and smtype in ('movie', 'tv'):
-                        raw_recs.append({
-                            'title': stitle,
-                            'media_type': smtype,
-                            'ai_reason': f"Popular matching title for '{user_message}'."
-                        })
+                valid_res = [sr for sr in search_results if (sr.get('title') or sr.get('name')) and sr.get('media_type', requested_media_type or 'movie') in ('movie', 'tv')]
+                if valid_res:
+                    first_item = valid_res[0]
+                    first_id = first_item.get('id')
+                    first_type = first_item.get('media_type', requested_media_type or 'movie')
+                    
+                    # Try fetching TMDB official recommendations for first_id
+                    rec_endpoint = f"https://api.themoviedb.org/3/{first_type}/{first_id}/recommendations?api_key={tmdb_key}&page=1"
+                    r_rec = get_resilient_session().get(rec_endpoint, timeout=3.5)
+                    if r_rec.status_code == 200 and r_rec.json().get('results'):
+                        rec_items = r_rec.json().get('results', [])
+                        for sr in rec_items[:4]:
+                            stitle = sr.get('title') or sr.get('name') or ''
+                            smtype = sr.get('media_type', requested_media_type or first_type)
+                            if stitle:
+                                raw_recs.append({
+                                    'title': stitle,
+                                    'media_type': smtype,
+                                    'ai_reason': f"Highly rated title similar to '{first_item.get('title') or first_item.get('name')}'."
+                                })
+                    
+                    if not raw_recs:
+                        for sr in valid_res[:4]:
+                            stitle = sr.get('title') or sr.get('name') or ''
+                            smtype = sr.get('media_type', requested_media_type or 'movie')
+                            if stitle:
+                                raw_recs.append({
+                                    'title': stitle,
+                                    'media_type': smtype,
+                                    'ai_reason': f"Popular matching title for '{clean_term}'."
+                                })
         except Exception as fe:
             print(f"[CINEBOT FALLBACK ERROR] {fe}")
 
