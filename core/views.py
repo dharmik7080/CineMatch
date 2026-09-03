@@ -4601,7 +4601,8 @@ Output ONLY valid JSON."""
     # Universal Dynamic Fallback: Trigger for ANY query if raw_recs is still empty
     if not raw_recs:
         try:
-            clean_term = re.sub(r'(?i)\b(suggest|recommend|give me|show me|find me|movies|movie|shows|show|series|films|film|like|similar to|vibe|for|with|about|want|looking for)\b', '', user_message).strip()
+            stop_words = r'(?i)\b(suggest|recommend|give|show|find|get|list|tell|movies|movie|shows|show|series|films|film|anime|cartoons|cartoon|like|similar|vibe|for|with|about|want|looking|me|some|any|a|an|the|of|in|to|on|top|best|please)\b'
+            clean_term = re.sub(stop_words, '', user_message).strip()
             if not clean_term or len(clean_term) < 2:
                 clean_term = user_message.strip()
 
