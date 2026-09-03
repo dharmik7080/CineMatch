@@ -1012,7 +1012,7 @@ def for_you_feed(request):
         
     # ── Trending Anime Feed (AniList API) ──
     from core.utils import fetch_trending_anime
-    trending_anime = fetch_trending_anime()[:6]
+    trending_anime = fetch_trending_anime()
     
     context = {
         'watchlist_count': watchlist_count,
