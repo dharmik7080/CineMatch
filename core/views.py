@@ -4573,18 +4573,12 @@ Format your output strictly as a JSON object:
 }}
 Output ONLY valid JSON."""
 
-    # Step 1: Prompt Gemini AI with full multi-turn context
-    candidate_models = [
-        'gemini-flash-lite-latest',
-        'gemini-flash-latest',
-        'gemini-1.5-flash-latest'
-    ]
-    
+    # Step 1: Prompt Gemini AI directly with X-goog-api-key header
     reply_text = f"Here are my top recommended picks tailored for '{user_message}'!"
     raw_recs = []
 
     if gemini_key:
-        for m_name in candidate_models:
+        for m_name in ['gemini-flash-lite-latest', 'gemini-flash-latest']:
             gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{m_name}:generateContent"
             headers = {
                 'Content-Type': 'application/json',
@@ -4593,11 +4587,7 @@ Output ONLY valid JSON."""
             try:
                 payload = {'contents': [{'parts': [{'text': prompt}]}]}
                 session = get_resilient_session()
-                # Try header authentication first, fallback to query param if needed
-                g_resp = session.post(gemini_url, headers=headers, json=payload, timeout=9.5)
-                if g_resp.status_code != 200:
-                    g_resp = session.post(f"{gemini_url}?key={gemini_key}", json=payload, timeout=9.5)
-                    
+                g_resp = session.post(gemini_url, headers=headers, json=payload, timeout=5.0)
                 if g_resp.status_code == 200:
                     g_raw = g_resp.json()['candidates'][0]['content']['parts'][0]['text']
                     json_match = re.search(r'\{.*\}', g_raw, re.DOTALL)
@@ -4691,7 +4681,7 @@ Output ONLY valid JSON."""
             clean_q = urllib.parse.quote(clean_term)
             search_endpoint = f"search/{requested_media_type}" if requested_media_type else "search/multi"
             tmdb_search_url = f"https://api.themoviedb.org/3/{search_endpoint}?api_key={tmdb_key}&query={clean_q}&include_adult=false&page=1"
-            s_resp = get_resilient_session().get(tmdb_search_url, timeout=4.0)
+            s_resp = get_resilient_session().get(tmdb_search_url, timeout=3.5)
             if s_resp.status_code == 200:
                 search_results = s_resp.json().get('results', [])
                 valid_res = [sr for sr in search_results if (sr.get('title') or sr.get('name')) and sr.get('media_type', requested_media_type or 'movie') in ('movie', 'tv')]
@@ -4702,7 +4692,7 @@ Output ONLY valid JSON."""
                     
                     # Try fetching TMDB official recommendations for first_id
                     rec_endpoint = f"https://api.themoviedb.org/3/{first_type}/{first_id}/recommendations?api_key={tmdb_key}&page=1"
-                    r_rec = get_resilient_session().get(rec_endpoint, timeout=3.5)
+                    r_rec = get_resilient_session().get(rec_endpoint, timeout=3.0)
                     if r_rec.status_code == 200 and r_rec.json().get('results'):
                         rec_items = r_rec.json().get('results', [])
                         for sr in rec_items[:4]:
@@ -4728,13 +4718,12 @@ Output ONLY valid JSON."""
         except Exception as fe:
             print(f"[CINEBOT FALLBACK ERROR] {fe}")
 
-    # Step 2: Dynamically resolve TMDB IDs, posters, and ratings for each recommendation
-    final_recommendations = []
-    for item in raw_recs[:4]:
+    # Step 2: Dynamically resolve TMDB IDs, posters, and ratings in parallel
+    def resolve_tmdb_item(item):
         title = item.get('title', '').strip()
         mtype = requested_media_type or item.get('media_type', 'movie')
         if not title:
-            continue
+            return None
         
         tmdb_id = None
         poster_url = "https://images.unsplash.com/photo-1542204172-e7052809f852?q=80&w=400&auto=format&fit=crop"
@@ -4747,13 +4736,12 @@ Output ONLY valid JSON."""
             else:
                 search_url = f"https://api.themoviedb.org/3/search/multi?api_key={tmdb_key}&query={clean_q}&include_adult=false&page=1"
             
-            r_search = get_resilient_session().get(search_url, timeout=4.0)
+            r_search = get_resilient_session().get(search_url, timeout=3.0)
             if r_search.status_code == 200:
                 results = r_search.json().get('results', [])
                 if not results and requested_media_type:
-                    # Fallback to search/multi if media-specific search yielded 0 items
                     multi_url = f"https://api.themoviedb.org/3/search/multi?api_key={tmdb_key}&query={clean_q}&include_adult=false&page=1"
-                    r_multi = get_resilient_session().get(multi_url, timeout=3.5)
+                    r_multi = get_resilient_session().get(multi_url, timeout=2.5)
                     if r_multi.status_code == 200:
                         results = r_multi.json().get('results', [])
 
@@ -4768,14 +4756,20 @@ Output ONLY valid JSON."""
         except Exception as te:
             print(f"[CINEBOT TMDB RESOLVE ERROR] {te}")
 
-        final_recommendations.append({
+        return {
             'id': tmdb_id or 101,
             'title': title,
             'media_type': mtype,
             'poster_url': poster_url,
             'vote_average': vote_avg,
             'ai_reason': item.get('ai_reason', 'Highly recommended by CineBot AI!')
-        })
+        }
+
+    from concurrent.futures import ThreadPoolExecutor
+    final_recommendations = []
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        resolved_results = list(executor.map(resolve_tmdb_item, raw_recs[:4]))
+        final_recommendations = [r for r in resolved_results if r is not None]
 
     return JsonResponse({
         'success': True,
