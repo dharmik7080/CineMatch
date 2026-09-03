@@ -292,7 +292,7 @@ def fetch_trending_anime():
     from django.core.cache import cache
     import requests, urllib.parse
 
-    cache_key = "anilist_popular_anime_feed_v3"
+    cache_key = "anilist_popular_anime_feed_v4"
     cached = cache.get(cache_key)
     if cached:
         return cached
@@ -300,7 +300,7 @@ def fetch_trending_anime():
     url = "https://graphql.anilist.co"
     query = """
     {
-      Page (page: 1, perPage: 14) {
+      Page (page: 1, perPage: 25) {
         media (type: ANIME, sort: [POPULARITY_DESC, TRENDING_DESC], isAdult: false) {
           id
           title {
@@ -320,7 +320,6 @@ def fetch_trending_anime():
       }
     }
     """
-    api_key = getattr(settings, 'TMDB_API_KEY', '') or '41fc74ce5602882786e1e9d4933fdcc6'
     anime_list = []
 
     try:
@@ -328,26 +327,31 @@ def fetch_trending_anime():
         if resp.status_code == 200:
             media_items = resp.json().get('data', {}).get('Page', {}).get('media', [])
             seen_titles = set()
+            filtered_items = []
 
             for item in media_items:
                 title = item.get('title', {}).get('english') or item.get('title', {}).get('romaji') or ''
                 if not title or title.lower() in seen_titles:
                     continue
                 seen_titles.add(title.lower())
+                filtered_items.append((title, item))
 
+            from concurrent.futures import ThreadPoolExecutor
+
+            def process_anime(pair):
+                title, item = pair
                 cover = item.get('coverImage', {}).get('extraLarge') or item.get('coverImage', {}).get('large') or ''
                 score = item.get('averageScore')
                 vote_avg = round(score / 10.0, 1) if score else 8.5
                 genres = " | ".join(item.get('genres', [])[:2]) or "Anime"
 
-                # Resolve TMDB ID for detail page compatibility & streaming
                 anilist_id = item.get('id')
                 tmdb_id = resolve_anilist_to_tmdb_id(title, fallback_id=anilist_id)
 
-                anime_list.append({
+                return {
                     'id': tmdb_id,
                     'media_id': tmdb_id,
-                    'anilist_id': item.get('id'),
+                    'anilist_id': anilist_id,
                     'title': title,
                     'name': title,
                     'media_type': 'tv',
@@ -358,7 +362,10 @@ def fetch_trending_anime():
                     'genres': genres,
                     'year': item.get('seasonYear') or '2024',
                     'is_anime': True
-                })
+                }
+
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                anime_list = list(executor.map(process_anime, filtered_items))
 
             if anime_list:
                 cache.set(cache_key, anime_list, 43200)
