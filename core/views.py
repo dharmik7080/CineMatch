@@ -4673,8 +4673,10 @@ Output ONLY valid JSON."""
     # Universal Dynamic Fallback (Search TMDB if raw_recs is still empty)
     if not raw_recs:
         try:
-            stop_words = r'(?i)\b(suggest|recommend|give|show|find|get|list|tell|movies|movie|shows|show|series|films|film|anime|cartoons|cartoon|like|similar|vibe|for|with|about|want|looking|me|some|any|a|an|the|of|in|to|on|top|best|please)\b'
+            stop_words = r'(?i)\b(suggest|recommend|give|show|find|get|list|tell|movies|movie|shows|show|series|films|film|anime|cartoons|cartoon|like|similar|vibe|vibes|for|with|about|want|looking|me|some|any|a|an|the|of|in|to|on|top|best|please|i|need|something)\b'
             clean_term = re.sub(stop_words, '', user_message).strip()
+            # Clean any leftover multiple spaces or stray single characters
+            clean_term = re.sub(r'\s+', ' ', clean_term).strip()
             if not clean_term or len(clean_term) < 2:
                 clean_term = user_message.strip()
 
