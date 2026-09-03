@@ -4537,11 +4537,6 @@ In "reply", explicitly state which title among [{target_recs_str}] answers their
     else:
         media_type_prompt_clause = "The user did not specify media type. You may recommend a mix of both movies and TV shows."
 
-    target_type_str = requested_media_type if requested_media_type else "movie"
-
-    # Step 1: Prompt Gemini AI (gemini-flash-lite-latest) with full multi-turn context
-    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key={gemini_key}"
-    
     prompt = f"""You are CineBot, an elite AI film critic and emotional mood expert for CineMatch.
 
 {history_text}
@@ -4576,27 +4571,37 @@ Format your output strictly as a JSON object:
 }}
 Output ONLY valid JSON."""
 
+    # Step 1: Prompt Gemini AI with full multi-turn context
+    candidate_models = [
+        'gemini-2.0-flash',
+        'gemini-1.5-flash-latest',
+        'gemini-flash-lite-latest'
+    ]
+    
     reply_text = f"Here are my top recommended picks tailored for '{user_message}'!"
     raw_recs = []
 
-    try:
-        payload = {'contents': [{'parts': [{'text': prompt}]}]}
-        session = get_resilient_session()
-        g_resp = session.post(gemini_url, json=payload, timeout=9.5)
-        if g_resp.status_code == 200:
-            g_raw = g_resp.json()['candidates'][0]['content']['parts'][0]['text']
-            json_match = re.search(r'\{.*\}', g_raw, re.DOTALL)
-            if json_match:
-                parsed = json.loads(json_match.group(0))
-                if 'reply' in parsed:
-                    reply_text = parsed['reply']
-                
-                # Flexible extraction for any JSON key variation Gemini might output
-                recs_cand = parsed.get('recommendations') or parsed.get('recs') or parsed.get('titles') or parsed.get('results') or parsed.get('items') or parsed.get('picks') or parsed.get('shows') or parsed.get('movies') or parsed.get('anime')
-                if isinstance(recs_cand, list):
-                    raw_recs = recs_cand
-    except Exception as ge:
-        print(f"[CINEBOT GEMINI AI WARNING] {ge}")
+    if gemini_key:
+        for m_name in candidate_models:
+            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{m_name}:generateContent?key={gemini_key}"
+            try:
+                payload = {'contents': [{'parts': [{'text': prompt}]}]}
+                session = get_resilient_session()
+                g_resp = session.post(gemini_url, json=payload, timeout=9.5)
+                if g_resp.status_code == 200:
+                    g_raw = g_resp.json()['candidates'][0]['content']['parts'][0]['text']
+                    json_match = re.search(r'\{.*\}', g_raw, re.DOTALL)
+                    if json_match:
+                        parsed = json.loads(json_match.group(0))
+                        if 'reply' in parsed:
+                            reply_text = parsed['reply']
+                        
+                        recs_cand = parsed.get('recommendations') or parsed.get('recs') or parsed.get('titles') or parsed.get('results') or parsed.get('items') or parsed.get('picks') or parsed.get('shows') or parsed.get('movies') or parsed.get('anime')
+                        if isinstance(recs_cand, list) and recs_cand:
+                            raw_recs = recs_cand
+                            break
+            except Exception as ge:
+                print(f"[CINEBOT GEMINI AI MODEL {m_name} WARNING] {ge}")
 
     # Universal Dynamic Fallback: Trigger for ANY query if raw_recs is still empty
     if not raw_recs:
