@@ -842,18 +842,19 @@ def for_you_feed(request):
     
     from datetime import datetime, timedelta
     today_str = datetime.now().strftime('%Y-%m-%d')
-    past_45_days_str = (datetime.now() - timedelta(days=45)).strftime('%Y-%m-%d')
+    past_90_days_str = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
     
     tmdb_api_key = getattr(settings, 'TMDB_API_KEY', '') or '41fc74ce5602882786e1e9d4933fdcc6'
     
-    # Dynamic Multi-Endpoint TMDB Queries for Live Theatrical & New Releases in India
+    # Dynamic Multi-Endpoint TMDB Queries for Live Theatrical & Recent Blockbuster Releases in India (Past 90 Days)
     now_showing_urls = [
         f"{client.base_url}/movie/now_playing?language=en-US&region=IN&page=1",
-        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&region=IN&with_origin_country=IN&primary_release_date.gte={past_45_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1",
-        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&with_original_language=hi&primary_release_date.gte={past_45_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1"
+        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&region=IN&with_origin_country=IN&primary_release_date.gte={past_90_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1",
+        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&with_original_language=hi&primary_release_date.gte={past_90_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1"
     ]
     
     EXPLICIT_KEYWORDS = {'sex', 'erotic', 'porn', 'xxx', 'hentai', 'nude', 'nudity', 'lust'}
+    EXCLUDED_TITLES = {'lost & found in kumbh', 'lost and found in kumbh'}
     
     for url in now_showing_urls:
         try:
@@ -869,7 +870,11 @@ def for_you_feed(request):
                     if not movie_id or not title or movie_id in seen_showing_ids:
                         continue
                     
-                    title_words = set(title.lower().split())
+                    title_lower = title.lower().strip()
+                    if title_lower in EXCLUDED_TITLES or 'kumbh' in title_lower:
+                        continue
+                    
+                    title_words = set(title_lower.split())
                     if title_words.intersection(EXPLICIT_KEYWORDS):
                         continue
                     
@@ -898,7 +903,7 @@ def for_you_feed(request):
             
     # Sort now_showing items by release_date descending so newly released movies (like Mirzapur) rank FIRST!
     now_showing.sort(key=lambda x: x.get('release_date') or '', reverse=True)
-    now_showing = now_showing[:20]
+    now_showing = now_showing[:30]
         
     if not now_showing:
         now_showing_fallback = [
