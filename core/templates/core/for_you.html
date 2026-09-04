@@ -672,7 +672,7 @@
                 <span class="shimmer-header"><i class="fa-solid fa-fire icon-gradient me-2"></i>Talk of the Town</span>
                 {% if trending_last_updated %}
                 <small class="text-muted" style="font-size: 0.76rem; font-weight: 500; letter-spacing: 0.3px;">
-                    <i class="fa-regular fa-clock me-1 text-secondary"></i> Last refreshed: {{ trending_last_updated|date:"P, M d, Y" }}
+                    <i class="fa-regular fa-clock me-1 text-secondary"></i> Last refreshed: {{ trending_last_updated|date:"h:i A, M d, Y" }}
                 </small>
                 {% endif %}
             </h2>

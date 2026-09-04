@@ -1126,6 +1126,88 @@
                 {% endif %}
             </div>
 
+            {% if soundtrack_data and soundtrack_data.tracks %}
+            <!-- 🎵 SCENE SOUNDTRACK COMPONENT -->
+            <div class="mb-5">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h2 class="section-heading mb-0"><i class="fa-solid fa-music text-purple me-2" style="color: #c084fc;"></i>Scene Soundtrack</h2>
+                    <span class="badge px-3 py-1.5 rounded-pill fw-semibold" style="background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); font-size: 0.82rem;">
+                        <i class="fa-solid fa-record-vinyl me-1"></i> {{ soundtrack_data.total_tracks }} Tracks
+                    </span>
+                </div>
+                <p class="text-white-50 small mb-4">Scene-by-scene tracklist played during iconic TV series moments. Tap Spotify or YouTube to play full audio.</p>
+                
+                <div class="row row-cols-1 row-cols-md-2 g-3">
+                    {% for tr in soundtrack_data.tracks %}
+                    <div class="col soundtrack-track-item {% if forloop.counter > 4 %}soundtrack-extra-track-tv{% endif %}" {% if forloop.counter > 4 %}style="display: none;"{% endif %}>
+                        <div class="soundtrack-card p-3 rounded-4 h-100 position-relative" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); transition: all 0.3s ease; backdrop-filter: blur(8px);">
+                            <div class="d-flex align-items-center gap-3">
+                                <img src="{{ tr.artwork_url }}" alt="{{ tr.track_name }}" class="rounded-3 shadow" style="width: 64px; height: 64px; object-fit: cover; border: 1px solid rgba(255,255,255,0.15);" onerror="this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop'">
+                                <div class="flex-grow-1 overflow-hidden">
+                                    <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                                        <span class="badge rounded-pill bg-dark text-warning border border-warning border-opacity-25" style="font-size: 0.7rem; font-family: monospace;">
+                                            <i class="fa-solid fa-clock me-1"></i> {{ tr.timestamp }}
+                                        </span>
+                                    </div>
+                                    <h6 class="text-white fw-bold mb-0 text-truncate" style="font-size: 0.95rem;">{{ tr.track_name }}</h6>
+                                    <p class="text-white-50 small mb-1 text-truncate" style="font-size: 0.82rem;">{{ tr.artist_name }}</p>
+                                    <p class="text-info small mb-0 text-truncate" style="font-size: 0.76rem; color: #a5f3fc !important;">
+                                        <i class="fa-solid fa-film me-1 text-primary"></i> {{ tr.scene_description }}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex align-items-center justify-content-between mt-3 pt-2 border-top border-secondary border-opacity-25 gap-2">
+                                {% if tr.preview_url %}
+                                <div class="w-100 me-2">
+                                    <audio controls class="w-100 custom-audio-player" style="height: 30px; border-radius: 15px;">
+                                        <source src="{{ tr.preview_url }}" type="audio/mpeg">
+                                    </audio>
+                                </div>
+                                {% endif %}
+                                <div class="d-flex gap-2 ms-auto">
+                                    <a href="{{ tr.spotify_url }}" target="_blank" rel="noopener" class="btn btn-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 34px; height: 34px; background: #1ed760; border: none; color: #000;" title="Play on Spotify">
+                                        <i class="fa-brands fa-spotify" style="font-size: 1rem;"></i>
+                                    </a>
+                                    <a href="{{ tr.youtube_url }}" target="_blank" rel="noopener" class="btn btn-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 34px; height: 34px; background: #ff0000; border: none; color: #fff;" title="Search & Play on YouTube">
+                                        <i class="fa-brands fa-youtube" style="font-size: 1rem;"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if soundtrack_data.tracks|length > 4 %}
+                <div class="text-center mt-3 pt-2">
+                    <button type="button" id="toggle-soundtrack-btn-tv" class="btn btn-sm rounded-pill px-4 py-2" onclick="toggleTvSoundtracks()" style="border: 1px solid rgba(168,85,247,0.4); color: #c084fc; background: rgba(168,85,247,0.12); font-weight: 600; font-size: 0.84rem; transition: all 0.3s ease;">
+                        <i class="fa-solid fa-chevron-down me-1.5" id="toggle-soundtrack-icon-tv"></i> Show All {{ soundtrack_data.total_tracks }} Tracks
+                    </button>
+                </div>
+                <script>
+                function toggleTvSoundtracks() {
+                    const extraTracks = document.querySelectorAll('.soundtrack-extra-track-tv');
+                    const btn = document.getElementById('toggle-soundtrack-btn-tv');
+                    let isExpanded = btn.getAttribute('data-expanded') === 'true';
+                    
+                    extraTracks.forEach(el => {
+                        el.style.display = isExpanded ? 'none' : 'block';
+                    });
+                    
+                    if (isExpanded) {
+                        btn.setAttribute('data-expanded', 'false');
+                        btn.innerHTML = `<i class="fa-solid fa-chevron-down me-1.5"></i> Show All {{ soundtrack_data.total_tracks }} Tracks`;
+                    } else {
+                        btn.setAttribute('data-expanded', 'true');
+                        btn.innerHTML = `<i class="fa-solid fa-chevron-up me-1.5"></i> Show Less`;
+                    }
+                }
+                </script>
+                {% endif %}
+            </div>
+            {% endif %}
+
             {% if gallery_images %}
             <div class="mb-5">
                 <h2 class="section-heading">Stills & HD Wallpapers</h2>
@@ -1553,6 +1635,23 @@
         </h3>
     </div>
     <div class="d-flex align-items-center gap-3">
+        <div class="dropdown">
+            <button class="btn btn-sm btn-dark border-secondary rounded-pill px-3 py-1 dropdown-toggle text-white d-flex align-items-center gap-1.5" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.8rem; background-color: #0b0b14; border-color: rgba(255,255,255,0.15) !important;">
+                <i class="fa-solid fa-closed-captioning text-warning"></i> Subtitles (.srt)
+            </button>
+            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end shadow-lg" id="tv-subtitles-dropdown-menu" style="background-color: #0e0e1a; border: 1px solid rgba(255,255,255,0.15); min-width: 220px;">
+                <li class="dropdown-header text-muted small px-3 py-1 fw-bold text-uppercase" style="font-size: 0.7rem;">OpenSubtitles v3 Engine</li>
+                {% for sub in subtitles_list %}
+                <li>
+                    <a class="dropdown-item d-flex align-items-center justify-content-between py-2 px-3 hover-bg-purple" href="{{ sub.download_url }}" target="_blank" download="{{ sub.file_name }}" style="font-size: 0.84rem;">
+                        <span>{{ sub.flag }} {{ sub.language }}</span>
+                        <span class="badge bg-secondary bg-opacity-50 text-white" style="font-size: 0.68rem;">SRT</span>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
         <!-- Server Dropdown Selector -->
         <select id="ep-server-select" class="form-select bg-dark text-white border-secondary rounded-pill px-2 py-1" style="width: auto; font-size: 0.8rem; background-color: #0b0b14; border-color: rgba(255,255,255,0.15) !important;" onchange="changeTvServer(this.value)">
             <option value="https://vidlink.pro/tv/" selected>Server 1 — Vidlink.pro ✦ Multi-Audio+Subs</option>
@@ -1960,8 +2059,43 @@ function openEpisodeModal(card) {
     // Reset player overlay to default image state
     resetTvEpisodePlayer();
     
+    const seasonSelect = document.getElementById('season-select');
+    const seasonNumber = seasonSelect ? seasonSelect.value : "1";
+    updateTvSubtitleLinks(seasonNumber, number);
+
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
+}
+
+function updateTvSubtitleLinks(seasonNumber, episodeNumber) {
+    const imdbId = "{{ tv_show.imdb_id|default_if_none:'' }}";
+    const tmdbId = "{{ tv_show.id }}";
+    const title = "{{ tv_show.title|escapejs }}";
+
+    const apiUrl = `/api/subtitles/?imdb_id=${imdbId}&tmdb_id=${tmdbId}&season=${seasonNumber}&episode=${episodeNumber}&title=${encodeURIComponent(title)}`;
+    
+    fetch(apiUrl)
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.subtitles && data.subtitles.length > 0) {
+                const subDropdownMenu = document.getElementById('tv-subtitles-dropdown-menu');
+                if (subDropdownMenu) {
+                    let html = '<li class="dropdown-header text-muted small px-3 py-1 fw-bold text-uppercase" style="font-size: 0.7rem;">OpenSubtitles v3 Engine</li>';
+                    data.subtitles.forEach(sub => {
+                        html += `
+                        <li>
+                            <a class="dropdown-item tv-sub-download-link d-flex align-items-center justify-content-between py-2 px-3 hover-bg-purple" 
+                               href="${sub.download_url}" target="_blank" download="${sub.file_name}" style="font-size: 0.84rem;">
+                                <span>${sub.flag} ${sub.language}</span>
+                                <span class="badge bg-secondary bg-opacity-50 text-white" style="font-size: 0.68rem;">SRT</span>
+                            </a>
+                        </li>`;
+                    });
+                    subDropdownMenu.innerHTML = html;
+                }
+            }
+        })
+        .catch(err => console.error("Failed to update TV episode subtitles:", err));
 }
 
 function playNextTvEpisode() {
@@ -2113,6 +2247,7 @@ function startTvEpisodePlay() {
     const seasonSelect = document.getElementById('season-select');
     const seasonNumber = seasonSelect ? seasonSelect.value : "1";
     const episodeNumber = currentEpisodeNumber || "1";
+    updateTvSubtitleLinks(seasonNumber, episodeNumber);
     const serverSelect = document.getElementById('ep-server-select');
     const baseServerUrl = serverSelect ? serverSelect.value : "https://vidsrc.xyz/embed/tv/";
     

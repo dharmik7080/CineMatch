@@ -968,7 +968,16 @@ def for_you_feed(request):
 
     # ── FETCH DAILY TRENDING MOVIES FROM TMDB WITH CACHE-ASIDE ──
     from core.utils import get_daily_trending_movies
-    daily_trending, trending_last_updated = get_daily_trending_movies()
+    force_refresh = request.GET.get('refresh') == '1' or request.GET.get('force') == '1'
+    if force_refresh:
+        from django.core.cache import cache
+        cache.delete("daily_trending_movies_cache")
+        if user.is_authenticated:
+            cache.delete(f"user_feed_{user.id}")
+        else:
+            cache.delete("user_feed_anonymous")
+            
+    daily_trending, trending_last_updated = get_daily_trending_movies(force_refresh=force_refresh)
 
     if not daily_trending:
         defaults_list = [
@@ -2240,6 +2249,20 @@ def movie_detail_view(request, movie_id):
     else:
         storyline = tmdb_overview
 
+    # ── SOUNDTRACK & SUBTITLES ENRICHMENT ──
+    from core.utils import fetch_scene_soundtracks, fetch_opensubtitles
+    soundtrack_data = fetch_scene_soundtracks(
+        title=movie.get('title', ''),
+        year=movie.get('release_date', '')[:4] if movie.get('release_date') else None,
+        media_type='movie',
+        tmdb_id=movie_id_val
+    )
+    subtitles_payload = fetch_opensubtitles(
+        imdb_id=movie.get('imdb_id'),
+        tmdb_id=movie_id_val,
+        title=movie.get('title', '')
+    )
+
     context = {
         'movie':           movie,
         'tagline':         movie.get('tagline', ''),
@@ -2271,6 +2294,8 @@ def movie_detail_view(request, movie_id):
         'gallery_images':        gallery_images,
         'external_links':        external_links,
         'keywords':              keywords,
+        'soundtrack_data':       soundtrack_data,
+        'subtitles_list':        subtitles_payload.get('subtitles', []),
     }
 
     return render(request, 'core/movie_detail.html', context)
@@ -2844,6 +2869,20 @@ def tv_detail_view(request, series_id):
         if 'animation' in show_genres_str or 'anime' in show_genres_str or 'JP' in origin_countries:
             anilist_data = fetch_anilist_enrichment(tv_show.get('title'))
 
+    # ── SOUNDTRACK & SUBTITLES ENRICHMENT ──
+    from core.utils import fetch_scene_soundtracks, fetch_opensubtitles
+    soundtrack_data = fetch_scene_soundtracks(
+        title=tv_show.get('title', ''),
+        year=tv_show.get('first_air_date', '')[:4] if tv_show.get('first_air_date') else None,
+        media_type='tv',
+        tmdb_id=series_id_val
+    )
+    subtitles_payload = fetch_opensubtitles(
+        imdb_id=tv_show.get('imdb_id'),
+        tmdb_id=series_id_val,
+        title=tv_show.get('title', '')
+    )
+
     context = {
         'tv_show':         tv_show,
         'tagline':         tv_show.get('tagline', ''),
@@ -2868,6 +2907,8 @@ def tv_detail_view(request, series_id):
         'external_links':  external_links,
         'keywords':        keywords,
         'anilist_data':    anilist_data,
+        'soundtrack_data': soundtrack_data,
+        'subtitles_list':  subtitles_payload.get('subtitles', []),
     }
 
     return render(request, 'core/tv_detail.html', context)
@@ -4818,3 +4859,26 @@ Output ONLY valid JSON."""
         'reply': reply_text,
         'recommendations': final_recommendations
     })
+
+
+def subtitles_api_view(request):
+    """
+    AJAX endpoint to fetch dynamic multi-language OpenSubtitles for a given media item, season, and episode.
+    """
+    imdb_id = request.GET.get('imdb_id')
+    tmdb_id = request.GET.get('tmdb_id')
+    season = request.GET.get('season')
+    episode = request.GET.get('episode')
+    title = request.GET.get('title')
+    
+    from core.utils import fetch_opensubtitles
+    data = fetch_opensubtitles(
+        imdb_id=imdb_id,
+        tmdb_id=tmdb_id,
+        title=title,
+        season=season,
+        episode=episode
+    )
+    from django.http import JsonResponse
+    return JsonResponse(data)
+

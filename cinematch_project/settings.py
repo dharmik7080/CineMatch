@@ -165,7 +165,7 @@ LOGOUT_REDIRECT_URL = 'login'
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 # External TMDB API Key (Unit 7: REST API Integration)
-TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '')
+TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '') or '41fc74ce5602882786e1e9d4933fdcc6'
 
 WATCHMODE_API_KEY = os.environ.get('WATCHMODE_API_KEY', '')
 

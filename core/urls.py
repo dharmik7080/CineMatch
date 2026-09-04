@@ -50,6 +50,7 @@ urlpatterns = [
     # TV Show Detail Hub (Unit 7: REST API compound request — TV variant)
     path('tv/<int:series_id>/', views.tv_detail_view, name='tv_show_detail'),
     path('tv/<int:series_id>/season/<int:season_number>/', views.tv_season_ajax, name='tv_season_ajax'),
+    path('api/subtitles/', views.subtitles_api_view, name='subtitles_api'),
 
     # Watchlist
     path('watchlist/', views.watchlist_hub_view, name='watchlist_hub'),
