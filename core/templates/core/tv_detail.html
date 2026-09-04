@@ -1080,7 +1080,7 @@
                                             {% endif %}
                                         </div>
                                         <p style="font-size: 0.84rem; color: #a1a1aa; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0;">
-                                            {{ ep.overview|default:"No episode overview logged in dataset timeline." }}
+                                            {{ ep.overview|default:"Episode details and release schedule coming soon." }}
                                         </p>
                                     </div>
                                     {% if ep.runtime %}
@@ -1920,7 +1920,7 @@ function loadSeasonEpisodes(seasonNumber) {
         if (data.success && data.episodes && data.episodes.length > 0) {
             let html = '';
             data.episodes.forEach(ep => {
-                const overview = ep.overview || "No episode overview logged in dataset timeline.";
+                const overview = ep.overview || "Episode details and release schedule coming soon.";
                 const runtimeHtml = ep.runtime ? `<div style="margin-top: 0.75rem; font-size: 0.78rem; color: #71717a; font-weight: 600;"><i class="fa-regular fa-clock me-1"></i>${ep.runtime} min</div>` : '';
                 const starHtml = ep.vote_average > 0 ? `
                 <span class="d-inline-flex align-items-center gap-1 text-warning fw-bold small" style="background: rgba(250,204,21,0.08); border: 1px solid rgba(250,204,21,0.2); border-radius: 20px; padding: 0.2rem 0.6rem;">
@@ -2200,8 +2200,7 @@ function getTvEpisodeUrl(baseServerUrl, showId, imdbId, seasonNumber, episodeNum
     } else if (baseServerUrl.includes('autoembed.co')) {
         rawUrl = `https://autoembed.co/tv/tmdb/${showId}-${seasonNumber}-${episodeNumber}`;
     } else if (baseServerUrl.includes('youtube.com')) {
-        const showTitle = "{{ tv_show.title|escapejs }}";
-        rawUrl = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(showTitle + ' Season ' + seasonNumber + ' Episode ' + episodeNumber)}`;
+        rawUrl = "https://www.youtube-nocookie.com/embed/videoseries?list=PLRv_c3P0AbXlOMX25nFBlBsZlOdBXqH4Q";
     } else {
         rawUrl = `${baseServerUrl}${showId}/${seasonNumber}/${episodeNumber}`;
     }
@@ -2286,9 +2285,9 @@ function startTvEpisodePlay() {
         container.innerHTML = `
             <iframe id="ep-modal-iframe" src="${iframeUrl}" 
                     style="width: 100%; height: 100%; border: none;" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allow="autoplay; fullscreen; encrypted-media; picture-in-picture; accelerometer; gyroscope; clipboard-write" 
                     allowfullscreen 
-                    referrerpolicy="origin">
+                    referrerpolicy="no-referrer">
             </iframe>
         `;
 

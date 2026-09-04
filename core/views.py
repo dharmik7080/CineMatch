@@ -846,15 +846,18 @@ def for_you_feed(request):
     
     tmdb_api_key = getattr(settings, 'TMDB_API_KEY', '') or '41fc74ce5602882786e1e9d4933fdcc6'
     
-    # Dynamic Multi-Endpoint TMDB Queries for Live Theatrical & Recent Releases in India (Past 60 Days / 2 Months)
+    # Dynamic Multi-Endpoint TMDB Queries for Live Theatrical Releases in Indian Cinemas (strictly release_type=3 - Theatrical)
     now_showing_urls = [
-        f"{client.base_url}/movie/now_playing?language=en-US&region=IN&page=1",
-        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&region=IN&with_origin_country=IN&primary_release_date.gte={past_60_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1",
-        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&with_original_language=hi&primary_release_date.gte={past_60_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1"
+        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&region=IN&with_release_type=3&primary_release_date.gte={past_60_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1",
+        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&region=IN&with_release_type=3&with_origin_country=IN&primary_release_date.gte={past_60_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1",
+        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&region=IN&with_release_type=3&with_original_language=hi&primary_release_date.gte={past_60_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1"
     ]
     
     EXPLICIT_KEYWORDS = {'sex', 'erotic', 'porn', 'xxx', 'hentai', 'nude', 'nudity', 'lust'}
-    EXCLUDED_TITLES = {'lost & found in kumbh', 'lost and found in kumbh', 'dhamaal 4', 'dhamal 4', 'dhamaal4', 'dhamal4'}
+    EXCLUDED_TITLES = {
+        'gandhari', 'the runner', 'runner', 'tony', 'fall 2', 'clash of the thundermans',
+        'kalari kids', 'im game', 'i\'m game', 'kumbh', 'dhamaal 4', 'dhamal 4', 'dhamaal4', 'dhamal4'
+    }
     
     for url in now_showing_urls:
         try:
@@ -871,7 +874,7 @@ def for_you_feed(request):
                         continue
                     
                     title_lower = title.lower().strip()
-                    if title_lower in EXCLUDED_TITLES or 'kumbh' in title_lower or 'dhamaal 4' in title_lower or 'dhamal 4' in title_lower:
+                    if any(ex in title_lower for ex in EXCLUDED_TITLES):
                         continue
                     
                     title_words = set(title_lower.split())
@@ -923,7 +926,7 @@ def for_you_feed(request):
     # ── CACHE-ASIDE PATTERN FOR PERSONALIZED RECOMMENDATIONS ──
     from django.core.cache import cache
     if user.is_authenticated:
-        cache_key = f"user_feed_{user.id}"
+        cache_key = f"user_feed_v3_{user.id}"
         recs = None
         try:
             recs = cache.get(cache_key)
@@ -946,7 +949,7 @@ def for_you_feed(request):
                     'recommended_tv_shows': []
                 }
     else:
-        cache_key = "user_feed_anonymous"
+        cache_key = "user_feed_v3_anonymous"
         recs = None
         try:
             recs = cache.get(cache_key)
@@ -2822,13 +2825,16 @@ def tv_detail_view(request, series_id):
         for s in seasons_list if s.get('season_number') is not None and s.get('season_number') >= 0
     ]
     
-    # Sort seasons by season_number ascending
+    # Sort seasons: Specials (0) at the end or start, but default active season to Season 1
     seasons.sort(key=lambda x: x['season_number'])
     
-    # Default to first season in the list, or Season 1
-    active_season_number = 1
-    if seasons:
+    season_1_or_main = [s for s in seasons if s['season_number'] > 0]
+    if season_1_or_main:
+        active_season_number = season_1_or_main[0]['season_number']
+    elif seasons:
         active_season_number = seasons[0]['season_number']
+    else:
+        active_season_number = 1
         
     episodes = []
     from django.core.cache import cache
@@ -2846,17 +2852,30 @@ def tv_detail_view(request, series_id):
             print(f"[TV DETAIL] Pre-fetching Season {active_season_number} episodes failed: {e}")
             season_data = None
             
+    import datetime
+    today_str = datetime.datetime.now().strftime('%Y-%m-%d')
+    show_backdrop = tv_show.get('backdrop_url') or tv_show.get('poster_url') or 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=500&auto=format&fit=crop'
+    
     if season_data:
         raw_episodes = season_data.get('episodes', [])
         for ep in raw_episodes:
             still_path = ep.get('still_path') or ''
+            air_date = ep.get('air_date', '') or ''
+            ep_overview = (ep.get('overview') or '').strip()
+            if not ep_overview:
+                ep_overview = "Episode details and release schedule coming soon."
+                
+            is_upcoming = air_date > today_str if air_date else False
+            
             episodes.append({
                 'episode_number': ep.get('episode_number'),
-                'name': ep.get('name', ''),
-                'overview': ep.get('overview', ''),
+                'name': ep.get('name', f"Episode {ep.get('episode_number')}"),
+                'overview': ep_overview,
                 'runtime': ep.get('runtime', 0) or 0,
                 'vote_average': round(ep.get('vote_average', 0.0), 1),
-                'still_url': f"https://image.tmdb.org/t/p/w500{still_path}" if still_path else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
+                'air_date': air_date,
+                'is_upcoming': is_upcoming,
+                'still_url': f"https://image.tmdb.org/t/p/w500{still_path}" if still_path else show_backdrop
             })
 
     # ── ANILIST HYBRID ENRICHMENT DATA ──
@@ -2939,15 +2958,27 @@ def tv_season_ajax(request, series_id, season_number):
             
     raw_episodes = season_data.get('episodes', []) if season_data else []
     episodes = []
+    import datetime
+    today_str = datetime.datetime.now().strftime('%Y-%m-%d')
+    
     for ep in raw_episodes:
         still_path = ep.get('still_path') or ''
+        air_date = ep.get('air_date', '') or ''
+        ep_overview = (ep.get('overview') or '').strip()
+        if not ep_overview:
+            ep_overview = "Episode details and release schedule coming soon."
+            
+        is_upcoming = air_date > today_str if air_date else False
+        
         episodes.append({
             'episode_number': ep.get('episode_number'),
-            'name': ep.get('name', ''),
-            'overview': ep.get('overview', ''),
+            'name': ep.get('name', f"Episode {ep.get('episode_number')}"),
+            'overview': ep_overview,
             'runtime': ep.get('runtime', 0) or 0,
             'vote_average': round(ep.get('vote_average', 0.0), 1),
-            'still_url': f"https://image.tmdb.org/t/p/w500{still_path}" if still_path else 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
+            'air_date': air_date,
+            'is_upcoming': is_upcoming,
+            'still_url': f"https://image.tmdb.org/t/p/w500{still_path}" if still_path else 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=500&auto=format&fit=crop'
         })
         
     return JsonResponse({'success': True, 'episodes': episodes})

@@ -450,16 +450,20 @@ def fetch_anilist_enrichment(title):
 
 def get_upcoming_movies():
     """
-    Fetches genuine upcoming Indian + Global movies (release_date >= today).
+    Fetches genuine upcoming Indian + Global movies releasing within the next 2 months (60 days).
     Combines regional Indian theatrical releases (region=IN) with global blockbusters.
-    Caches result for 24 hours (86400 seconds).
+    Caches result for 12 hours.
     """
     from django.conf import settings
     from django.core.cache import cache
     import requests, datetime
 
-    today = datetime.datetime.now().strftime('%Y-%m-%d')
-    cache_key = f"upcoming_movies_indian_global_v7_{today}"
+    today_dt = datetime.date.today()
+    max_date_dt = today_dt + datetime.timedelta(days=60)
+    today = today_dt.strftime('%Y-%m-%d')
+    max_date_str = max_date_dt.strftime('%Y-%m-%d')
+
+    cache_key = f"upcoming_movies_2months_v2_{today}"
     cached_data = cache.get(cache_key)
     if cached_data is not None:
         return cached_data
@@ -477,21 +481,21 @@ def get_upcoming_movies():
             'movie_id': 1378537,
             'title': 'Mirzapur: The Movie',
             'poster_url': 'https://image.tmdb.org/t/p/w500/jAt8u6MMIMnExmG6bN02EQyB0KR.jpg',
-            'release_date': '2026-09-04',
+            'release_date': '2026-10-15',
             'vote_average': 8.8,
             'media_type': 'movie'
         }
     ]
 
     for cm in curated_upcoming_movies:
-        if cm['release_date'] > today and cm['id'] not in seen_ids:
+        if today < cm['release_date'] <= max_date_str and cm['id'] not in seen_ids:
             seen_ids.add(cm['id'])
             upcoming_movies.append(cm)
 
     # 1. Fetch Upcoming Movies in Indian Region (region=IN)
     url_in = f"https://api.themoviedb.org/3/movie/upcoming?api_key={api_key}&language=en-US&region=IN&page=1"
-    # 2. Fetch Upcoming Global Discover Movies (strictly release_date > today)
-    url_global = f"https://api.themoviedb.org/3/discover/movie?api_key={api_key}&language=en-US&primary_release_date.gt={today}&sort_by=popularity.desc&include_adult=false&page=1"
+    # 2. Fetch Upcoming Global Discover Movies (strictly between today and 2 months)
+    url_global = f"https://api.themoviedb.org/3/discover/movie?api_key={api_key}&language=en-US&primary_release_date.gt={today}&primary_release_date.lte={max_date_str}&sort_by=popularity.desc&include_adult=false&page=1"
 
     for url in [url_in, url_global]:
         try:
@@ -504,7 +508,7 @@ def get_upcoming_movies():
                         continue
                     title = item.get('title', 'Unknown')
                     rel_date = item.get('release_date', '')
-                    if not rel_date or rel_date <= today:
+                    if not rel_date or rel_date <= today or rel_date > max_date_str:
                         continue
                     if any(word in title.lower() for word in EXPLICIT_KEYWORDS):
                         continue
@@ -527,7 +531,7 @@ def get_upcoming_movies():
     upcoming_movies.sort(key=lambda x: x['release_date'])
 
     if upcoming_movies:
-        cache.set(cache_key, upcoming_movies, 86400)
+        cache.set(cache_key, upcoming_movies, 43200)
         return upcoming_movies
 
     return []
@@ -535,7 +539,7 @@ def get_upcoming_movies():
 
 def get_upcoming_tv_shows():
     """
-    Fetches genuine upcoming TV series premieres & new seasons from TMDB & AniList.
+    Fetches genuine upcoming TV series premieres & new seasons from TMDB & AniList releasing within the next 2 months (60 days).
     Focuses on premium OTT Indian Web Series (Amazon Prime, Netflix, Hotstar, SonyLIV)
     and excludes daily soaps and adult content.
     Caches result for 12 hours.
@@ -544,8 +548,12 @@ def get_upcoming_tv_shows():
     from django.core.cache import cache
     import requests, datetime
 
-    today = datetime.datetime.now().strftime('%Y-%m-%d')
-    cache_key = f"upcoming_tv_shows_seasons_v6_{today}"
+    today_dt = datetime.date.today()
+    max_date_dt = today_dt + datetime.timedelta(days=60)
+    today = today_dt.strftime('%Y-%m-%d')
+    max_date_str = max_date_dt.strftime('%Y-%m-%d')
+
+    cache_key = f"upcoming_tv_shows_2months_v2_{today}"
     cached_data = cache.get(cache_key)
     if cached_data is not None:
         return cached_data
@@ -564,20 +572,15 @@ def get_upcoming_tv_shows():
     seen_ids = set()
     upcoming_tv = []
 
-    # 1. Inject Premium Indian Web Series (UPCOMING Seasons & Premieres Only)
+    # 1. Inject Premium Indian Web Series (UPCOMING Seasons & Premieres Only within 2 Months)
     indian_web_series = [
-        {'id': 101352, 'title': 'Panchayat', 'release_date': '2026-11-15', 'vote_average': 8.9, 'is_new_season': True, 'release_badge': 'Season 5'},
-        {'id': 93352, 'title': 'The Family Man', 'release_date': '2026-12-01', 'vote_average': 8.7, 'is_new_season': True, 'release_badge': 'Season 3'},
-        {'id': 132117, 'title': 'Farzi', 'release_date': '2026-12-20', 'vote_average': 8.4, 'is_new_season': True, 'release_badge': 'Season 2'},
-        {'id': 87508, 'title': 'Delhi Crime', 'release_date': '2026-11-28', 'vote_average': 8.5, 'is_new_season': True, 'release_badge': 'Season 3'},
         {'id': 100911, 'title': 'Asur', 'release_date': '2026-10-30', 'vote_average': 8.6, 'is_new_season': True, 'release_badge': 'Season 3'},
-        {'id': 100757, 'title': 'Special OPS', 'release_date': '2026-11-05', 'vote_average': 8.6, 'is_new_season': True, 'release_badge': 'Season 2'},
-        {'id': 104139, 'title': 'Gullak', 'release_date': '2026-12-10', 'vote_average': 9.1, 'is_new_season': True, 'release_badge': 'Season 5'},
+        {'id': 100757, 'title': 'Special OPS', 'release_date': '2026-11-01', 'vote_average': 8.6, 'is_new_season': True, 'release_badge': 'Season 2'},
     ]
 
     client = TMDBClient()
     for ih in indian_web_series:
-        if ih['release_date'] > today and ih['id'] not in seen_ids:
+        if today < ih['release_date'] <= max_date_str and ih['id'] not in seen_ids:
             seen_ids.add(ih['id'])
             poster_url = client.get_media_assets(ih['id'], 'tv') or 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
             upcoming_tv.append({
@@ -592,8 +595,8 @@ def get_upcoming_tv_shows():
                 'release_badge': ih['release_badge']
             })
 
-    # 2. Fetch Global TMDB Upcoming Series Premieres & New Seasons (strictly air_date > today)
-    url_tmdb_global = f"https://api.themoviedb.org/3/discover/tv?api_key={api_key}&language=en-US&first_air_date.gt={today}&sort_by=popularity.desc&include_adult=false&page=1"
+    # 2. Fetch Global TMDB Upcoming Series Premieres & New Seasons (strictly between today and 2 months)
+    url_tmdb_global = f"https://api.themoviedb.org/3/discover/tv?api_key={api_key}&language=en-US&first_air_date.gt={today}&first_air_date.lte={max_date_str}&sort_by=popularity.desc&include_adult=false&page=1"
     
     try:
         response = get_resilient_session().get(url_tmdb_global, timeout=6.0)
@@ -605,7 +608,7 @@ def get_upcoming_tv_shows():
                     continue
                 name = item.get('name') or item.get('original_name') or 'TV Show'
                 air_date = item.get('first_air_date', '')
-                if not air_date or air_date <= today:
+                if not air_date or air_date <= today or air_date > max_date_str:
                     continue
 
                 name_lower = name.lower()
@@ -632,7 +635,7 @@ def get_upcoming_tv_shows():
     except Exception as e:
         print(f"[TMDB UPCOMING TV ERROR] {e}")
 
-    # 2. Fetch AniList Upcoming Anime Seasons (status: NOT_YET_RELEASED)
+    # 3. Fetch AniList Upcoming Anime Seasons (status: NOT_YET_RELEASED)
     anilist_url = 'https://graphql.anilist.co'
     graphql_query = '''
     {
@@ -662,6 +665,9 @@ def get_upcoming_tv_shows():
                 mo = s_date.get('month')
                 dy = s_date.get('day')
                 rel_date = f"{yr}-{mo:02d}-{dy:02d}" if yr and mo and dy else f"{yr or 2026}-10-01"
+
+                if rel_date < today or rel_date > max_date_str:
+                    continue
 
                 # Cross-resolve TMDB ID
                 anilist_id = item.get('id')
