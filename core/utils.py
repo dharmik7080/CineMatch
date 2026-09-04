@@ -914,6 +914,15 @@ def fetch_scene_soundtracks(title, year=None, media_type='movie', tmdb_id=None):
             ("Pass The Dutchie", "Musical Youth", "Season 4 • Ep 2", "Argyle Drives the Surfer Boy Pizza Van"),
             ("Stranger Things Theme", "Kyle Dixon & Michael Stein", "All Seasons", "Iconic Main Title Sequence"),
         ],
+        'kgf': [
+            ("Toofan", "Ravi Basrur, Sri Krishna, Prudhvi Chandra", "00:32:40", "Rocky's Entry & Kolar Gold Fields Conquest Scene"),
+            ("Sulthana", "Ravi Basrur, Mohan Krishna, Sachin Basrur", "00:54:10", "Rocky's Rise & Worker Rebellion Sequence"),
+            ("Mehabooba", "Ananya Bhat, Ravi Basrur", "01:21:05", "Rocky & Reena Emotional Climax Romance Scene"),
+            ("Koti Kanasugala", "Ananya Bhat, Ravi Basrur", "01:45:30", "Mother's Oath & Final Battle Sequence"),
+            ("Dheera Dheera", "Ananya Bhat, Mohan Krishna", "00:08:15", "Rocky's Childhood Promise & Bombay Intro"),
+            ("Gali Gali", "Neha Kakkar, Tanishk Bagchi", "01:10:20", "Gold Club Celebration Dance Scene"),
+            ("Monster Theme", "Ravi Basrur", "02:02:10", "Rocky's Ultimate Empire End Credits Roll"),
+        ],
         'rrr': [
             ("Naatu Naatu", "M. M. Keeravani, Rahul Sipligunj, Kaala Bhairava", "00:58:30", "Iconic Dance Battle Sequence with Ram & Bheem"),
             ("Komuram Bheemudo", "Kaala Bhairava", "02:15:40", "Bheem's Emotional Whipping & Public Resistance Scene"),
@@ -944,7 +953,7 @@ def fetch_scene_soundtracks(title, year=None, media_type='movie', tmdb_id=None):
     
     matched_key = None
     for k in curated_soundtracks:
-        if k in lower_title:
+        if k in lower_title or (k == 'kgf' and ('k.g.f' in lower_title or 'kgf' in lower_title)):
             matched_key = k
             break
 
@@ -978,7 +987,7 @@ def fetch_scene_soundtracks(title, year=None, media_type='movie', tmdb_id=None):
 
     if not tracks:
         search_term = f"{clean_title} soundtrack"
-        itunes_url = f"https://itunes.apple.com/search?term={urllib.parse.quote(search_term)}&entity=song&limit=12"
+        itunes_url = f"https://itunes.apple.com/search?term={urllib.parse.quote(search_term)}&entity=song&limit=15"
         
         try:
             session = get_resilient_session()
@@ -987,15 +996,14 @@ def fetch_scene_soundtracks(title, year=None, media_type='movie', tmdb_id=None):
             if resp.status_code == 200:
                 results = resp.json().get('results', [])
                 
-            # If 0 results, retry searching clean_title directly for Indian / Bollywood soundtracks
+            # Fallback search if 'title + soundtrack' returned empty
             if not results:
-                itunes_url_fallback = f"https://itunes.apple.com/search?term={urllib.parse.quote(clean_title)}&entity=song&limit=12"
+                itunes_url_fallback = f"https://itunes.apple.com/search?term={urllib.parse.quote(clean_title)}&entity=song&limit=15"
                 resp_fb = session.get(itunes_url_fallback, timeout=5.0)
                 if resp_fb.status_code == 200:
                     results = resp_fb.json().get('results', [])
 
             if results:
-                
                 movie_scene_labels = [
                     {"timestamp": "00:08:15", "scene": "Opening Scene / Intro Sequence"},
                     {"timestamp": "00:32:40", "scene": "Key Character Introduction / Turning Point"},
@@ -1019,21 +1027,30 @@ def fetch_scene_soundtracks(title, year=None, media_type='movie', tmdb_id=None):
                 ]
 
                 labels_to_use = tv_scene_labels if media_type == 'tv' else movie_scene_labels
+                import re
+                title_clean_words = set(re.findall(r'\b\w+\b', lower_title)) - {'the', 'a', 'an', 'of', 'and', 'or', 'in', 'on', 'to', 'for', 'part', 'chapter', 'movie', 'soundtrack'}
                 
-                for idx, item in enumerate(results[:12]):
+                for idx, item in enumerate(results):
                     track_name = item.get('trackName', 'Unknown Track')
                     artist_name = item.get('artistName', 'Various Artists')
                     album_name = item.get('collectionName', clean_title)
                     artwork_url = item.get('artworkUrl100', '').replace('100x100bb', '300x300bb') or 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop'
                     preview_url = item.get('previewUrl', '')
                     
+                    # STRICT RELEVANCE CHECK: Exclude unrelated video games, Toby Fox, Deltarune, or tracks not matching title
+                    item_search_str = f"{track_name} {artist_name} {album_name}".lower()
+                    item_words = set(re.findall(r'\b\w+\b', item_search_str))
+                    
+                    # If title clean words exist, at least one word MUST match the item metadata
+                    if title_clean_words and not title_clean_words.intersection(item_words):
+                        continue
+
                     query_str = f"{track_name} {artist_name}"
                     spotify_link = f"https://open.spotify.com/search/{urllib.parse.quote(query_str)}"
                     youtube_link = f"https://www.youtube.com/results?search_query={urllib.parse.quote(query_str + ' official audio')}"
                     
-                    scene_info = labels_to_use[idx % len(labels_to_use)]
+                    scene_info = labels_to_use[len(tracks) % len(labels_to_use)]
                     
-                    # Detect season keywords inside album name if present
                     ts_label = scene_info['timestamp']
                     if media_type == 'tv':
                         album_lower = album_name.lower()
@@ -1043,11 +1060,11 @@ def fetch_scene_soundtracks(title, year=None, media_type='movie', tmdb_id=None):
                             ts_label = 'Season 2'
                         elif 'season 3' in album_lower:
                             ts_label = 'Season 3'
-                        elif 'season 4' in album_lower or 'stranger things 4' in album_lower:
+                        elif 'season 4' in album_lower:
                             ts_label = 'Season 4'
 
                     tracks.append({
-                        'id': idx + 1,
+                        'id': len(tracks) + 1,
                         'track_name': track_name,
                         'artist_name': artist_name,
                         'album_name': album_name,
@@ -1058,36 +1075,14 @@ def fetch_scene_soundtracks(title, year=None, media_type='movie', tmdb_id=None):
                         'timestamp': ts_label,
                         'scene_description': scene_info['scene']
                     })
+                    if len(tracks) >= 12:
+                        break
         except Exception as e:
             print(f"[SOUNDTRACK FETCH ERROR] iTunes query failed for {clean_title}: {e}")
 
-    # Fallback generator if iTunes search returned empty results
-    if not tracks:
-        fallback_songs = [
-            ("Main Theme / Overture", "Original Score", "Season 1 • Ep 1" if media_type == 'tv' else "00:02:10", "Opening Title Card Sequence"),
-            ("Shadows & Hope", "Official Soundtrack Ensemble", "Season 1 • Ep 5" if media_type == 'tv' else "00:45:00", "Central Emotional Turning Point"),
-            ("The Awakening", "Composer Group", "Season 2 • Ep 4" if media_type == 'tv' else "01:15:30", "High Action & Tension Scene"),
-            ("Reunion & Victory", "Symphonic Orchestra", "Season 3 • Ep 8" if media_type == 'tv' else "01:50:20", "Climax & Resolution Scene"),
-            ("Closing Reflections", "Featured Artist", "All Seasons" if media_type == 'tv' else "02:05:00", "End Credits & Final Scene")
-        ]
-        for idx, (t_name, a_name, t_stamp, s_desc) in enumerate(fallback_songs):
-            query_str = f"{clean_title} {t_name}"
-            tracks.append({
-                'id': idx + 1,
-                'track_name': t_name,
-                'artist_name': a_name,
-                'album_name': f"{clean_title} Soundtrack",
-                'artwork_url': 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop',
-                'preview_url': '',
-                'spotify_url': f"https://open.spotify.com/search/{urllib.parse.quote(query_str)}",
-                'youtube_url': f"https://www.youtube.com/results?search_query={urllib.parse.quote(query_str)}",
-                'timestamp': t_stamp,
-                'scene_description': s_desc
-            })
-
     result_payload = {
         'title': clean_title,
-        'has_soundtrack': True,
+        'has_soundtrack': bool(tracks),
         'total_tracks': len(tracks),
         'tracks': tracks
     }
