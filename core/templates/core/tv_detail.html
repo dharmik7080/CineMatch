@@ -1662,6 +1662,7 @@
             <option value="https://vidsrc.xyz/embed/tv/">Server 6 — Vidsrc.xyz</option>
             <option value="https://vidsrc.to/embed/tv/">Server 7 — Vidsrc.to ✦ Subs</option>
             <option value="https://vidsrc.me/embed/tv/">Server 8 — VidSrc.me</option>
+            <option value="https://www.youtube.com/embed/">Server 9 — YouTube Official Stream / Channel</option>
         </select>
 
         <!-- Next Episode Button -->
@@ -2198,6 +2199,9 @@ function getTvEpisodeUrl(baseServerUrl, showId, imdbId, seasonNumber, episodeNum
         rawUrl = `${baseServerUrl}${idToUse}/${seasonNumber}/${episodeNumber}?sub=1&ds_lang=en&autostart=true`;
     } else if (baseServerUrl.includes('autoembed.co')) {
         rawUrl = `https://autoembed.co/tv/tmdb/${showId}-${seasonNumber}-${episodeNumber}`;
+    } else if (baseServerUrl.includes('youtube.com')) {
+        const showTitle = "{{ tv_show.title|escapejs }}";
+        rawUrl = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(showTitle + ' Season ' + seasonNumber + ' Episode ' + episodeNumber)}`;
     } else {
         rawUrl = `${baseServerUrl}${showId}/${seasonNumber}/${episodeNumber}`;
     }
@@ -2309,7 +2313,12 @@ function resetTvEpisodePlayer() {
     const stillImg = document.getElementById('ep-modal-still');
     const serverSelect = document.getElementById('ep-server-select');
     if (serverSelect) {
-        serverSelect.value = "https://vidlink.pro/tv/"; // Default to Server 4 (Vidlink.pro)
+        const showTitleLower = "{{ tv_show.title|escapejs }}".toLowerCase();
+        if (showTitleLower.includes("latent") || showTitleLower.includes("youtube") || showTitleLower.includes("samay raina")) {
+            serverSelect.value = "https://www.youtube.com/embed/";
+        } else {
+            serverSelect.value = "https://vidlink.pro/tv/";
+        }
     }
     
     // Remove theater-mode classes + hide header

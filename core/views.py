@@ -2819,7 +2819,7 @@ def tv_detail_view(request, series_id):
             'name': s.get('name', f"Season {s.get('season_number')}"),
             'episode_count': s.get('episode_count', 0)
         }
-        for s in seasons_list if s.get('season_number') is not None and s.get('season_number') > 0
+        for s in seasons_list if s.get('season_number') is not None and s.get('season_number') >= 0
     ]
     
     # Sort seasons by season_number ascending
