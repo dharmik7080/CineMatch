@@ -458,7 +458,7 @@ def get_upcoming_movies():
     import requests, datetime
 
     today = datetime.datetime.now().strftime('%Y-%m-%d')
-    cache_key = f"upcoming_movies_indian_global_v6_{today}"
+    cache_key = f"upcoming_movies_indian_global_v7_{today}"
     cached_data = cache.get(cache_key)
     if cached_data is not None:
         return cached_data
@@ -469,7 +469,7 @@ def get_upcoming_movies():
     seen_ids = set()
     upcoming_movies = []
 
-    # Inject Curated High-Profile Indian Movies (e.g. Mirzapur: The Movie)
+    # Inject Curated High-Profile Indian Movies
     curated_upcoming_movies = [
         {
             'id': 1378537,
@@ -483,14 +483,14 @@ def get_upcoming_movies():
     ]
 
     for cm in curated_upcoming_movies:
-        if cm['release_date'] >= today and cm['id'] not in seen_ids:
+        if cm['release_date'] > today and cm['id'] not in seen_ids:
             seen_ids.add(cm['id'])
             upcoming_movies.append(cm)
 
     # 1. Fetch Upcoming Movies in Indian Region (region=IN)
     url_in = f"https://api.themoviedb.org/3/movie/upcoming?api_key={api_key}&language=en-US&region=IN&page=1"
-    # 2. Fetch Upcoming Global Discover Movies
-    url_global = f"https://api.themoviedb.org/3/discover/movie?api_key={api_key}&language=en-US&primary_release_date.gte={today}&sort_by=popularity.desc&include_adult=false&page=1"
+    # 2. Fetch Upcoming Global Discover Movies (strictly release_date > today)
+    url_global = f"https://api.themoviedb.org/3/discover/movie?api_key={api_key}&language=en-US&primary_release_date.gt={today}&sort_by=popularity.desc&include_adult=false&page=1"
 
     for url in [url_in, url_global]:
         try:
@@ -503,7 +503,7 @@ def get_upcoming_movies():
                         continue
                     title = item.get('title', 'Unknown')
                     rel_date = item.get('release_date', '')
-                    if not rel_date or rel_date < today:
+                    if not rel_date or rel_date <= today:
                         continue
                     if any(word in title.lower() for word in EXPLICIT_KEYWORDS):
                         continue
@@ -544,7 +544,7 @@ def get_upcoming_tv_shows():
     import requests, datetime
 
     today = datetime.datetime.now().strftime('%Y-%m-%d')
-    cache_key = f"upcoming_tv_shows_seasons_v5_{today}"
+    cache_key = f"upcoming_tv_shows_seasons_v6_{today}"
     cached_data = cache.get(cache_key)
     if cached_data is not None:
         return cached_data
@@ -576,7 +576,7 @@ def get_upcoming_tv_shows():
 
     client = TMDBClient()
     for ih in indian_web_series:
-        if ih['release_date'] >= today and ih['id'] not in seen_ids:
+        if ih['release_date'] > today and ih['id'] not in seen_ids:
             seen_ids.add(ih['id'])
             poster_url = client.get_media_assets(ih['id'], 'tv') or 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=400&auto=format&fit=crop'
             upcoming_tv.append({
@@ -591,8 +591,8 @@ def get_upcoming_tv_shows():
                 'release_badge': ih['release_badge']
             })
 
-    # 2. Fetch Global TMDB Upcoming Series Premieres & New Seasons
-    url_tmdb_global = f"https://api.themoviedb.org/3/discover/tv?api_key={api_key}&language=en-US&first_air_date.gte={today}&sort_by=popularity.desc&include_adult=false&page=1"
+    # 2. Fetch Global TMDB Upcoming Series Premieres & New Seasons (strictly air_date > today)
+    url_tmdb_global = f"https://api.themoviedb.org/3/discover/tv?api_key={api_key}&language=en-US&first_air_date.gt={today}&sort_by=popularity.desc&include_adult=false&page=1"
     
     try:
         response = get_resilient_session().get(url_tmdb_global, timeout=6.0)
@@ -604,7 +604,7 @@ def get_upcoming_tv_shows():
                     continue
                 name = item.get('name') or item.get('original_name') or 'TV Show'
                 air_date = item.get('first_air_date', '')
-                if not air_date or air_date < today:
+                if not air_date or air_date <= today:
                     continue
 
                 name_lower = name.lower()
