@@ -842,19 +842,19 @@ def for_you_feed(request):
     
     from datetime import datetime, timedelta
     today_str = datetime.now().strftime('%Y-%m-%d')
-    past_90_days_str = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
+    past_60_days_str = (datetime.now() - timedelta(days=60)).strftime('%Y-%m-%d')
     
     tmdb_api_key = getattr(settings, 'TMDB_API_KEY', '') or '41fc74ce5602882786e1e9d4933fdcc6'
     
-    # Dynamic Multi-Endpoint TMDB Queries for Live Theatrical & Recent Blockbuster Releases in India (Past 90 Days)
+    # Dynamic Multi-Endpoint TMDB Queries for Live Theatrical & Recent Releases in India (Past 60 Days / 2 Months)
     now_showing_urls = [
         f"{client.base_url}/movie/now_playing?language=en-US&region=IN&page=1",
-        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&region=IN&with_origin_country=IN&primary_release_date.gte={past_90_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1",
-        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&with_original_language=hi&primary_release_date.gte={past_90_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1"
+        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&region=IN&with_origin_country=IN&primary_release_date.gte={past_60_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1",
+        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&with_original_language=hi&primary_release_date.gte={past_60_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1"
     ]
     
     EXPLICIT_KEYWORDS = {'sex', 'erotic', 'porn', 'xxx', 'hentai', 'nude', 'nudity', 'lust'}
-    EXCLUDED_TITLES = {'lost & found in kumbh', 'lost and found in kumbh'}
+    EXCLUDED_TITLES = {'lost & found in kumbh', 'lost and found in kumbh', 'dhamaal 4', 'dhamal 4', 'dhamaal4', 'dhamal4'}
     
     for url in now_showing_urls:
         try:
@@ -871,7 +871,7 @@ def for_you_feed(request):
                         continue
                     
                     title_lower = title.lower().strip()
-                    if title_lower in EXCLUDED_TITLES or 'kumbh' in title_lower:
+                    if title_lower in EXCLUDED_TITLES or 'kumbh' in title_lower or 'dhamaal 4' in title_lower or 'dhamal 4' in title_lower:
                         continue
                     
                     title_words = set(title_lower.split())
@@ -2219,9 +2219,12 @@ def movie_detail_view(request, movie_id):
                         matched_url = url
                         break
             
-            # Fallback to TMDB watch URL if no Watchmode link matches
+            # Fallback to direct provider search URL or TMDB watch URL
             if not matched_url:
-                matched_url = f"https://www.themoviedb.org/movie/{movie_id}/watch?locale=IN"
+                if 'netflix' in norm_provider:
+                    matched_url = f"https://www.netflix.com/search?q={urllib.parse.quote_plus(movie_title)}"
+                else:
+                    matched_url = f"https://www.themoviedb.org/movie/{movie_id}/watch?locale=IN"
                 
             provider['web_url'] = matched_url
 
