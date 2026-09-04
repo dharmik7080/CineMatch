@@ -1197,7 +1197,12 @@ def explore_anime_view(request):
     from core.models import MovieWatchlist
 
     query_str = request.GET.get('q', '').strip()
-    page_number = request.GET.get('page', 1)
+    page_param = request.GET.get('page', 1)
+    try:
+        page_number = int(page_param)
+    except (ValueError, TypeError):
+        page_number = 1
+
     from django.core.cache import cache
     from core.models import MovieWatchlist
 
@@ -1312,6 +1317,15 @@ def explore_anime_view(request):
 
     class MockPage:
         def __init__(self, number, object_list, max_pages):
+            try:
+                number = int(number)
+            except (ValueError, TypeError):
+                number = 1
+            try:
+                max_pages = int(max_pages)
+            except (ValueError, TypeError):
+                max_pages = 1
+
             self.number = number
             self.object_list = object_list
             self.has_previous = number > 1
