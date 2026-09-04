@@ -898,33 +898,68 @@ def fetch_scene_soundtracks(title, year=None, media_type='movie', tmdb_id=None):
     tracks = []
     clean_title = (title or '').strip()
 
-    # Dedicated curated soundtrack lists for iconic TV series
+    # Dedicated curated soundtrack lists for iconic Movies and TV series
     lower_title = clean_title.lower()
-    if media_type == 'tv' and 'stranger things' in lower_title:
-        st_tracks = [
-            ("Running Up That Hill (A Deal With God)", "Kate Bush", "Season 4 • Ep 4", "Max's Escape from Vecna Scene", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop"),
-            ("Master of Puppets", "Metallica", "Season 4 • Ep 9", "Eddie Munson's Upside Down Guitar Solo", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop"),
-            ("Should I Stay or Should I Go", "The Clash", "Season 1 • Ep 2", "Will & Jonathan Listening to Cassette", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop"),
-            ("Never Ending Story", "Gaten Matarazzo & Gabriella Pizzolo", "Season 3 • Ep 8", "Dustin & Suzie's Duet during Starcourt Battle", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop"),
-            ("Separate Ways (Worlds Apart) [Bryce Miller/Remix]", "Journey & Steve Perry", "Season 4 • Ep 8", "The Hawkins Crew Prepares for Battle", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop"),
-            ("Time After Time", "Cyndi Lauper", "Season 2 • Ep 9", "The Snow Ball Dance Finale", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop"),
-            ("Every Breath You Take", "The Police", "Season 2 • Ep 9", "Mind Flayer Oversees Snow Ball Dance", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop"),
-            ("Heroes", "Peter Gabriel / David Bowie", "Season 1 • Ep 3", "Will's Fake Body Discovered in Quarry", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop"),
-            ("Pass The Dutchie", "Musical Youth", "Season 4 • Ep 2", "Argyle Drives the Surfer Boy Pizza Van", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop"),
-            ("Stranger Things Theme", "Kyle Dixon & Michael Stein", "All Seasons", "Iconic Main Title Sequence", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop"),
+    
+    curated_soundtracks = {
+        'stranger things': [
+            ("Running Up That Hill (A Deal With God)", "Kate Bush", "Season 4 • Ep 4", "Max's Escape from Vecna Scene"),
+            ("Master of Puppets", "Metallica", "Season 4 • Ep 9", "Eddie Munson's Upside Down Guitar Solo"),
+            ("Should I Stay or Should I Go", "The Clash", "Season 1 • Ep 2", "Will & Jonathan Listening to Cassette"),
+            ("Never Ending Story", "Gaten Matarazzo & Gabriella Pizzolo", "Season 3 • Ep 8", "Dustin & Suzie's Duet during Starcourt Battle"),
+            ("Separate Ways (Worlds Apart) [Bryce Miller/Remix]", "Journey & Steve Perry", "Season 4 • Ep 8", "The Hawkins Crew Prepares for Battle"),
+            ("Time After Time", "Cyndi Lauper", "Season 2 • Ep 9", "The Snow Ball Dance Finale"),
+            ("Every Breath You Take", "The Police", "Season 2 • Ep 9", "Mind Flayer Oversees Snow Ball Dance"),
+            ("Heroes", "Peter Gabriel / David Bowie", "Season 1 • Ep 3", "Will's Fake Body Discovered in Quarry"),
+            ("Pass The Dutchie", "Musical Youth", "Season 4 • Ep 2", "Argyle Drives the Surfer Boy Pizza Van"),
+            ("Stranger Things Theme", "Kyle Dixon & Michael Stein", "All Seasons", "Iconic Main Title Sequence"),
+        ],
+        'rrr': [
+            ("Naatu Naatu", "M. M. Keeravani, Rahul Sipligunj, Kaala Bhairava", "00:58:30", "Iconic Dance Battle Sequence with Ram & Bheem"),
+            ("Komuram Bheemudo", "Kaala Bhairava", "02:15:40", "Bheem's Emotional Whipping & Public Resistance Scene"),
+            ("Dosti", "M. M. Keeravani, Vedala Hemachandra", "00:22:15", "Train Rescue & Unbreakable Brotherhood Scene"),
+            ("Raam Raavam", "M. M. Keeravani, Sreenivasa Joshi", "02:40:10", "Alluri Sitarama Raju Forest Battle Climax"),
+            ("Etthara Jhanda", "M. M. Keeravani, Vishal Mishra", "03:02:00", "Triumphant End Credits Celebration Track"),
+        ],
+        'animal': [
+            ("Arjan Vailly", "Bhupinder Babbal, Manan Bhardwaj", "01:28:10", "Iconic Axe & Machine Gun Hotel Hallway Fight Scene"),
+            ("Satranga", "Arijit Singh, Shreyas Puranik", "00:42:15", "Ranvijay & Geetanjali Karwa Chauth Emotional Scene"),
+            ("Saari Duniya Jalaa Denge", "B Praak, Jaani", "02:35:00", "Ranvijay's Revenge & Final Airstrip Showdown"),
+            ("Papa Meri Jaan", "Sonu Nigam, Harshavardhan Rameshwar", "00:15:30", "Ranvijay's Childhood Devotion to Balbir Scene"),
+            ("Jamal Kudu", "Khatereh Group", "02:10:45", "Abrar's Wedding Entry with Glass on Head"),
+        ],
+        'jawan': [
+            ("Chaleya", "Arijit Singh, Shilpa Rao, Anirudh Ravichander", "00:48:20", "Shah Rukh Khan & Nayanthara Romantic Cruise Dance"),
+            ("Zinda Banda", "Anirudh Ravichander", "00:28:10", "Vikram Rathore High-Energy Prison Dance Sequence"),
+            ("Not Ramaiya Vastavaiya", "Anirudh Ravichander, Vishal Dadlani", "02:45:00", "Post-Credits Celebration Sequence"),
+            ("Jawan Title Track", "Anirudh Ravichander, Raja Kumari", "00:05:10", "Metro Heist & Bandaged SRK Reveal Scene"),
+        ],
+        'panchayat': [
+            ("Hind Ke Sitare", "Manoj Tiwari", "Season 3 • Ep 8", "Phulera Village Battle & Mayor Showdown"),
+            ("Panchayat Theme", "Anurag Saikia", "All Seasons", "Abhishek Kumar Rides Bicycle into Phulera"),
+            ("Hiya Ho", "Anurag Saikia", "Season 2 • Ep 8", "Prahlad Cha's Emotional Loss Sequence"),
+            ("Gazab Ka Hai Din", "Anurag Saikia", "Season 1 • Ep 6", "Abhishek & Rinki First Water Tanker Meeting"),
         ]
-        for idx, (t_name, a_name, s_tag, s_desc, default_art) in enumerate(st_tracks):
+    }
+    
+    matched_key = None
+    for k in curated_soundtracks:
+        if k in lower_title:
+            matched_key = k
+            break
+
+    if matched_key:
+        for idx, (t_name, a_name, s_tag, s_desc) in enumerate(curated_soundtracks[matched_key]):
             query_str = f"{t_name} {a_name}"
-            # Attempt to fetch preview URL from iTunes
             preview_url = ""
-            art_url = default_art
+            art_url = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop'
             try:
                 it_search = f"https://itunes.apple.com/search?term={urllib.parse.quote(query_str)}&entity=song&limit=1"
                 r = get_resilient_session().get(it_search, timeout=2.5)
                 if r.status_code == 200 and r.json().get('results'):
                     item = r.json()['results'][0]
                     preview_url = item.get('previewUrl', '')
-                    art_url = item.get('artworkUrl100', '').replace('100x100bb', '300x300bb') or default_art
+                    art_url = item.get('artworkUrl100', '').replace('100x100bb', '300x300bb') or art_url
             except Exception:
                 pass
 
@@ -932,7 +967,7 @@ def fetch_scene_soundtracks(title, year=None, media_type='movie', tmdb_id=None):
                 'id': idx + 1,
                 'track_name': t_name,
                 'artist_name': a_name,
-                'album_name': f"Stranger Things Soundtrack",
+                'album_name': f"{clean_title} Soundtrack",
                 'artwork_url': art_url,
                 'preview_url': preview_url,
                 'spotify_url': f"https://open.spotify.com/search/{urllib.parse.quote(query_str)}",
@@ -948,9 +983,18 @@ def fetch_scene_soundtracks(title, year=None, media_type='movie', tmdb_id=None):
         try:
             session = get_resilient_session()
             resp = session.get(itunes_url, timeout=5.0)
+            results = []
             if resp.status_code == 200:
-                data = resp.json()
-                results = data.get('results', [])
+                results = resp.json().get('results', [])
+                
+            # If 0 results, retry searching clean_title directly for Indian / Bollywood soundtracks
+            if not results:
+                itunes_url_fallback = f"https://itunes.apple.com/search?term={urllib.parse.quote(clean_title)}&entity=song&limit=12"
+                resp_fb = session.get(itunes_url_fallback, timeout=5.0)
+                if resp_fb.status_code == 200:
+                    results = resp_fb.json().get('results', [])
+
+            if results:
                 
                 movie_scene_labels = [
                     {"timestamp": "00:08:15", "scene": "Opening Scene / Intro Sequence"},
