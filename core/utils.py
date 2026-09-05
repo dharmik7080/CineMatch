@@ -293,7 +293,7 @@ def fetch_trending_anime():
     from django.core.cache import cache
     import requests, urllib.parse
 
-    cache_key = "anilist_popular_anime_feed_v4"
+    cache_key = "anilist_popular_anime_feed_v6"
     cached = cache.get(cache_key)
     if cached:
         return cached
@@ -339,6 +339,8 @@ def fetch_trending_anime():
 
             from concurrent.futures import ThreadPoolExecutor
 
+            client = TMDBClient()
+
             def process_anime(pair):
                 title, item = pair
                 cover = item.get('coverImage', {}).get('extraLarge') or item.get('coverImage', {}).get('large') or ''
@@ -348,6 +350,10 @@ def fetch_trending_anime():
 
                 anilist_id = item.get('id')
                 tmdb_id = resolve_anilist_to_tmdb_id(title, fallback_id=anilist_id)
+                
+                # Fetch reliable TMDB poster to prevent AniList CDN hotlinking / 403 breakage
+                tmdb_poster = client.get_media_assets(tmdb_id, 'tv') if tmdb_id else None
+                final_poster = tmdb_poster or cover or 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=400&auto=format&fit=crop'
 
                 return {
                     'id': tmdb_id,
@@ -356,8 +362,8 @@ def fetch_trending_anime():
                     'title': title,
                     'name': title,
                     'media_type': 'tv',
-                    'poster_url': cover,
-                    'backdrop_url': item.get('bannerImage') or cover,
+                    'poster_url': final_poster,
+                    'backdrop_url': item.get('bannerImage') or final_poster,
                     'vote_average': vote_avg,
                     'episodes': item.get('episodes') or 'TV',
                     'genres': genres,
@@ -375,12 +381,12 @@ def fetch_trending_anime():
         print(f"[ANILIST POPULAR FETCH ERROR] {e}")
 
     fallback_anime = [
-        {'id': 1429, 'media_id': 1429, 'title': 'Attack on Titan', 'name': 'Attack on Titan', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx16498-73ZaRzS3tv9o.png', 'vote_average': 8.5, 'genres': 'Action | Drama', 'media_type': 'tv'},
-        {'id': 85937, 'media_id': 85937, 'title': 'Demon Slayer', 'name': 'Demon Slayer', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx101922-W1Z6WGaB1a9B.png', 'vote_average': 8.3, 'genres': 'Action | Fantasy', 'media_type': 'tv'},
-        {'id': 95479, 'media_id': 95479, 'title': 'JUJUTSU KAISEN', 'name': 'JUJUTSU KAISEN', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx113415-bbBWj4pGFrFj.jpg', 'vote_average': 8.4, 'genres': 'Action | Supernatural', 'media_type': 'tv'},
-        {'id': 13916, 'media_id': 13916, 'title': 'Death Note', 'name': 'Death Note', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1535-lawyer.jpg', 'vote_average': 8.4, 'genres': 'Mystery | Psychological', 'media_type': 'tv'},
-        {'id': 46298, 'media_id': 46298, 'title': 'Hunter x Hunter', 'name': 'Hunter x Hunter', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx11061-sP5vWxFdHzB8.png', 'vote_average': 8.9, 'genres': 'Action | Adventure', 'media_type': 'tv'},
-        {'id': 37854, 'media_id': 37854, 'title': 'ONE PIECE', 'name': 'ONE PIECE', 'poster_url': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21-u44yqKi1268h.png', 'vote_average': 8.7, 'genres': 'Action | Adventure', 'media_type': 'tv'}
+        {'id': 1429, 'media_id': 1429, 'title': 'Attack on Titan', 'name': 'Attack on Titan', 'poster_url': 'https://image.tmdb.org/t/p/w500/hTP1DtLGFamjL2rmWjvepYmEwB5.jpg', 'vote_average': 8.5, 'genres': 'Action | Drama', 'media_type': 'tv'},
+        {'id': 85937, 'media_id': 85937, 'title': 'Demon Slayer', 'name': 'Demon Slayer', 'poster_url': 'https://image.tmdb.org/t/p/w500/xUfVStVxBOZ1jFjY3fG2EXFInFZ.jpg', 'vote_average': 8.3, 'genres': 'Action | Fantasy', 'media_type': 'tv'},
+        {'id': 95479, 'media_id': 95479, 'title': 'JUJUTSU KAISEN', 'name': 'JUJUTSU KAISEN', 'poster_url': 'https://image.tmdb.org/t/p/w500/hEuoGknioYmR2yL1WFvM3j5w4vE.jpg', 'vote_average': 8.4, 'genres': 'Action | Supernatural', 'media_type': 'tv'},
+        {'id': 13916, 'media_id': 13916, 'title': 'Death Note', 'name': 'Death Note', 'poster_url': 'https://image.tmdb.org/t/p/w500/t889bYJLmSuHWjYy6aXwW449174.jpg', 'vote_average': 8.4, 'genres': 'Mystery | Psychological', 'media_type': 'tv'},
+        {'id': 46298, 'media_id': 46298, 'title': 'Hunter x Hunter', 'name': 'Hunter x Hunter', 'poster_url': 'https://image.tmdb.org/t/p/w500/ucB8y3B8u7a2b9F4r49E7f8W3kL.jpg', 'vote_average': 8.9, 'genres': 'Action | Adventure', 'media_type': 'tv'},
+        {'id': 37854, 'media_id': 37854, 'title': 'ONE PIECE', 'name': 'ONE PIECE', 'poster_url': 'https://image.tmdb.org/t/p/w500/cMD9Ygz11VJjvyZ9vDwcIOwVPGo.jpg', 'vote_average': 8.7, 'genres': 'Action | Adventure', 'media_type': 'tv'}
     ]
     return fallback_anime
 
