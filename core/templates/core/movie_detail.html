@@ -2358,9 +2358,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const cityLabels = document.querySelectorAll(".ticket-city-name");
 
     if (citySelect && bmsLink && districtLink) {
-        const savedCity = localStorage.getItem("cinematch_user_city") || "Ahmedabad";
-        citySelect.value = savedCity;
-
         function updateCityLinks(city) {
             const encodedTitle = encodeURIComponent(movieTitle);
             const encodedCity = encodeURIComponent(city);
@@ -2369,9 +2366,49 @@ document.addEventListener("DOMContentLoaded", function () {
             districtLink.href = `https://www.google.com/search?q=district+zomato+${encodedCity}+${encodedTitle}`;
 
             cityLabels.forEach(el => { el.textContent = city; });
+
+            let optionFound = false;
+            for (let opt of citySelect.options) {
+                if (opt.value.toLowerCase() === city.toLowerCase()) {
+                    citySelect.value = opt.value;
+                    optionFound = true;
+                    break;
+                }
+            }
+            if (!optionFound) {
+                const newOpt = document.createElement("option");
+                newOpt.value = city;
+                newOpt.textContent = "📍 " + city;
+                newOpt.selected = true;
+                citySelect.appendChild(newOpt);
+            }
         }
 
-        updateCityLinks(savedCity);
+        const savedCity = localStorage.getItem("cinematch_user_city");
+
+        if (savedCity) {
+            updateCityLinks(savedCity);
+        } else {
+            updateCityLinks("Ahmedabad");
+
+            fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) })
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.city) {
+                        let detectedCity = data.city.trim();
+                        if (detectedCity.toLowerCase() === "new delhi" || detectedCity.toLowerCase() === "delhi") {
+                            detectedCity = "Delhi NCR";
+                        } else if (detectedCity.toLowerCase() === "bangalore") {
+                            detectedCity = "Bengaluru";
+                        }
+                        localStorage.setItem("cinematch_user_city", detectedCity);
+                        updateCityLinks(detectedCity);
+                    }
+                })
+                .catch(err => {
+                    console.log("Auto-location fallback to default city:", err);
+                });
+        }
 
         citySelect.addEventListener("change", function () {
             const newCity = this.value;
