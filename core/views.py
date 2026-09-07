@@ -579,9 +579,9 @@ def logout_view(request):
 def home_redirect(request):
     """
     Intelligent Root Redirection gatekeeper (Unit 8 Routing)
-    Redirects all users to the home feed.
+    Redirects all root visits directly to /feed/.
     """
-    return redirect('for_you_feed')
+    return redirect('/feed/')
 
 
 
@@ -888,7 +888,7 @@ def for_you_feed(request):
                     
                     poster_url = get_cached_poster(client, movie_id, 'movie')
                     encoded_title = urllib.parse.quote_plus(title)
-                    booking_url = f"https://in.bookmyshow.com/explore/home/ahmedabad?search={encoded_title}"
+                    booking_url = f"https://www.google.com/search?q=bookmyshow+{encoded_title}"
                     trailer_url = f"https://www.youtube.com/results?search_query={encoded_title}+official+trailer"
                     
                     now_showing.append({
@@ -919,14 +919,14 @@ def for_you_feed(request):
         for item in now_showing_fallback:
             item['poster_url'] = get_cached_poster(client, item['media_id'], item['media_type'])
             encoded_title = urllib.parse.quote_plus(item['title'])
-            item['booking_url'] = f"https://in.bookmyshow.com/explore/home/ahmedabad?search={encoded_title}"
+            item['booking_url'] = f"https://www.google.com/search?q=bookmyshow+{encoded_title}"
             item['trailer_url'] = f"https://www.youtube.com/results?search_query={encoded_title}+official+trailer"
             now_showing.append(item)
     
     # ── CACHE-ASIDE PATTERN FOR PERSONALIZED RECOMMENDATIONS ──
     from django.core.cache import cache
     if user.is_authenticated:
-        cache_key = f"user_feed_v3_{user.id}"
+        cache_key = f"user_feed_v4_{user.id}"
         recs = None
         try:
             recs = cache.get(cache_key)
@@ -949,7 +949,7 @@ def for_you_feed(request):
                     'recommended_tv_shows': []
                 }
     else:
-        cache_key = "user_feed_v3_anonymous"
+        cache_key = "user_feed_v4_anonymous"
         recs = None
         try:
             recs = cache.get(cache_key)

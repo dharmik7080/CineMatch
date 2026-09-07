@@ -1,5 +1,5 @@
 {% extends 'core/base.html' %}
-{% load humanize %}
+{% load static humanize %}
 
 {% block title %}{{ movie.title }} — CineMatch{% endblock %}
 
@@ -98,6 +98,40 @@
     color: #ffffff;
     border-color: #ef4444;
     transform: scale(1.1);
+}
+
+/* ── City Pill Selector Styling ── */
+.city-pill-select {
+    background-color: rgba(239, 68, 68, 0.12) !important;
+    color: #fecdd3 !important;
+    border: 1px solid rgba(239, 68, 68, 0.35) !important;
+    border-radius: 20px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    padding: 0.25rem 1.6rem 0.25rem 0.75rem !important;
+    cursor: pointer !important;
+    transition: all 0.25s ease !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23fecdd3'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.55rem center !important;
+    background-size: 10px 10px !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+}
+.city-pill-select:hover, .city-pill-select:focus {
+    background-color: rgba(239, 68, 68, 0.22) !important;
+    border-color: rgba(239, 68, 68, 0.6) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.25) !important;
+}
+.city-pill-select option {
+    background-color: #12121a !important;
+    color: #e5e7eb !important;
+    padding: 8px !important;
 }
 
 /* ── Hero Backdrop ── */
@@ -1346,15 +1380,62 @@
                     <h2 class="section-heading">Quick Links</h2>
                     <div class="d-grid gap-2">
                         
-                        {% if is_now_showing %}
-                        <a href="https://in.bookmyshow.com/explore/home/ahmedabad?search={{ movie.title|urlencode }}"
-                           target="_blank" rel="noopener"
-                           class="btn rounded-pill py-2"
-                           style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3);
-                                  color:#f87171; font-size:0.84rem; font-weight:600;">
-                            <i class="fa-solid fa-ticket me-2"></i> Book Tickets — BookMyShow
-                        </a>
-                        {% endif %}
+                {% if is_now_showing %}
+                <div class="sidebar-card mb-4">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                        <h2 class="section-heading mb-0 text-nowrap" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-ticket text-warning"></i> Ticket Booking
+                        </h2>
+                        <div class="d-flex align-items-center">
+                            <select id="ticketCitySelect" class="form-select form-select-sm city-pill-select">
+                                <option value="Ahmedabad">📍 Ahmedabad</option>
+                                <option value="Mumbai">📍 Mumbai</option>
+                                <option value="Delhi NCR">📍 Delhi NCR</option>
+                                <option value="Bengaluru">📍 Bengaluru</option>
+                                <option value="Pune">📍 Pune</option>
+                                <option value="Hyderabad">📍 Hyderabad</option>
+                                <option value="Chennai">📍 Chennai</option>
+                                <option value="Kolkata">📍 Kolkata</option>
+                                <option value="Surat">📍 Surat</option>
+                                <option value="Jaipur">📍 Jaipur</option>
+                                <option value="Chandigarh">📍 Chandigarh</option>
+                                <option value="Lucknow">📍 Lucknow</option>
+                                <option value="Indore">📍 Indore</option>
+                                <option value="Kochi">📍 Kochi</option>
+                            </select>
+                        </div>
+                    </div>
+                    <a id="bmsTicketLink" href="https://www.google.com/search?q=bookmyshow+ahmedabad+{{ movie.title|urlencode }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none" style="color: inherit;">
+                        <div class="provider-row" style="cursor: pointer;">
+                            <img class="provider-logo"
+                                 src="{% static 'images/vecteezy_bookmyshow-transparent-icon_50816799.png' %}"
+                                 alt="BookMyShow logo"
+                                 style="width: 52px; height: 52px; border: none; border-radius: 0; background: transparent; object-fit: contain;"
+                                 loading="lazy">
+                            <div class="d-flex flex-column">
+                                <span class="provider-name" style="line-height: 1.2;">BookMyShow</span>
+                                <span id="bmsCityLabel" style="font-size: 0.72rem; color: #9ca3af;">Showtimes & Seats &bull; <span class="ticket-city-name">Ahmedabad</span></span>
+                            </div>
+                        </div>
+                    </a>
+                    <a id="districtTicketLink" href="https://www.google.com/search?q=district+zomato+ahmedabad+{{ movie.title|urlencode }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none" style="color: inherit;">
+                        <div class="provider-row" style="cursor: pointer;">
+                            <img class="provider-logo"
+                                 src="{% static 'images/vecteezy_district-by-zomato-app-icon-on-transparent-background_57355796.png' %}"
+                                 alt="District by Zomato logo"
+                                 style="width: 52px; height: 52px; border: none; border-radius: 0; background: transparent; object-fit: contain;"
+                                 loading="lazy">
+                            <div class="d-flex flex-column">
+                                <span class="provider-name" style="line-height: 1.2;">District by Zomato</span>
+                                <span id="districtCityLabel" style="font-size: 0.72rem; color: #9ca3af;">Book Tickets & Offers &bull; <span class="ticket-city-name">Ahmedabad</span></span>
+                            </div>
+                        </div>
+                    </a>
+                    <p class="mt-3 mb-0" style="font-size:0.72rem; color:#6b7280; text-align:right;">
+                        Now Showing in Indian Theatres &bull; Region: IN
+                    </p>
+                </div>
+                {% endif %}
 
                         {% if trailer_url %}
                         <button onclick="openTrailerModal()"
@@ -2267,5 +2348,37 @@ function dismissRecommendation(btn, mediaId, mediaType) {
         console.error("Error dismissing recommendation:", err);
     });
 }
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const movieTitle = "{{ movie.title|escapejs }}";
+    const citySelect = document.getElementById("ticketCitySelect");
+    const bmsLink = document.getElementById("bmsTicketLink");
+    const districtLink = document.getElementById("districtTicketLink");
+    const cityLabels = document.querySelectorAll(".ticket-city-name");
+
+    if (citySelect && bmsLink && districtLink) {
+        const savedCity = localStorage.getItem("cinematch_user_city") || "Ahmedabad";
+        citySelect.value = savedCity;
+
+        function updateCityLinks(city) {
+            const encodedTitle = encodeURIComponent(movieTitle);
+            const encodedCity = encodeURIComponent(city);
+
+            bmsLink.href = `https://www.google.com/search?q=bookmyshow+${encodedCity}+${encodedTitle}`;
+            districtLink.href = `https://www.google.com/search?q=district+zomato+${encodedCity}+${encodedTitle}`;
+
+            cityLabels.forEach(el => { el.textContent = city; });
+        }
+
+        updateCityLinks(savedCity);
+
+        citySelect.addEventListener("change", function () {
+            const newCity = this.value;
+            localStorage.setItem("cinematch_user_city", newCity);
+            updateCityLinks(newCity);
+        });
+    }
+});
 </script>
 {% endblock %}

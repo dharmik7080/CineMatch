@@ -399,6 +399,25 @@
         box-shadow: 0 4px 16px rgba(0,0,0,0.5);
     }
 
+    .btn-ticket {
+        background: rgba(15, 23, 42, 0.85) !important;
+        border: 1px solid rgba(245, 158, 11, 0.6) !important;
+        color: #f59e0b !important;
+    }
+    .btn-ticket i {
+        color: #f59e0b !important;
+        transition: color 0.2s ease !important;
+    }
+    .btn-ticket:hover {
+        background: #f59e0b !important;
+        border-color: #f59e0b !important;
+        color: #0f172a !important;
+        box-shadow: 0 4px 16px rgba(245, 158, 11, 0.5) !important;
+    }
+    .btn-ticket:hover i {
+        color: #0f172a !important;
+    }
+
     .rec-poster {
         aspect-ratio: 2 / 3;
         overflow: hidden;
@@ -811,7 +830,7 @@
                                 {% endif %}
                                 {% if item.booking_url %}
                                 <a href="{{ item.booking_url }}" target="_blank" rel="noopener"
-                                   class="btn btn-outline-light btn-circle"
+                                   class="btn btn-ticket btn-circle"
                                    title="Book Tickets"
                                    style="transform:translateZ(0);">
                                     <i class="fa-solid fa-ticket fs-5"></i>

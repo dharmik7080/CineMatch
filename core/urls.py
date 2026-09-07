@@ -5,11 +5,12 @@ Syllabus Reference: Unit 8: Django routing & MVT architecture
 
 from django.urls import path
 from django.contrib.auth import views as auth_views
+from django.views.generic import RedirectView
 from . import views
 
 urlpatterns = [
-    # Intelligent Root Routing
-    path('', views.home_redirect, name='home'),
+    # Intelligent Root Routing -> Redirects / directly to /feed/
+    path('', RedirectView.as_view(url='/feed/', permanent=False), name='home'),
 
     # User Registration / Signup
     path('register/', views.signup_view, name='register'),
