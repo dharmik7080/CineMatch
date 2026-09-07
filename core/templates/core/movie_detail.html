@@ -2391,15 +2391,18 @@ document.addEventListener("DOMContentLoaded", function () {
         } else {
             updateCityLinks("Ahmedabad");
 
-            fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) })
+            fetch("https://get.geojs.io/v1/ip/geo.json")
                 .then(res => res.json())
                 .then(data => {
-                    if (data && data.city) {
-                        let detectedCity = data.city.trim();
-                        if (detectedCity.toLowerCase() === "new delhi" || detectedCity.toLowerCase() === "delhi") {
+                    let city = data && (data.city || data.cityName);
+                    if (city) {
+                        let detectedCity = city.trim();
+                        if (detectedCity.toLowerCase().includes("delhi")) {
                             detectedCity = "Delhi NCR";
-                        } else if (detectedCity.toLowerCase() === "bangalore") {
+                        } else if (detectedCity.toLowerCase().includes("bangalore")) {
                             detectedCity = "Bengaluru";
+                        } else if (detectedCity.toLowerCase().includes("ahmadabad") || detectedCity.toLowerCase().includes("ahmedabad")) {
+                            detectedCity = "Ahmedabad";
                         }
                         localStorage.setItem("cinematch_user_city", detectedCity);
                         updateCityLinks(detectedCity);
