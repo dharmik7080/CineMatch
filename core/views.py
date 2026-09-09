@@ -846,11 +846,11 @@ def for_you_feed(request):
     
     tmdb_api_key = getattr(settings, 'TMDB_API_KEY', '') or '41fc74ce5602882786e1e9d4933fdcc6'
     
-    # Dynamic Multi-Endpoint TMDB Queries for Live Theatrical Releases in Indian Cinemas (strictly release_type=3 - Theatrical)
+    # Dynamic Multi-Endpoint TMDB Queries for Live Theatrical Releases in Indian Cinemas (strictly now_playing)
     now_showing_urls = [
+        f"{client.base_url}/movie/now_playing?api_key={tmdb_api_key}&language=en-US&region=IN&page=1",
         f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&region=IN&with_release_type=3&primary_release_date.gte={past_60_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1",
-        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&region=IN&with_release_type=3&with_origin_country=IN&primary_release_date.gte={past_60_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1",
-        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&region=IN&with_release_type=3&with_original_language=hi&primary_release_date.gte={past_60_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1"
+        f"{client.base_url}/discover/movie?api_key={tmdb_api_key}&language=en-US&region=IN&with_release_type=3&with_origin_country=IN&primary_release_date.gte={past_60_days_str}&primary_release_date.lte={today_str}&sort_by=popularity.desc&page=1"
     ]
     
     EXPLICIT_KEYWORDS = {'sex', 'erotic', 'porn', 'xxx', 'hentai', 'nude', 'nudity', 'lust'}
@@ -881,6 +881,18 @@ def for_you_feed(request):
                     if title_words.intersection(EXPLICIT_KEYWORDS):
                         continue
                     
+                    # Strictly check watch providers in region IN to filter out movies already available on OTT (flatrate streaming)
+                    try:
+                        prov_url = f"{client.base_url}/movie/{movie_id}/watch/providers?api_key={tmdb_api_key}"
+                        prov_resp = get_resilient_session().get(prov_url, headers=client.headers, timeout=2.0)
+                        if prov_resp.status_code == 200:
+                            in_prov = prov_resp.json().get('results', {}).get('IN', {})
+                            if in_prov.get('flatrate'):
+                                # Movie is already available on OTT streaming -> Exclude from theatrical section
+                                continue
+                    except Exception:
+                        pass
+
                     seen_showing_ids.add(movie_id)
                     genre_ids = movie_data.get('genre_ids', [])
                     genre_names = [TMDB_GENRE_MAP.get(gid) for gid in genre_ids if TMDB_GENRE_MAP.get(gid)]
